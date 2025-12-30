@@ -63,7 +63,9 @@ const DraggableTodoItem: React.FC<DraggableTodoItemProps> = ({ todo, index, onMo
 
   return (
     <div
-      ref={(node) => drag(drop(node))}
+      ref={(node) => {
+        drag(drop(node));
+      }}
       style={{
         opacity: isDragging ? 0.5 : 1,
         cursor: 'move',
@@ -79,7 +81,7 @@ interface TodoListProps {
   date: string;
 }
 
-const TodoList: React.FC<TodoListProps> = ({ todos: initialTodos, date }) => {
+const TodoList: React.FC<TodoListProps> = ({ todos: initialTodos }) => {
   const { updateTodoPosition } = useTodos();
   const [todos, setTodos] = useState<Todo[]>(initialTodos);
 

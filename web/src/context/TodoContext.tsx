@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import type { Todo, WebSocketMessage } from '../types';
 import { WebSocketMessageType } from '../types';
 import { todoApi } from '../services/todoApi';
@@ -34,7 +34,7 @@ interface TodoProviderProps {
 }
 
 export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [todos, setTodos] = useState<Map<string, Todo[]>>(new Map());
   const [selectedDate, setSelectedDate] = useState<Date>(getCurrentDate());
   const [viewMode, setViewMode] = useState<ViewMode>(1);

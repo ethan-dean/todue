@@ -11,13 +11,15 @@ export interface AuthResponse {
 }
 
 // Todo types
-export enum RecurrenceType {
-  DAILY = 'DAILY',
-  WEEKLY = 'WEEKLY',
-  BIWEEKLY = 'BIWEEKLY',
-  MONTHLY = 'MONTHLY',
-  YEARLY = 'YEARLY',
-}
+export const RecurrenceType = {
+  DAILY: 'DAILY',
+  WEEKLY: 'WEEKLY',
+  BIWEEKLY: 'BIWEEKLY',
+  MONTHLY: 'MONTHLY',
+  YEARLY: 'YEARLY',
+} as const;
+
+export type RecurrenceType = typeof RecurrenceType[keyof typeof RecurrenceType];
 
 export interface Todo {
   id: number | null;
@@ -41,10 +43,12 @@ export interface RecurringTodo {
 }
 
 // WebSocket types
-export enum WebSocketMessageType {
-  TODOS_CHANGED = 'TODOS_CHANGED',      // Single date changed - refetch that date
-  RECURRING_CHANGED = 'RECURRING_CHANGED', // Recurring pattern changed - refetch all visible dates
-}
+export const WebSocketMessageType = {
+  TODOS_CHANGED: 'TODOS_CHANGED',      // Single date changed - refetch that date
+  RECURRING_CHANGED: 'RECURRING_CHANGED', // Recurring pattern changed - refetch all visible dates
+} as const;
+
+export type WebSocketMessageType = typeof WebSocketMessageType[keyof typeof WebSocketMessageType];
 
 export interface WebSocketMessage<T = any> {
   type: WebSocketMessageType;

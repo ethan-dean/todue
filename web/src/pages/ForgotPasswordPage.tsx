@@ -1,4 +1,4 @@
-import React, { useState, FormEvent } from 'react';
+import React, { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { authApi } from '../services/authApi';
 import { handleApiError } from '../services/api';

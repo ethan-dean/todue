@@ -1,6 +1,5 @@
-import React, { useState, KeyboardEvent } from 'react';
+import React, { useState, type KeyboardEvent } from 'react';
 import { useTodos } from '../context/TodoContext';
-import { formatDateForAPI } from '../utils/dateUtils';
 
 interface AddTodoInputProps {
   date: Date;
