@@ -56,19 +56,28 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
   }, [viewMode]);
 
   // Helper to record mutations we just made (to avoid refetching our own changes)
+  const MUTATION_TRACKING_DURATION_MS = 2000;
+
   const recordMutation = useCallback((date: string) => {
     const key = date;
     recentMutationsRef.current.add(key);
 
-    // Auto-cleanup after 2 seconds
+    // Auto-cleanup after duration expires
     setTimeout(() => {
       recentMutationsRef.current.delete(key);
-    }, 2000);
+    }, MUTATION_TRACKING_DURATION_MS);
   }, []);
 
   // Helper to check if a mutation is one we recently made
   const isRecentMutation = useCallback((date: string): boolean => {
     return recentMutationsRef.current.has(date);
+  }, []);
+
+  // Helper to parse ISO date string (YYYY-MM-DD) to Date object in local timezone
+  // Avoids timezone shift issues when using new Date(string) which interprets as UTC
+  const parseDateString = useCallback((dateStr: string): Date => {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day);
   }, []);
 
   const loadTodosForDate = useCallback(async (date: Date, silent: boolean = false): Promise<void> => {
@@ -229,8 +238,6 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
 
       updateTodoInState(completedTodo);
     } catch (err) {
-      // If API call failed, we need to clear the mutation record
-      // so that external changes can still refresh properly
       const errorMessage = handleApiError(err);
       setError(errorMessage);
       throw new Error(errorMessage);
@@ -353,23 +360,16 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
             if (viewModeRef.current === 1) {
               // Single day view - only refetch if it's the selected date
               if (formatDateForAPI(selectedDateRef.current) === date) {
-                // Parse date string to Date object in local timezone (not UTC)
-                // The date string is in YYYY-MM-DD format, parse it as local date
-                const [year, month, day] = date.split('-').map(Number);
-                const dateObj = new Date(year, month - 1, day);
                 // Silent refetch - don't show loading spinner for external changes
-                loadTodosForDate(dateObj, true);
+                loadTodosForDate(parseDateString(date), true);
               }
             } else {
               // Multi-day view - refetch if the date is in visible range
               const dates = getDateRange(selectedDateRef.current, viewModeRef.current);
               const isVisible = dates.some(d => formatDateForAPI(d) === date);
               if (isVisible) {
-                // Parse date string to Date object in local timezone (not UTC)
-                const [year, month, day] = date.split('-').map(Number);
-                const dateObj = new Date(year, month - 1, day);
                 // Silent refetch - don't show loading spinner for external changes
-                loadTodosForDate(dateObj, true);
+                loadTodosForDate(parseDateString(date), true);
               }
             }
           }
@@ -384,7 +384,7 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
       default:
         console.warn('Unknown WebSocket message type:', message.type);
     }
-  }, [isRecentMutation, loadTodosForDate, loadTodosForCurrentView]);
+  }, [isRecentMutation, parseDateString, loadTodosForDate, loadTodosForCurrentView]);
 
   // Load todos when date or view mode changes
   useEffect(() => {

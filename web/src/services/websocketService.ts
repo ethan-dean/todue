@@ -1,4 +1,4 @@
-import { Client } from '@stomp/stompjs';
+import { Client, type StompSubscription } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import type { WebSocketMessage } from '../types';
 
@@ -12,7 +12,7 @@ class WebSocketService {
   private reconnectDelay = 3000;
   private callbacks: Map<string, (message: WebSocketMessage) => void> = new Map();
   private connectionListeners: Array<() => void> = [];
-  private subscription: any = null;
+  private subscription: StompSubscription | null = null;
 
   /**
    * Connect to WebSocket with JWT token
