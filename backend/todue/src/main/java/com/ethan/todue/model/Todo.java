@@ -12,12 +12,16 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "todos", indexes = {
-    @Index(name = "idx_user_assigned_date", columnList = "user_id, assigned_date"),
-    @Index(name = "idx_user_assigned_completed", columnList = "user_id, assigned_date, is_completed"),
-    @Index(name = "idx_recurring_instance", columnList = "recurring_todo_id, instance_date"),
-    @Index(name = "idx_user_completed_assigned", columnList = "user_id, is_completed, assigned_date")
-})
+@Table(name = "todos",
+    indexes = {
+        @Index(name = "idx_user_assigned_date", columnList = "user_id, assigned_date"),
+        @Index(name = "idx_user_assigned_completed", columnList = "user_id, assigned_date, is_completed"),
+        @Index(name = "idx_user_completed_assigned", columnList = "user_id, is_completed, assigned_date")
+    },
+    uniqueConstraints = {
+        @UniqueConstraint(name = "uk_recurring_instance", columnNames = {"recurring_todo_id", "instance_date"})
+    }
+)
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

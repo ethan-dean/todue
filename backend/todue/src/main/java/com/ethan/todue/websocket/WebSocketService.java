@@ -30,7 +30,8 @@ public class WebSocketService {
      */
     public void notifyTodosChanged(Long userId, LocalDate date) {
         Map<String, Object> data = new HashMap<>();
-        data.put("date", date);
+        // Send date as string in ISO format (yyyy-MM-dd) for frontend compatibility
+        data.put("date", date.toString());
 
         WebSocketMessage<Map<String, Object>> message = new WebSocketMessage<>(
                 WebSocketMessageType.TODOS_CHANGED,

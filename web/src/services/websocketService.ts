@@ -1,6 +1,6 @@
-import { Client, IMessage } from '@stomp/stompjs';
+import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
-import { WebSocketMessage } from '../types';
+import type { WebSocketMessage } from '../types';
 
 const WS_URL = import.meta.env.VITE_WS_URL || 'http://localhost:8080/ws';
 
@@ -11,6 +11,8 @@ class WebSocketService {
   private maxReconnectAttempts = 5;
   private reconnectDelay = 3000;
   private callbacks: Map<string, (message: WebSocketMessage) => void> = new Map();
+  private connectionListeners: Array<() => void> = [];
+  private subscription: any = null;
 
   /**
    * Connect to WebSocket with JWT token
@@ -34,6 +36,11 @@ class WebSocketService {
       this.client.onConnect = () => {
         console.log('WebSocket connected');
         this.reconnectAttempts = 0;
+
+        // Notify all connection listeners
+        this.connectionListeners.forEach(listener => listener());
+        this.connectionListeners = [];
+
         resolve();
       };
 
@@ -57,6 +64,20 @@ class WebSocketService {
   }
 
   /**
+   * Register a callback to be called when connection is established
+   * If already connected, callback is called immediately
+   */
+  onConnectionEstablished(callback: () => void): void {
+    if (this.isConnected()) {
+      // Already connected, call immediately
+      callback();
+    } else {
+      // Not connected yet, register for future notification
+      this.connectionListeners.push(callback);
+    }
+  }
+
+  /**
    * Handle reconnection logic
    */
   private handleReconnect(token: string, userId: number): void {
@@ -75,16 +96,23 @@ class WebSocketService {
 
   /**
    * Subscribe to user's update channel
+   * Returns unsubscribe function
    */
-  subscribe(callback: (message: WebSocketMessage) => void): void {
+  subscribe(callback: (message: WebSocketMessage) => void): () => void {
     if (!this.client || !this.userId) {
       console.error('WebSocket not connected or userId not set');
-      return;
+      return () => {};
+    }
+
+    // If already subscribed, unsubscribe first
+    if (this.subscription) {
+      console.log('Already subscribed, unsubscribing previous subscription');
+      this.subscription.unsubscribe();
     }
 
     const destination = `/user/${this.userId}/queue/updates`;
 
-    this.client.subscribe(destination, (message: IMessage) => {
+    this.subscription = this.client.subscribe(destination, (message) => {
       try {
         const wsMessage: WebSocketMessage = JSON.parse(message.body);
         callback(wsMessage);
@@ -95,6 +123,14 @@ class WebSocketService {
 
     // Store callback for potential resubscription
     this.callbacks.set('updates', callback);
+
+    // Return unsubscribe function
+    return () => {
+      if (this.subscription) {
+        this.subscription.unsubscribe();
+        this.subscription = null;
+      }
+    };
   }
 
   /**
@@ -106,6 +142,8 @@ class WebSocketService {
       this.client = null;
       this.userId = null;
       this.callbacks.clear();
+      this.connectionListeners = [];
+      this.subscription = null;
       console.log('WebSocket disconnected');
     }
   }

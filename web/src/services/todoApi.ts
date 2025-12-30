@@ -1,5 +1,5 @@
 import api from './api';
-import { Todo, CreateTodoRequest, UpdateTodoTextRequest, UpdateTodoPositionRequest, VirtualTodoRequest } from '../types';
+import type { Todo, CreateTodoRequest, UpdateTodoTextRequest, UpdateTodoPositionRequest, VirtualTodoRequest } from '../types';
 
 export const todoApi = {
   /**
@@ -17,7 +17,7 @@ export const todoApi = {
    */
   async getTodosForDateRange(startDate: string, endDate: string): Promise<Todo[]> {
     const response = await api.get<Todo[]>('/todos', {
-      params: { start_date: startDate, end_date: endDate },
+      params: { startDate, endDate },
     });
     return response.data;
   },

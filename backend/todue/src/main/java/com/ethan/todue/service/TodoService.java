@@ -171,7 +171,7 @@ public class TodoService {
             // Check if instance should exist on this date
             if (RecurrenceCalculator.shouldInstanceExist(recurring.getRecurrenceType(), recurring.getStartDate(), date)) {
                 // Check if real todo already exists
-                if (todoRepository.findByRecurringTodoIdAndInstanceDate(recurring.getId(), date).isEmpty()) {
+                if (todoRepository.findFirstByRecurringTodoIdAndInstanceDate(recurring.getId(), date).isEmpty()) {
                     // Check if this instance is skipped
                     if (!skipRecurringRepository.existsByRecurringTodoIdAndSkipDate(recurring.getId(), date)) {
                         // Create virtual todo (position 0, will sort by recurring ID)

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, KeyboardEvent } from 'react';
-import { Todo } from '../types';
+import type { Todo } from '../types';
 import { useTodos } from '../context/TodoContext';
 
 interface TodoItemProps {

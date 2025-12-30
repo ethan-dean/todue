@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import { Todo } from '../types';
+import type { Todo } from '../types';
 import { useTodos } from '../context/TodoContext';
 import TodoItem from './TodoItem';
 

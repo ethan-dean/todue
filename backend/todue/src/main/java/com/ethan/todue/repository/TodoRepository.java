@@ -28,7 +28,8 @@ public interface TodoRepository extends JpaRepository<Todo, Long> {
            "AND t.assignedDate < :date AND t.isCompleted = false")
     List<Todo> findIncompleteBeforeDate(@Param("userId") Long userId, @Param("date") LocalDate date);
 
-    Optional<Todo> findByRecurringTodoIdAndInstanceDate(Long recurringTodoId, LocalDate instanceDate);
+    // Changed to findFirst to handle duplicates gracefully during cleanup period
+    Optional<Todo> findFirstByRecurringTodoIdAndInstanceDate(Long recurringTodoId, LocalDate instanceDate);
 
     @Query("SELECT t FROM Todo t WHERE t.recurringTodo.id = :recurringTodoId " +
            "AND t.instanceDate > :afterDate AND t.isCompleted = false")

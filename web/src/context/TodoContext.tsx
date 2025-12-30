@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { Todo, WebSocketMessage, WebSocketMessageType } from '../types';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
+import type { Todo, WebSocketMessage } from '../types';
+import { WebSocketMessageType } from '../types';
 import { todoApi } from '../services/todoApi';
 import { websocketService } from '../services/websocketService';
 import { handleApiError } from '../services/api';
@@ -40,31 +41,42 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load todos when date or view mode changes
+  // Refs to track current values for WebSocket callback
+  const selectedDateRef = useRef(selectedDate);
+  const viewModeRef = useRef(viewMode);
+  const recentMutationsRef = useRef<Set<string>>(new Set());
+
+  // Keep refs in sync with state
   useEffect(() => {
-    if (isAuthenticated) {
-      loadTodosForCurrentView();
-    }
-  }, [selectedDate, viewMode, isAuthenticated]);
+    selectedDateRef.current = selectedDate;
+  }, [selectedDate]);
 
-  // Subscribe to WebSocket updates
   useEffect(() => {
-    if (isAuthenticated && websocketService.isConnected()) {
-      websocketService.subscribe(handleWebSocketMessage);
-    }
-  }, [isAuthenticated]);
+    viewModeRef.current = viewMode;
+  }, [viewMode]);
 
-  const loadTodosForCurrentView = async (): Promise<void> => {
-    if (viewMode === 1) {
-      await loadTodosForDate(selectedDate);
-    } else {
-      const dates = getDateRange(selectedDate, viewMode);
-      await loadTodosForDateRange(dates[0], dates[dates.length - 1]);
-    }
-  };
+  // Helper to record mutations we just made (to avoid refetching our own changes)
+  const recordMutation = useCallback((date: string) => {
+    const key = date;
+    recentMutationsRef.current.add(key);
 
-  const loadTodosForDate = async (date: Date): Promise<void> => {
-    setIsLoading(true);
+    // Auto-cleanup after 2 seconds
+    setTimeout(() => {
+      recentMutationsRef.current.delete(key);
+    }, 2000);
+  }, []);
+
+  // Helper to check if a mutation is one we recently made
+  const isRecentMutation = useCallback((date: string): boolean => {
+    return recentMutationsRef.current.has(date);
+  }, []);
+
+  const loadTodosForDate = useCallback(async (date: Date, silent: boolean = false): Promise<void> => {
+    // Only show loading state if not silent (e.g., initial load, manual refresh)
+    // Silent refetches (from WebSocket) don't clear the UI
+    if (!silent) {
+      setIsLoading(true);
+    }
     setError(null);
     try {
       const dateStr = formatDateForAPI(date);
@@ -80,11 +92,13 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
       setError(errorMessage);
       console.error('Failed to load todos:', err);
     } finally {
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
     }
-  };
+  }, []);
 
-  const loadTodosForDateRange = async (startDate: Date, endDate: Date): Promise<void> => {
+  const loadTodosForDateRange = useCallback(async (startDate: Date, endDate: Date): Promise<void> => {
     setIsLoading(true);
     setError(null);
     try {
@@ -110,12 +124,25 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  const loadTodosForCurrentView = useCallback(async (): Promise<void> => {
+    if (viewMode === 1) {
+      await loadTodosForDate(selectedDate);
+    } else {
+      const dates = getDateRange(selectedDate, viewMode);
+      await loadTodosForDateRange(dates[0], dates[dates.length - 1]);
+    }
+  }, [viewMode, selectedDate, loadTodosForDate, loadTodosForDateRange]);
 
   const createTodo = async (text: string, date: Date): Promise<void> => {
     setError(null);
     try {
       const dateStr = formatDateForAPI(date);
+
+      // Record mutation BEFORE API call to prevent race condition with WebSocket
+      recordMutation(dateStr);
+
       const newTodo = await todoApi.createTodo(text, dateStr);
 
       // Add to local state
@@ -136,6 +163,9 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
   ): Promise<void> => {
     setError(null);
     try {
+      // Record mutation BEFORE API call (use instanceDate for date tracking)
+      recordMutation(instanceDate);
+
       let updatedTodo: Todo;
       if (isVirtual && recurringTodoId) {
         updatedTodo = await todoApi.updateVirtualTodoText(recurringTodoId, instanceDate, text);
@@ -160,6 +190,9 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
   ): Promise<void> => {
     setError(null);
     try {
+      // Record mutation BEFORE API call (use instanceDate for date tracking)
+      recordMutation(instanceDate);
+
       let updatedTodo: Todo;
       if (isVirtual && recurringTodoId) {
         updatedTodo = await todoApi.updateVirtualTodoPosition(recurringTodoId, instanceDate, position);
@@ -182,6 +215,10 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     instanceDate: string
   ): Promise<void> => {
     setError(null);
+
+    // Record mutation immediately to catch fast WebSocket messages
+    recordMutation(instanceDate);
+
     try {
       let completedTodo: Todo;
       if (isVirtual && recurringTodoId) {
@@ -192,6 +229,8 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
 
       updateTodoInState(completedTodo);
     } catch (err) {
+      // If API call failed, we need to clear the mutation record
+      // so that external changes can still refresh properly
       const errorMessage = handleApiError(err);
       setError(errorMessage);
       throw new Error(errorMessage);
@@ -208,12 +247,15 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     setError(null);
     try {
       if (isVirtual && recurringTodoId) {
+        // Record mutation BEFORE API call to prevent race condition
+        recordMutation(instanceDate);
+
         await todoApi.deleteVirtualTodo(recurringTodoId, instanceDate, deleteAllFuture);
+
         // Remove virtual todo from state
         removeTodoFromState(id, instanceDate);
       } else {
-        await todoApi.deleteTodo(id, deleteAllFuture);
-        // Find the todo to get its assigned date
+        // Find the todo to get its assigned date BEFORE deletion
         let todoDateStr: string | null = null;
         todos.forEach((todoList, dateKey) => {
           const foundTodo = todoList.find(t => t.id === id);
@@ -221,6 +263,14 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
             todoDateStr = dateKey;
           }
         });
+
+        if (todoDateStr) {
+          // Record mutation BEFORE API call to prevent race condition
+          recordMutation(todoDateStr);
+        }
+
+        await todoApi.deleteTodo(id, deleteAllFuture);
+
         if (todoDateStr) {
           removeTodoFromState(id, todoDateStr);
         }
@@ -290,20 +340,36 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
         // Single date changed - refetch that specific date
         if (message.data && typeof message.data === 'object') {
           const { date } = message.data as { date: string };
+
           if (date) {
+            // Check if this is our own recent mutation
+            if (isRecentMutation(date)) {
+              console.log('Ignoring own mutation for date:', date);
+              return; // Skip refetch for our own changes
+            }
+
             // Only refetch if this date is currently visible
-            const dateObj = new Date(date);
-            if (viewMode === 1) {
+            // Use refs to get current values instead of closure values
+            if (viewModeRef.current === 1) {
               // Single day view - only refetch if it's the selected date
-              if (formatDateForAPI(selectedDate) === date) {
-                loadTodosForDate(dateObj);
+              if (formatDateForAPI(selectedDateRef.current) === date) {
+                // Parse date string to Date object in local timezone (not UTC)
+                // The date string is in YYYY-MM-DD format, parse it as local date
+                const [year, month, day] = date.split('-').map(Number);
+                const dateObj = new Date(year, month - 1, day);
+                // Silent refetch - don't show loading spinner for external changes
+                loadTodosForDate(dateObj, true);
               }
             } else {
               // Multi-day view - refetch if the date is in visible range
-              const dates = getDateRange(selectedDate, viewMode);
+              const dates = getDateRange(selectedDateRef.current, viewModeRef.current);
               const isVisible = dates.some(d => formatDateForAPI(d) === date);
               if (isVisible) {
-                loadTodosForDate(dateObj);
+                // Parse date string to Date object in local timezone (not UTC)
+                const [year, month, day] = date.split('-').map(Number);
+                const dateObj = new Date(year, month - 1, day);
+                // Silent refetch - don't show loading spinner for external changes
+                loadTodosForDate(dateObj, true);
               }
             }
           }
@@ -318,7 +384,33 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
       default:
         console.warn('Unknown WebSocket message type:', message.type);
     }
-  }, [selectedDate, viewMode, loadTodosForDate, loadTodosForCurrentView]);
+  }, [isRecentMutation, loadTodosForDate, loadTodosForCurrentView]);
+
+  // Load todos when date or view mode changes
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadTodosForCurrentView();
+    }
+  }, [selectedDate, viewMode, isAuthenticated, loadTodosForCurrentView]);
+
+  // Subscribe to WebSocket updates when connection is established
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    let unsubscribe: (() => void) | null = null;
+
+    websocketService.onConnectionEstablished(() => {
+      unsubscribe = websocketService.subscribe(handleWebSocketMessage);
+    });
+
+    // Cleanup: unsubscribe when component unmounts or auth changes
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   const value: TodoContextType = {
     todos,

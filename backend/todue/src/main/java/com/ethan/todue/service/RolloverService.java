@@ -76,7 +76,7 @@ public class RolloverService {
             while (date.isBefore(currentDate)) {
                 if (RecurrenceCalculator.shouldInstanceExist(recurring.getRecurrenceType(), recurring.getStartDate(), date)) {
                     // Check if real todo already exists
-                    if (todoRepository.findByRecurringTodoIdAndInstanceDate(recurring.getId(), date).isEmpty()) {
+                    if (todoRepository.findFirstByRecurringTodoIdAndInstanceDate(recurring.getId(), date).isEmpty()) {
                         // Check if not skipped
                         if (!skipRecurringRepository.existsByRecurringTodoIdAndSkipDate(recurring.getId(), date)) {
                             instancesToMaterialize.add(new VirtualInstanceToMaterialize(recurring, date));
