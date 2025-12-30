@@ -1,4 +1,4 @@
-package com.example.mobile
+package dev.ethandean.todue
 
 import io.flutter.embedding.android.FlutterActivity
 

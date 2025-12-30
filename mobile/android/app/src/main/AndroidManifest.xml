@@ -1,6 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Internet permission for API and WebSocket connections -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
-        android:label="mobile"
+        android:label="Todue"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

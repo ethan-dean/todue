@@ -35,6 +35,28 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
 
+  # HTTP & API
+  dio: ^5.7.0
+
+  # WebSocket
+  web_socket_channel: ^3.0.1
+
+  # State Management
+  provider: ^6.1.2
+
+  # Local Storage
+  shared_preferences: ^2.3.4
+
+  # Offline Database
+  sqflite: ^2.4.1
+  path_provider: ^2.1.5
+
+  # Date Formatting
+  intl: ^0.20.1
+
+  # Connectivity
+  connectivity_plus: ^6.1.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
