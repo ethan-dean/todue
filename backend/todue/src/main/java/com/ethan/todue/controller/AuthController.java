@@ -3,6 +3,7 @@ package com.ethan.todue.controller;
 import com.ethan.todue.dto.AuthResponse;
 import com.ethan.todue.dto.LoginRequest;
 import com.ethan.todue.dto.RegisterRequest;
+import com.ethan.todue.dto.RegistrationResponse;
 import com.ethan.todue.dto.ResetPasswordRequest;
 import com.ethan.todue.service.AuthService;
 import jakarta.validation.Valid;
@@ -21,8 +22,8 @@ public class AuthController {
     private AuthService authService;
 
     @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
-        AuthResponse response = authService.register(
+    public ResponseEntity<RegistrationResponse> register(@Valid @RequestBody RegisterRequest request) {
+        RegistrationResponse response = authService.register(
                 request.getEmail(),
                 request.getPassword(),
                 request.getTimezone()

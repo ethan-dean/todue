@@ -1,6 +1,7 @@
 package com.ethan.todue.service;
 
 import com.ethan.todue.dto.AuthResponse;
+import com.ethan.todue.dto.RegistrationResponse;
 import com.ethan.todue.dto.UserResponse;
 import com.ethan.todue.model.EmailVerification;
 import com.ethan.todue.model.PasswordResetToken;
@@ -9,6 +10,7 @@ import com.ethan.todue.repository.EmailVerificationRepository;
 import com.ethan.todue.repository.PasswordResetTokenRepository;
 import com.ethan.todue.repository.UserRepository;
 import com.ethan.todue.security.JwtUtil;
+import com.ethan.todue.util.PasswordValidator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -39,10 +41,13 @@ public class AuthService {
     private EmailService emailService;
 
     @Transactional
-    public AuthResponse register(String email, String password, String timezone) {
+    public RegistrationResponse register(String email, String password, String timezone) {
         if (userRepository.existsByEmail(email)) {
             throw new RuntimeException("Email already exists");
         }
+
+        // Validate password requirements
+        PasswordValidator.validatePassword(password);
 
         User user = new User();
         user.setEmail(email);
@@ -65,11 +70,11 @@ public class AuthService {
         // Send verification email
         emailService.sendVerificationEmail(email, verificationToken);
 
-        // Still return JWT token, but user can't login until verified
-        String token = jwtUtil.generateToken(email);
-        UserResponse userResponse = new UserResponse(user.getId(), user.getEmail(), user.getTimezone());
-
-        return new AuthResponse(token, userResponse);
+        // Don't return token - user must verify email first, then login
+        return new RegistrationResponse(
+            "Registration successful. Please check your email to verify your account.",
+            email
+        );
     }
 
     @Transactional
@@ -125,6 +130,9 @@ public class AuthService {
             throw new RuntimeException("Token has expired");
         }
 
+        // Validate password requirements
+        PasswordValidator.validatePassword(newPassword);
+
         User user = resetToken.getUser();
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         userRepository.save(user);
@@ -135,13 +143,21 @@ public class AuthService {
     @Transactional
     public void verifyEmail(String token) {
         EmailVerification verification = emailVerificationRepository.findByToken(token)
-                .orElseThrow(() -> new RuntimeException("Invalid or expired verification token"));
+                .orElseThrow(() -> new RuntimeException("This verification link is invalid or has already been used. If you already verified your email, you can login now."));
 
         if (verification.getExpiresAt().isBefore(Instant.now())) {
             throw new RuntimeException("Verification token has expired");
         }
 
         User user = verification.getUser();
+
+        // Check if user is already verified (handles race condition where multiple requests come in)
+        if (user.getEmailVerified()) {
+            // Clean up the verification token and return success
+            emailVerificationRepository.delete(verification);
+            throw new RuntimeException("Your email is already verified. You can login now.");
+        }
+
         user.setEmailVerified(true);
         userRepository.save(user);
 

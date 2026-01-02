@@ -12,7 +12,7 @@ interface AuthContextType {
   isLoading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, timezone?: string) => Promise<void>;
+  register: (email: string, password: string, timezone?: string) => Promise<string>;
   logout: () => void;
   checkAuth: () => Promise<void>;
   clearError: () => void;
@@ -93,17 +93,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const register = async (email: string, password: string, timezone?: string): Promise<void> => {
+  const register = async (email: string, password: string, timezone?: string): Promise<string> => {
     setIsLoading(true);
     setError(null);
     try {
-      const response: AuthResponse = await authApi.register(email, password, timezone);
-      setToken(response.token);
-      setUser(response.user);
-
-      // Store in localStorage
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
+      const response = await authApi.register(email, password, timezone);
+      // Registration no longer returns token - user must verify email first
+      // Return success message to display to user
+      return response.message;
     } catch (err) {
       const errorMessage = handleApiError(err);
       setError(errorMessage);

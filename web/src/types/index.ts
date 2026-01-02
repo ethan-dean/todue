@@ -10,6 +10,11 @@ export interface AuthResponse {
   user: User;
 }
 
+export interface RegistrationResponse {
+  message: string;
+  email: string;
+}
+
 // Todo types
 export const RecurrenceType = {
   DAILY: 'DAILY',

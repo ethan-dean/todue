@@ -1,17 +1,17 @@
 import api from './api';
-import type { AuthResponse, LoginRequest, RegisterRequest, ResetPasswordRequest } from '../types';
+import type { AuthResponse, RegistrationResponse, LoginRequest, RegisterRequest, ResetPasswordRequest } from '../types';
 
 export const authApi = {
   /**
    * Register a new user
    */
-  async register(email: string, password: string, timezone?: string): Promise<AuthResponse> {
+  async register(email: string, password: string, timezone?: string): Promise<RegistrationResponse> {
     const request: RegisterRequest = {
       email,
       password,
       timezone: timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
     };
-    const response = await api.post<AuthResponse>('/auth/register', request);
+    const response = await api.post<RegistrationResponse>('/auth/register', request);
     return response.data;
   },
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { authApi } from '../services/authApi';
 import { handleApiError } from '../services/api';
+import PasswordRequirements, { validatePassword } from '../components/PasswordRequirements';
 
 const ResetPasswordPage: React.FC = () => {
   const navigate = useNavigate();
@@ -30,8 +31,8 @@ const ResetPasswordPage: React.FC = () => {
       return false;
     }
 
-    if (password.length < 8) {
-      setValidationError('Password must be at least 8 characters long');
+    if (!validatePassword(password)) {
+      setValidationError('Password does not meet all requirements');
       return false;
     }
 
@@ -122,11 +123,12 @@ const ResetPasswordPage: React.FC = () => {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter new password (min. 8 characters)"
+                  placeholder="Enter new password"
                   disabled={isLoading}
                   autoComplete="new-password"
                   autoFocus
                 />
+                {password && <PasswordRequirements password={password} />}
               </div>
 
               <div className="form-group">
