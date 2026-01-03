@@ -532,7 +532,7 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border-light);
   border-radius: 4px;
-  transition: box-shadow 0.2s;
+  transition: box-shadow 0.2s, opacity 0.3s ease;
 }
 
 .todo-item:hover {

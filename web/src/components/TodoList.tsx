@@ -106,9 +106,16 @@ const TodoList: React.FC<TodoListProps> = ({ todos: initialTodos, date }) => {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
 
-  // Keep todos sorted by position
+  // Keep todos sorted: incomplete first (by position), then completed (by position)
   const sortedTodos = useMemo(() => {
-    return [...initialTodos].sort((a, b) => a.position - b.position);
+    return [...initialTodos].sort((a, b) => {
+      // Completed todos always go to the bottom
+      if (a.isCompleted !== b.isCompleted) {
+        return a.isCompleted ? 1 : -1;
+      }
+      // Within the same completion status, sort by position
+      return a.position - b.position;
+    });
   }, [initialTodos]);
 
   // Configure drag sensors
