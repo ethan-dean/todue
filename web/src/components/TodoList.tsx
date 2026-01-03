@@ -1,46 +1,62 @@
-import React, { useState, useCallback } from 'react';
-import { DndProvider, useDrag, useDrop } from 'react-dnd';
-import { HTML5Backend } from 'react-dnd-html5-backend';
+import React, { useState, useMemo } from 'react';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import type { Todo } from '../types';
 import { useTodos } from '../context/TodoContext';
 import TodoItem from './TodoItem';
+import InlineAddTodo from './InlineAddTodo';
 
-const ITEM_TYPE = 'TODO';
+// Generate unique ID for sortable items
+const getTodoId = (todo: Todo): string => {
+  if (todo.id !== null) {
+    return `todo-${todo.id}`;
+  }
+  // Virtual todos: use recurringTodoId + instanceDate
+  return `virtual-${todo.recurringTodoId}-${todo.instanceDate}`;
+};
 
-interface DraggableTodoItemProps {
+interface SortableTodoItemProps {
   todo: Todo;
-  index: number;
-  onMove: (dragIndex: number, hoverIndex: number) => void;
-  onDrop: (todoId: number, newPosition: number, isVirtual: boolean, recurringTodoId: number | null, instanceDate: string) => void;
+  isActive: boolean;
+  showPlaceholderAbove: boolean;
 }
 
-const DraggableTodoItem: React.FC<DraggableTodoItemProps> = ({ todo, index, onMove, onDrop }) => {
+const SortableTodoItem: React.FC<SortableTodoItemProps> = ({
+  todo,
+  isActive,
+  showPlaceholderAbove,
+}) => {
   const { deleteTodo } = useTodos();
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const [{ isDragging }, drag] = useDrag({
-    type: ITEM_TYPE,
-    item: { todo, index },
-    collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
-    }),
-    end: (item, monitor) => {
-      if (monitor.didDrop()) {
-        // Calculate new position based on final index
-        onDrop(item.todo.id!, index, item.todo.isVirtual, item.todo.recurringTodoId, item.todo.instanceDate);
-      }
-    },
-  });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+    isOver,
+  } = useSortable({ id: getTodoId(todo) });
 
-  const [, drop] = useDrop({
-    accept: ITEM_TYPE,
-    hover: (draggedItem: { todo: Todo; index: number }) => {
-      if (draggedItem.index !== index) {
-        onMove(draggedItem.index, index);
-        draggedItem.index = index;
-      }
-    },
-  });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
 
   const handleDelete = async (deleteAllFuture?: boolean) => {
     if (isDeleting) return;
@@ -62,84 +78,153 @@ const DraggableTodoItem: React.FC<DraggableTodoItemProps> = ({ todo, index, onMo
   };
 
   return (
-    <div
-      ref={(node) => {
-        drag(drop(node));
-      }}
-      style={{
-        opacity: isDragging ? 0.5 : 1,
-        cursor: 'move',
-      }}
-    >
-      <TodoItem todo={todo} onDelete={handleDelete} />
+    <div className="draggable-todo-wrapper">
+      {/* Drop indicator line - green when hovering over it during drag */}
+      <div className={`drop-indicator ${isOver && !isActive ? 'active' : ''}`}></div>
+
+      {/* Placeholder box showing where item will drop */}
+      {showPlaceholderAbove && !isActive && (
+        <div className="drop-placeholder"></div>
+      )}
+
+      {/* The actual todo item */}
+      <div
+        ref={setNodeRef}
+        style={style}
+        className={isActive ? 'todo-placeholder' : ''}
+        {...attributes}
+        {...listeners}
+      >
+        <TodoItem todo={todo} onDelete={handleDelete} />
+      </div>
     </div>
   );
 };
 
 interface TodoListProps {
   todos: Todo[];
-  date: string;
+  date: Date;
 }
 
-const TodoList: React.FC<TodoListProps> = ({ todos: initialTodos }) => {
+const TodoList: React.FC<TodoListProps> = ({ todos: initialTodos, date }) => {
   const { updateTodoPosition } = useTodos();
-  const [todos, setTodos] = useState<Todo[]>(initialTodos);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
 
-  // Update local state when props change
-  React.useEffect(() => {
-    setTodos(initialTodos);
+  // Keep todos sorted by position
+  const sortedTodos = useMemo(() => {
+    return [...initialTodos].sort((a, b) => a.position - b.position);
   }, [initialTodos]);
 
-  const moveTodo = useCallback((dragIndex: number, hoverIndex: number) => {
-    setTodos((prevTodos) => {
-      const newTodos = [...prevTodos];
-      const [draggedTodo] = newTodos.splice(dragIndex, 1);
-      newTodos.splice(hoverIndex, 0, draggedTodo);
-      return newTodos;
-    });
-  }, []);
+  // Configure drag sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Require 8px movement before dragging starts
+      },
+    })
+  );
 
-  const handleDrop = async (
-    todoId: number,
-    newPosition: number,
-    isVirtual: boolean,
-    recurringTodoId: number | null,
-    instanceDate: string
-  ) => {
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
+  const handleDragOver = (event: { over: { id: string } | null }) => {
+    setOverId(event.over?.id || null);
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    setActiveId(null);
+    setOverId(null);
+
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    const oldIndex = sortedTodos.findIndex((t) => getTodoId(t) === active.id);
+    const newIndex = sortedTodos.findIndex((t) => getTodoId(t) === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) {
+      console.error('Could not find todo indices for drag and drop');
+      return;
+    }
+
+    const todo = sortedTodos[oldIndex];
+
     try {
-      await updateTodoPosition(todoId, newPosition, isVirtual, recurringTodoId, instanceDate);
+      await updateTodoPosition(
+        todo.id!,
+        newIndex,
+        todo.isVirtual,
+        todo.recurringTodoId,
+        todo.instanceDate
+      );
     } catch (err) {
       console.error('Failed to update todo position:', err);
-      // Revert to initial state on error
-      setTodos(initialTodos);
     }
   };
 
-  if (todos.length === 0) {
-    return (
-      <div className="todo-list-empty">
-        <p>No todos for this date. Add one above!</p>
-      </div>
-    );
-  }
+  const handleDragCancel = () => {
+    setActiveId(null);
+    setOverId(null);
+  };
 
-  // Sort todos by position
-  const sortedTodos = [...todos].sort((a, b) => a.position - b.position);
+  // Find the active todo for the drag overlay
+  const activeTodo = activeId
+    ? sortedTodos.find((t) => getTodoId(t) === activeId)
+    : null;
 
   return (
-    <DndProvider backend={HTML5Backend}>
-      <div className="todo-list">
-        {sortedTodos.map((todo, index) => (
-          <DraggableTodoItem
-            key={todo.id || `virtual-${todo.recurringTodoId}-${todo.instanceDate}`}
-            todo={todo}
-            index={index}
-            onMove={moveTodo}
-            onDrop={handleDrop}
-          />
-        ))}
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
+    >
+      <div className="todo-list-container">
+        <div className="todo-list">
+          <SortableContext
+            items={sortedTodos.map(getTodoId)}
+            strategy={verticalListSortingStrategy}
+          >
+            {sortedTodos.map((todo) => {
+              const todoId = getTodoId(todo);
+              const isActive = activeId === todoId;
+              const showPlaceholderAbove = overId === todoId && activeId !== todoId;
+
+              return (
+                <SortableTodoItem
+                  key={todoId}
+                  todo={todo}
+                  isActive={isActive}
+                  showPlaceholderAbove={showPlaceholderAbove}
+                />
+              );
+            })}
+          </SortableContext>
+
+          {/* Add new todo input */}
+          <InlineAddTodo date={date} />
+        </div>
       </div>
-    </DndProvider>
+
+      {/* Drag overlay - shows the todo being dragged following the cursor */}
+      <DragOverlay>
+        {activeTodo ? (
+          <div className="todo-item drag-preview" style={{ cursor: 'grabbing' }}>
+            <div className="todo-checkbox">
+              <input type="checkbox" checked={activeTodo.isCompleted} readOnly />
+            </div>
+            <div className="todo-text">{activeTodo.text}</div>
+            <div className="todo-actions"></div>
+          </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   );
 };
 

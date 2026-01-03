@@ -3,7 +3,6 @@ import { useAuth } from '../context/AuthContext';
 import { useTodos } from '../context/TodoContext';
 import { useTheme } from '../context/ThemeContext';
 import DateNavigator from '../components/DateNavigator';
-import AddTodoInput from '../components/AddTodoInput';
 import TodoList from '../components/TodoList';
 import { formatDateForAPI, formatDate, getDateRange } from '../utils/dateUtils';
 
@@ -22,8 +21,7 @@ const TodosPage: React.FC = () => {
 
     return (
       <div className="single-day-view">
-        <AddTodoInput date={selectedDate} />
-        <TodoList todos={todosForDate} date={dateStr} />
+        <TodoList todos={todosForDate} date={selectedDate} />
       </div>
     );
   };
@@ -42,8 +40,7 @@ const TodosPage: React.FC = () => {
               <div className="day-header">
                 <h3>{formatDate(date, 'EEE, MMM d')}</h3>
               </div>
-              <AddTodoInput date={date} />
-              <TodoList todos={todosForDate} date={dateStr} />
+              <TodoList todos={todosForDate} date={date} />
             </div>
           );
         })}
