@@ -198,19 +198,67 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     instanceDate: string
   ): Promise<void> => {
     setError(null);
-    try {
-      // Record mutation BEFORE API call (use instanceDate for date tracking)
-      recordMutation(instanceDate);
 
-      let updatedTodo: Todo;
-      if (isVirtual && recurringTodoId) {
-        updatedTodo = await todoApi.updateVirtualTodoPosition(recurringTodoId, instanceDate, position);
-      } else {
-        updatedTodo = await todoApi.updateTodoPosition(id, position);
+    // Optimistically update local state first for instant feedback
+    setTodos((prevTodos) => {
+      const newTodos = new Map(prevTodos);
+      const dateList = newTodos.get(instanceDate) || [];
+
+      // Find the todo being moved
+      const todoIndex = dateList.findIndex((t) =>
+        isVirtual
+          ? t.isVirtual && t.recurringTodoId === recurringTodoId && t.instanceDate === instanceDate
+          : t.id === id
+      );
+
+      if (todoIndex === -1) {
+        return prevTodos; // Todo not found, no change
       }
 
-      updateTodoInState(updatedTodo);
+      // Sort by current position to get correct order
+      const sortedList = [...dateList].sort((a, b) => a.position - b.position);
+
+      // Find the todo in the sorted list
+      const sortedIndex = sortedList.findIndex((t) =>
+        isVirtual
+          ? t.isVirtual && t.recurringTodoId === recurringTodoId && t.instanceDate === instanceDate
+          : t.id === id
+      );
+
+      if (sortedIndex === -1 || sortedIndex === position) {
+        return prevTodos; // Already in correct position
+      }
+
+      // Remove from old position and insert at new position
+      const [movedTodo] = sortedList.splice(sortedIndex, 1);
+      sortedList.splice(position, 0, movedTodo);
+
+      // Update positions to match new order (0, 10, 20, 30...)
+      const reorderedList = sortedList.map((todo, index) => ({
+        ...todo,
+        position: index * 10,
+      }));
+
+      newTodos.set(instanceDate, reorderedList);
+      return newTodos;
+    });
+
+    // Record mutation BEFORE API call (use instanceDate for date tracking)
+    recordMutation(instanceDate);
+
+    try {
+      if (isVirtual && recurringTodoId) {
+        await todoApi.updateVirtualTodoPosition(recurringTodoId, instanceDate, position);
+      } else {
+        await todoApi.updateTodoPosition(id, position);
+      }
+
+      // Don't update state with server response - trust the optimistic update
+      // The optimistic update already reordered the entire list correctly
     } catch (err) {
+      // On error, refetch to get the correct state from server
+      await loadTodosForDate(parseDateString(instanceDate), true);
+
       const errorMessage = handleApiError(err);
       setError(errorMessage);
       throw new Error(errorMessage);

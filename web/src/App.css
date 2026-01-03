@@ -523,34 +523,6 @@ body {
   min-width: 300px;
 }
 
-/* Drop Indicator */
-.drop-indicator {
-  width: 100%;
-  height: 2px;
-  background: var(--border-light);
-  margin: 0.25rem 0;
-  border-radius: 1px;
-  transition: background 0.2s, height 0.2s, margin 0.2s;
-}
-
-.drop-indicator.active {
-  height: 3px;
-  background: var(--color-primary);
-  box-shadow: 0 0 6px var(--color-primary);
-  margin: 0.5rem 0;
-}
-
-/* Bottom Drop Zone */
-.bottom-drop-zone {
-  min-height: 2rem;
-  display: flex;
-  align-items: center;
-}
-
-.bottom-drop-zone .drop-indicator {
-  flex: 1;
-}
-
 /* Todo Item */
 .todo-item {
   display: flex;

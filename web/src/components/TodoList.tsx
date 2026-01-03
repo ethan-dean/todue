@@ -49,8 +49,6 @@ const SortableTodoItem: React.FC<SortableTodoItemProps> = ({
     setNodeRef,
     transform,
     transition,
-    isDragging,
-    isOver,
   } = useSortable({ id: getTodoId(todo) });
 
   const style = {
@@ -79,9 +77,6 @@ const SortableTodoItem: React.FC<SortableTodoItemProps> = ({
 
   return (
     <div className="draggable-todo-wrapper">
-      {/* Drop indicator line - green when hovering over it during drag */}
-      <div className={`drop-indicator ${isOver && !isActive ? 'active' : ''}`}></div>
-
       {/* Placeholder box showing where item will drop */}
       {showPlaceholderAbove && !isActive && (
         <div className="drop-placeholder"></div>
