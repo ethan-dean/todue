@@ -21,6 +21,7 @@ interface TodoContextType {
   updateTodoText: (id: number, text: string, isVirtual: boolean, recurringTodoId: number | null, instanceDate: string) => Promise<void>;
   updateTodoPosition: (id: number, position: number, isVirtual: boolean, recurringTodoId: number | null, instanceDate: string) => Promise<void>;
   completeTodo: (id: number, isVirtual: boolean, recurringTodoId: number | null, instanceDate: string) => Promise<void>;
+  uncompleteTodo: (id: number, isVirtual: boolean, recurringTodoId: number | null, instanceDate: string) => Promise<void>;
   deleteTodo: (id: number, isVirtual: boolean, recurringTodoId: number | null, instanceDate: string, deleteAllFuture?: boolean) => Promise<void>;
   setViewMode: (mode: ViewMode) => void;
   changeDate: (newDate: Date) => void;
@@ -292,6 +293,30 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     }
   };
 
+  const uncompleteTodo = async (
+    id: number,
+    isVirtual: boolean,
+    recurringTodoId: number | null,
+    instanceDate: string
+  ): Promise<void> => {
+    setError(null);
+
+    // Record mutation immediately to catch fast WebSocket messages
+    recordMutation(instanceDate);
+
+    try {
+      // If todo is completed, it must be materialized (have an ID)
+      // So we always use the regular uncomplete endpoint
+      const uncompletedTodo = await todoApi.uncompleteTodo(id);
+
+      updateTodoInState(uncompletedTodo);
+    } catch (err) {
+      const errorMessage = handleApiError(err);
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    }
+  };
+
   const deleteTodo = async (
     id: number,
     isVirtual: boolean,
@@ -472,6 +497,7 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     updateTodoText,
     updateTodoPosition,
     completeTodo,
+    uncompleteTodo,
     deleteTodo,
     setViewMode,
     changeDate,

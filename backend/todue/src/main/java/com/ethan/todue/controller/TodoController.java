@@ -68,6 +68,12 @@ public class TodoController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/{id}/uncomplete")
+    public ResponseEntity<TodoResponse> uncompleteTodo(@PathVariable Long id) {
+        TodoResponse response = todoService.uncompleteTodo(id);
+        return ResponseEntity.ok(response);
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Map<String, String>> deleteTodo(
             @PathVariable Long id,

@@ -58,6 +58,14 @@ export const todoApi = {
   },
 
   /**
+   * Mark todo as incomplete
+   */
+  async uncompleteTodo(id: number): Promise<Todo> {
+    const response = await api.post<Todo>(`/todos/${id}/uncomplete`);
+    return response.data;
+  },
+
+  /**
    * Delete a todo
    */
   async deleteTodo(id: number, deleteAllFuture?: boolean): Promise<{ message: string }> {

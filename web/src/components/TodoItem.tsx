@@ -8,7 +8,7 @@ interface TodoItemProps {
 }
 
 const TodoItem: React.FC<TodoItemProps> = ({ todo, onDelete }) => {
-  const { updateTodoText, completeTodo } = useTodos();
+  const { updateTodoText, completeTodo, uncompleteTodo } = useTodos();
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(todo.text);
   const [isLoading, setIsLoading] = useState(false);
@@ -21,19 +21,30 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onDelete }) => {
     }
   }, [isEditing]);
 
-  const handleComplete = async () => {
-    if (isLoading || todo.isCompleted) return;
+  const handleToggleComplete = async () => {
+    if (isLoading) return;
 
     setIsLoading(true);
     try {
-      await completeTodo(
-        todo.id!,
-        todo.isVirtual,
-        todo.recurringTodoId,
-        todo.instanceDate
-      );
+      if (todo.isCompleted) {
+        // Uncomplete the todo
+        await uncompleteTodo(
+          todo.id!,
+          todo.isVirtual,
+          todo.recurringTodoId,
+          todo.instanceDate
+        );
+      } else {
+        // Complete the todo
+        await completeTodo(
+          todo.id!,
+          todo.isVirtual,
+          todo.recurringTodoId,
+          todo.instanceDate
+        );
+      }
     } catch (err) {
-      console.error('Failed to complete todo:', err);
+      console.error('Failed to toggle todo completion:', err);
     } finally {
       setIsLoading(false);
     }
@@ -115,8 +126,8 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onDelete }) => {
         <input
           type="checkbox"
           checked={todo.isCompleted}
-          onChange={handleComplete}
-          disabled={isLoading || todo.isCompleted}
+          onChange={handleToggleComplete}
+          disabled={isLoading}
         />
       </div>
 

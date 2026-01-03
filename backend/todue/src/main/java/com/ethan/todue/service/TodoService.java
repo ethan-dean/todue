@@ -122,10 +122,9 @@ public class TodoService {
             responses.addAll(virtuals);
         }
 
-        // Sort: rolled over first, then by position, then by id
+        // Sort by position (rolled over todos get lowest positions), then by id
         responses.sort(Comparator
-                .comparing(TodoResponse::getIsRolledOver, Comparator.reverseOrder())
-                .thenComparing(TodoResponse::getPosition)
+                .comparing(TodoResponse::getPosition)
                 .thenComparing(TodoResponse::getId, Comparator.nullsLast(Comparator.naturalOrder())));
 
         return responses;
@@ -151,10 +150,9 @@ public class TodoService {
             date = date.plusDays(1);
         }
 
-        // Sort by assigned date, then rolled over, then position
+        // Sort by assigned date, then position (rolled over todos get lowest positions), then id
         responses.sort(Comparator
                 .comparing(TodoResponse::getAssignedDate)
-                .thenComparing(TodoResponse::getIsRolledOver, Comparator.reverseOrder())
                 .thenComparing(TodoResponse::getPosition)
                 .thenComparing(TodoResponse::getId, Comparator.nullsLast(Comparator.naturalOrder())));
 
@@ -266,6 +264,22 @@ public class TodoService {
         TodoResponse response = toTodoResponse(todo);
 
         // Send WebSocket notification - completion affects only assigned date
+        webSocketService.notifyTodosChanged(userId, todo.getAssignedDate());
+
+        return response;
+    }
+
+    @Transactional
+    public TodoResponse uncompleteTodo(Long todoId) {
+        Todo todo = getTodoAndVerifyOwnership(todoId);
+        Long userId = todo.getUser().getId();
+
+        todo.setIsCompleted(false);
+        todo.setCompletedAt(null);
+        todo = todoRepository.save(todo);
+        TodoResponse response = toTodoResponse(todo);
+
+        // Send WebSocket notification - uncompletion affects only assigned date
         webSocketService.notifyTodosChanged(userId, todo.getAssignedDate());
 
         return response;
