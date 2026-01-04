@@ -4,10 +4,8 @@ import com.ethan.todue.model.RecurringTodo;
 import com.ethan.todue.model.Todo;
 import com.ethan.todue.model.User;
 import com.ethan.todue.repository.RecurringTodoRepository;
-import com.ethan.todue.repository.SkipRecurringRepository;
 import com.ethan.todue.repository.TodoRepository;
 import com.ethan.todue.repository.UserRepository;
-import com.ethan.todue.util.RecurrenceCalculator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,7 +13,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -29,13 +26,7 @@ public class RolloverService {
     private RecurringTodoRepository recurringTodoRepository;
 
     @Autowired
-    private SkipRecurringRepository skipRecurringRepository;
-
-    @Autowired
     private UserRepository userRepository;
-
-    @Autowired
-    private UserService userService;
 
     // In-memory session state for last rollover date per user
     private final ConcurrentHashMap<Long, LocalDate> lastRolloverDateMap = new ConcurrentHashMap<>();
@@ -45,11 +36,71 @@ public class RolloverService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // Step 1: Materialize past virtuals (max 1)
-        materializePastVirtuals(user, currentDate);
+        int position = 1; // Start at position 1 for sequential positioning
 
-        // Step 2: Roll forward existing incomplete todos
-        rollForwardIncompleteTodos(user, currentDate);
+        // Step 1: Query recurring_todos to get IDs that will be materialized today
+        List<RecurringTodo> todaysRecurring = recurringTodoRepository.findActiveByUserIdAndDate(userId, currentDate);
+        java.util.Set<Long> todaysRecurringIds = todaysRecurring.stream()
+                .map(RecurringTodo::getId)
+                .collect(java.util.stream.Collectors.toSet());
+
+        // Step 2: Generate rolled-over todos (check for duplicates)
+        List<Todo> incompleteTodos = todoRepository.findIncompleteBeforeDate(userId, currentDate);
+        List<Todo> todosToDelete = new ArrayList<>();
+
+        for (Todo incompleteTodo : incompleteTodos) {
+            // Delete if this recurring_todo_id will be materialized today
+            if (incompleteTodo.getRecurringTodo() != null
+                && todaysRecurringIds.contains(incompleteTodo.getRecurringTodo().getId())) {
+                todosToDelete.add(incompleteTodo); // Mark for deletion - today's virtual will replace it
+                continue;
+            }
+
+            // Roll it over
+            incompleteTodo.setAssignedDate(currentDate);
+            incompleteTodo.setIsRolledOver(true);
+            incompleteTodo.setPosition(position++);
+        }
+
+        // Delete skipped recurring instances from past dates
+        if (!todosToDelete.isEmpty()) {
+            todoRepository.deleteAll(todosToDelete);
+            // Remove deleted todos from the list to avoid merge conflicts
+            incompleteTodos.removeAll(todosToDelete);
+        }
+
+        todoRepository.saveAll(incompleteTodos);
+
+        // Step 3: Materialize virtual todos for today
+        for (RecurringTodo recurring : todaysRecurring) {
+            // Check if real todo already exists (was manually created)
+            if (todoRepository.findFirstByRecurringTodoIdAndInstanceDate(
+                recurring.getId(), currentDate).isEmpty()) {
+
+                // Materialize it
+                Todo materializedTodo = new Todo();
+                materializedTodo.setUser(user);
+                materializedTodo.setText(recurring.getText());
+                materializedTodo.setAssignedDate(currentDate);
+                materializedTodo.setInstanceDate(currentDate);
+                materializedTodo.setPosition(position++);
+                materializedTodo.setRecurringTodo(recurring);
+                materializedTodo.setIsCompleted(false);
+                materializedTodo.setIsRolledOver(false);
+
+                todoRepository.save(materializedTodo);
+            }
+        }
+
+        // Step 4: Renumber existing normal todos for current date
+        List<Todo> normalTodos = todoRepository.findByUserIdAndAssignedDate(userId, currentDate);
+        for (Todo todo : normalTodos) {
+            // Only renumber if not already handled above
+            if (!todo.getIsRolledOver() && todo.getRecurringTodo() == null) {
+                todo.setPosition(position++);
+            }
+        }
+        todoRepository.saveAll(normalTodos);
 
         // Update last rollover date
         user.setLastRolloverDate(Instant.now());
@@ -59,73 +110,6 @@ public class RolloverService {
         lastRolloverDateMap.put(userId, currentDate);
     }
 
-    private void materializePastVirtuals(User user, LocalDate currentDate) {
-        LocalDate lastRolloverDate = user.getLastRolloverDate() != null
-                ? LocalDate.ofInstant(user.getLastRolloverDate(), java.time.ZoneId.of(user.getTimezone()))
-                : currentDate.minusDays(7); // Default to 7 days ago if no last rollover
-
-        List<VirtualInstanceToMaterialize> instancesToMaterialize = new ArrayList<>();
-
-        // Get all active recurring todos
-        List<RecurringTodo> recurringTodos = recurringTodoRepository.findActiveByUserIdAndDate(user.getId(), currentDate);
-
-        for (RecurringTodo recurring : recurringTodos) {
-            LocalDate date = lastRolloverDate.isAfter(recurring.getStartDate()) ? lastRolloverDate : recurring.getStartDate();
-
-            // Check each date between last rollover and yesterday
-            while (date.isBefore(currentDate)) {
-                if (RecurrenceCalculator.shouldInstanceExist(recurring.getRecurrenceType(), recurring.getStartDate(), date)) {
-                    // Check if real todo already exists
-                    if (todoRepository.findFirstByRecurringTodoIdAndInstanceDate(recurring.getId(), date).isEmpty()) {
-                        // Check if not skipped
-                        if (!skipRecurringRepository.existsByRecurringTodoIdAndSkipDate(recurring.getId(), date)) {
-                            instancesToMaterialize.add(new VirtualInstanceToMaterialize(recurring, date));
-                        }
-                    }
-                }
-                date = date.plusDays(1);
-            }
-        }
-
-        // Sort by instance date (oldest first) and take max 1
-        instancesToMaterialize.sort(Comparator.comparing(v -> v.instanceDate));
-        int count = 0;
-        int basePosition = -1000;
-
-        for (VirtualInstanceToMaterialize instance : instancesToMaterialize) {
-            if (count >= 1) break;
-
-            Todo todo = new Todo();
-            todo.setUser(user);
-            todo.setText(instance.recurringTodo.getText());
-            todo.setAssignedDate(currentDate);
-            todo.setInstanceDate(instance.instanceDate);
-            todo.setPosition(basePosition + count);
-            todo.setRecurringTodo(instance.recurringTodo);
-            todo.setIsCompleted(false);
-            todo.setIsRolledOver(true);
-
-            todoRepository.save(todo);
-            count++;
-        }
-    }
-
-    private void rollForwardIncompleteTodos(User user, LocalDate currentDate) {
-        // Find all incomplete todos before current date
-        List<Todo> incompleteTodos = todoRepository.findIncompleteBeforeDate(user.getId(), currentDate);
-
-        // Start at -999 to place rolled-over todos at the top (after materialized virtuals at -1000)
-        int basePosition = -999;
-        int offset = 0;
-
-        for (Todo todo : incompleteTodos) {
-            todo.setAssignedDate(currentDate);
-            todo.setIsRolledOver(true);
-            todo.setPosition(basePosition - offset);
-            todoRepository.save(todo);
-            offset++;
-        }
-    }
 
     public boolean shouldTriggerRollover(Long userId, LocalDate requestedDate, LocalDate currentDate) {
         // Only rollover if requesting current date
@@ -133,19 +117,27 @@ public class RolloverService {
             return false;
         }
 
-        // Check if we've already done rollover for this date
+        // Check in-memory cache first (faster)
         LocalDate lastRollover = lastRolloverDateMap.get(userId);
-        return lastRollover == null || !lastRollover.equals(currentDate);
-    }
-
-    // Helper class for tracking virtual instances to materialize
-    private static class VirtualInstanceToMaterialize {
-        RecurringTodo recurringTodo;
-        LocalDate instanceDate;
-
-        VirtualInstanceToMaterialize(RecurringTodo recurringTodo, LocalDate instanceDate) {
-            this.recurringTodo = recurringTodo;
-            this.instanceDate = instanceDate;
+        if (lastRollover != null && lastRollover.equals(currentDate)) {
+            return false; // Already done today (in this server session)
         }
+
+        // Check database (handles server restarts)
+        User user = userRepository.findById(userId).orElse(null);
+        if (user != null && user.getLastRolloverDate() != null) {
+            // Convert Instant to LocalDate in user's timezone
+            LocalDate lastRolloverFromDb = user.getLastRolloverDate()
+                .atZone(java.time.ZoneId.of(user.getTimezone()))
+                .toLocalDate();
+
+            // Update in-memory cache
+            if (lastRolloverFromDb.equals(currentDate)) {
+                lastRolloverDateMap.put(userId, currentDate);
+                return false; // Already done today (from previous server session)
+            }
+        }
+
+        return true; // Needs rollover
     }
 }

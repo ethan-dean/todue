@@ -25,9 +25,9 @@ class WebSocketService {
         // Pass JWT token as query parameter for handshake authentication
         // Backend WebSocketAuthInterceptor validates this token
         webSocketFactory: () => new SockJS(`${WS_URL}?token=${token}`),
-        debug: (str) => {
-          console.log('STOMP: ' + str);
-        },
+        // debug: (str) => {
+        //   console.log('STOMP: ' + str);
+        // },
         reconnectDelay: this.reconnectDelay,
         heartbeatIncoming: 4000,
         heartbeatOutgoing: 4000,

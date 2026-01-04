@@ -61,24 +61,48 @@ public class TodoService {
 
             recurringTodo = recurringTodoRepository.save(recurringTodo);
 
-            // Create first instance (position 0, will sort by ID)
-            Todo firstInstance = new Todo();
-            firstInstance.setUser(user);
-            firstInstance.setText(recurrenceInfo.getStrippedText());
-            firstInstance.setAssignedDate(assignedDate);
-            firstInstance.setInstanceDate(assignedDate);
-            firstInstance.setPosition(0);
-            firstInstance.setRecurringTodo(recurringTodo);
-            firstInstance.setIsCompleted(false);
-            firstInstance.setIsRolledOver(false);
+            // Check if we're creating this on the current date
+            LocalDate currentDate = userService.getCurrentDateForUser();
+            if (assignedDate.equals(currentDate)) {
+                // Auto-materialize for current day
+                Todo firstInstance = new Todo();
+                firstInstance.setUser(user);
+                firstInstance.setText(recurrenceInfo.getStrippedText());
+                firstInstance.setAssignedDate(assignedDate);
+                firstInstance.setInstanceDate(assignedDate);
+                firstInstance.setPosition(getNextPosition(user.getId(), assignedDate));
+                firstInstance.setRecurringTodo(recurringTodo);
+                firstInstance.setIsCompleted(false);
+                firstInstance.setIsRolledOver(false);
 
-            firstInstance = todoRepository.save(firstInstance);
-            TodoResponse response = toTodoResponse(firstInstance);
+                firstInstance = todoRepository.save(firstInstance);
+                TodoResponse response = toTodoResponse(firstInstance);
 
-            // Send WebSocket notification - recurring pattern created affects all dates
-            webSocketService.notifyRecurringChanged(user.getId());
+                // Send both notifications - recurring pattern created AND current day changed
+                webSocketService.notifyRecurringChanged(user.getId());
+                webSocketService.notifyTodosChanged(user.getId(), assignedDate);
 
-            return response;
+                return response;
+            } else {
+                // Creating for future date - return virtual todo response
+                TodoResponse virtualResponse = new TodoResponse(
+                        null, // id
+                        recurrenceInfo.getStrippedText(), // text
+                        assignedDate, // assignedDate
+                        assignedDate, // instanceDate
+                        0, // position - virtuals at 0
+                        recurringTodo.getId(), // recurringTodoId
+                        false, // isCompleted
+                        null, // completedAt
+                        false, // isRolledOver
+                        true // isVirtual
+                );
+
+                // Send notification - recurring pattern affects all future dates
+                webSocketService.notifyRecurringChanged(user.getId());
+
+                return virtualResponse;
+            }
         } else {
             // Create regular todo
             Todo todo = new Todo();
@@ -110,7 +134,7 @@ public class TodoService {
             rolloverService.performRollover(user.getId(), currentDate);
         }
 
-        // Get real todos
+        // Get real todos (already sorted by repository: isCompleted ASC, position ASC, id ASC)
         List<Todo> realTodos = todoRepository.findByUserIdAndAssignedDate(user.getId(), date);
         List<TodoResponse> responses = realTodos.stream()
                 .map(this::toTodoResponse)
@@ -122,10 +146,8 @@ public class TodoService {
             responses.addAll(virtuals);
         }
 
-        // Sort by position (rolled over todos get lowest positions), then by id
-        responses.sort(Comparator
-                .comparing(TodoResponse::getPosition)
-                .thenComparing(TodoResponse::getId, Comparator.nullsLast(Comparator.naturalOrder())));
+        // Sort by position only (position determines order including completion status)
+        responses.sort(Comparator.comparing(TodoResponse::getPosition));
 
         return responses;
     }
@@ -133,7 +155,7 @@ public class TodoService {
     public List<TodoResponse> getTodosForDateRange(LocalDate startDate, LocalDate endDate) {
         User user = userService.getCurrentUser();
 
-        // Get real todos
+        // Get real todos (already sorted by repository)
         List<Todo> realTodos = todoRepository.findByUserIdAndAssignedDateBetween(user.getId(), startDate, endDate);
         List<TodoResponse> responses = realTodos.stream()
                 .map(this::toTodoResponse)
@@ -150,11 +172,10 @@ public class TodoService {
             date = date.plusDays(1);
         }
 
-        // Sort by assigned date, then position (rolled over todos get lowest positions), then id
+        // Sort by assigned date, then position (position determines order including completion status)
         responses.sort(Comparator
                 .comparing(TodoResponse::getAssignedDate)
-                .thenComparing(TodoResponse::getPosition)
-                .thenComparing(TodoResponse::getId, Comparator.nullsLast(Comparator.naturalOrder())));
+                .thenComparing(TodoResponse::getPosition));
 
         return responses;
     }
@@ -225,6 +246,13 @@ public class TodoService {
 
         // If this todo is linked to a recurring pattern, orphan it
         if (todo.getRecurringTodo() != null) {
+            // Add to skip_recurring to prevent future rollover of this instance
+            skipRecurringService.skipInstance(
+                    todo.getRecurringTodo().getId(),
+                    todo.getInstanceDate()
+            );
+
+            // Remove the link
             todo.setRecurringTodo(null);
         }
 
@@ -242,29 +270,105 @@ public class TodoService {
     public TodoResponse updateTodoPosition(Long todoId, Integer newPosition) {
         Todo todo = getTodoAndVerifyOwnership(todoId);
         Long userId = todo.getUser().getId();
+        LocalDate assignedDate = todo.getAssignedDate();
 
-        todo.setPosition(newPosition);
-        todo = todoRepository.save(todo);
-        TodoResponse response = toTodoResponse(todo);
+        // Get all todos for this date, sorted by position
+        List<Todo> allTodos = todoRepository.findByUserIdAndAssignedDate(userId, assignedDate);
+        allTodos.sort(Comparator.comparing(Todo::getPosition).thenComparing(Todo::getId));
+
+        // Find current index
+        int oldIndex = -1;
+        for (int i = 0; i < allTodos.size(); i++) {
+            if (allTodos.get(i).getId().equals(todoId)) {
+                oldIndex = i;
+                break;
+            }
+        }
+
+        if (oldIndex == -1) {
+            throw new RuntimeException("Todo not found in list");
+        }
+
+        // Remove from old position, insert at new position
+        Todo movedTodo = allTodos.remove(oldIndex);
+        allTodos.add(newPosition, movedTodo);
+
+        // Only renumber the affected range (between old and new positions)
+        int startIdx = Math.min(oldIndex, newPosition);
+        int endIdx = Math.max(oldIndex, newPosition);
+
+        List<Todo> affectedTodos = new ArrayList<>();
+        for (int i = startIdx; i <= endIdx; i++) {
+            allTodos.get(i).setPosition(i + 1);
+            affectedTodos.add(allTodos.get(i));
+        }
+
+        // Save only the modified todos
+        todoRepository.saveAll(affectedTodos);
 
         // Send WebSocket notification - reorder affects only assigned date
-        webSocketService.notifyTodosChanged(userId, todo.getAssignedDate());
+        webSocketService.notifyTodosChanged(userId, assignedDate);
 
-        return response;
+        return toTodoResponse(todo);
     }
 
     @Transactional
     public TodoResponse completeTodo(Long todoId) {
         Todo todo = getTodoAndVerifyOwnership(todoId);
         Long userId = todo.getUser().getId();
+        LocalDate assignedDate = todo.getAssignedDate();
 
+        // Get all todos for this date, sorted by position
+        List<Todo> allTodos = todoRepository.findByUserIdAndAssignedDate(userId, assignedDate);
+        allTodos.sort(Comparator.comparing(Todo::getPosition).thenComparing(Todo::getId));
+
+        // Find current index
+        int oldIndex = -1;
+        for (int i = 0; i < allTodos.size(); i++) {
+            if (allTodos.get(i).getId().equals(todoId)) {
+                oldIndex = i;
+                break;
+            }
+        }
+
+        if (oldIndex == -1) {
+            throw new RuntimeException("Todo not found in list");
+        }
+
+        // Find first completed todo position (or end if none)
+        int firstCompletedIndex = allTodos.size(); // Default to end
+        for (int i = 0; i < allTodos.size(); i++) {
+            if (allTodos.get(i).getIsCompleted()) {
+                firstCompletedIndex = i;
+                break;
+            }
+        }
+
+        // Mark as completed
         todo.setIsCompleted(true);
         todo.setCompletedAt(Instant.now());
-        todo = todoRepository.save(todo);
+
+        // Move to top of completed section (just before first completed, or end)
+        Todo movedTodo = allTodos.remove(oldIndex);
+        // Adjust index if we're moving forward
+        int newIndex = firstCompletedIndex > oldIndex ? firstCompletedIndex - 1 : firstCompletedIndex;
+        allTodos.add(newIndex, movedTodo);
+
+        // Renumber affected range
+        int startIdx = Math.min(oldIndex, newIndex);
+        int endIdx = Math.max(oldIndex, newIndex);
+
+        List<Todo> affectedTodos = new ArrayList<>();
+        for (int i = startIdx; i <= endIdx; i++) {
+            allTodos.get(i).setPosition(i + 1);
+            affectedTodos.add(allTodos.get(i));
+        }
+
+        todoRepository.saveAll(affectedTodos);
         TodoResponse response = toTodoResponse(todo);
 
         // Send WebSocket notification - completion affects only assigned date
-        webSocketService.notifyTodosChanged(userId, todo.getAssignedDate());
+        webSocketService.notifyTodosChanged(userId, assignedDate);
 
         return response;
     }
@@ -273,14 +377,59 @@ public class TodoService {
     public TodoResponse uncompleteTodo(Long todoId) {
         Todo todo = getTodoAndVerifyOwnership(todoId);
         Long userId = todo.getUser().getId();
+        LocalDate assignedDate = todo.getAssignedDate();
 
+        // Get all todos for this date, sorted by position
+        List<Todo> allTodos = todoRepository.findByUserIdAndAssignedDate(userId, assignedDate);
+        allTodos.sort(Comparator.comparing(Todo::getPosition).thenComparing(Todo::getId));
+
+        // Find current index
+        int oldIndex = -1;
+        for (int i = 0; i < allTodos.size(); i++) {
+            if (allTodos.get(i).getId().equals(todoId)) {
+                oldIndex = i;
+                break;
+            }
+        }
+
+        if (oldIndex == -1) {
+            throw new RuntimeException("Todo not found in list");
+        }
+
+        // Find first completed todo position (end of incomplete section)
+        int firstCompletedIndex = allTodos.size(); // Default to end if none completed
+        for (int i = 0; i < allTodos.size(); i++) {
+            if (allTodos.get(i).getIsCompleted() && !allTodos.get(i).getId().equals(todoId)) {
+                firstCompletedIndex = i;
+                break;
+            }
+        }
+
+        // Mark as incomplete
         todo.setIsCompleted(false);
         todo.setCompletedAt(null);
-        todo = todoRepository.save(todo);
+
+        // Move to end of incomplete section (right before first completed)
+        Todo movedTodo = allTodos.remove(oldIndex);
+        // Adjust index if we removed before the target
+        int newIndex = firstCompletedIndex > oldIndex ? firstCompletedIndex - 1 : firstCompletedIndex;
+        allTodos.add(newIndex, movedTodo);
+
+        // Renumber affected range
+        int startIdx = Math.min(oldIndex, newIndex);
+        int endIdx = Math.max(oldIndex, newIndex);
+
+        List<Todo> affectedTodos = new ArrayList<>();
+        for (int i = startIdx; i <= endIdx; i++) {
+            allTodos.get(i).setPosition(i + 1);
+            affectedTodos.add(allTodos.get(i));
+        }
+
+        todoRepository.saveAll(affectedTodos);
         TodoResponse response = toTodoResponse(todo);
 
         // Send WebSocket notification - uncompletion affects only assigned date
-        webSocketService.notifyTodosChanged(userId, todo.getAssignedDate());
+        webSocketService.notifyTodosChanged(userId, assignedDate);
 
         return response;
     }
@@ -386,10 +535,63 @@ public class TodoService {
 
     @Transactional
     public TodoResponse updateVirtualTodoPosition(Long recurringTodoId, LocalDate instanceDate, Integer newPosition) {
-        // Materialize with new position
-        TodoResponse materialized = materializeVirtual(recurringTodoId, instanceDate);
+        User user = userService.getCurrentUser();
 
-        // Update position
+        RecurringTodo recurring = recurringTodoRepository.findById(recurringTodoId)
+                .orElseThrow(() -> new RuntimeException("Recurring todo not found"));
+
+        if (!recurring.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("Unauthorized");
+        }
+
+        LocalDate currentDate = userService.getCurrentDateForUser();
+
+        // If this is a future date, check if we need to materialize virtuals
+        if (instanceDate.isAfter(currentDate)) {
+            // Get all normal todos for this date
+            List<Todo> normalTodos = todoRepository.findByUserIdAndAssignedDate(user.getId(), instanceDate)
+                    .stream()
+                    .filter(t -> t.getRecurringTodo() == null) // Only normal todos
+                    .collect(Collectors.toList());
+
+            // If user is placing normal todo at position that would be in virtual group
+            // (virtuals are at top with position 0), materialize all virtuals
+            if (newPosition <= normalTodos.size()) {
+                // Materialize all virtuals for this date
+                List<RecurringTodo> allRecurring = recurringTodoRepository.findActiveByUserIdAndDate(
+                        user.getId(), instanceDate);
+
+                int pos = 1;
+                for (RecurringTodo rec : allRecurring) {
+                    // Check if not already materialized
+                    if (todoRepository.findFirstByRecurringTodoIdAndInstanceDate(
+                            rec.getId(), instanceDate).isEmpty()) {
+
+                        Todo materialized = new Todo();
+                        materialized.setUser(user);
+                        materialized.setText(rec.getText());
+                        materialized.setAssignedDate(instanceDate);
+                        materialized.setInstanceDate(instanceDate);
+                        materialized.setPosition(pos++);
+                        materialized.setRecurringTodo(rec);
+                        materialized.setIsCompleted(false);
+                        materialized.setIsRolledOver(false);
+
+                        todoRepository.save(materialized);
+                    }
+                }
+
+                // Renumber normal todos to continue from materialized virtuals
+                normalTodos.sort(Comparator.comparing(Todo::getPosition));
+                for (Todo normalTodo : normalTodos) {
+                    normalTodo.setPosition(pos++);
+                }
+                todoRepository.saveAll(normalTodos);
+            }
+        }
+
+        // Now materialize this specific virtual and apply position
+        TodoResponse materialized = materializeVirtual(recurringTodoId, instanceDate);
         return updateTodoPosition(materialized.getId(), newPosition);
     }
 
@@ -410,7 +612,7 @@ public class TodoService {
         return todos.stream()
                 .mapToInt(Todo::getPosition)
                 .max()
-                .orElse(0) + 10;
+                .orElse(0) + 1; // Sequential: max + 1
     }
 
     private TodoResponse toTodoResponse(Todo todo) {

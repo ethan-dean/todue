@@ -45,7 +45,9 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
   // Refs to track current values for WebSocket callback
   const selectedDateRef = useRef(selectedDate);
   const viewModeRef = useRef(viewMode);
-  const recentMutationsRef = useRef<Set<string>>(new Set());
+
+  // Track when mutations start to ignore stale fetches
+  const lastMutationTimeRef = useRef<number>(0);
 
   // Keep refs in sync with state
   useEffect(() => {
@@ -56,24 +58,6 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     viewModeRef.current = viewMode;
   }, [viewMode]);
 
-  // Helper to record mutations we just made (to avoid refetching our own changes)
-  const MUTATION_TRACKING_DURATION_MS = 2000;
-
-  const recordMutation = useCallback((date: string) => {
-    const key = date;
-    recentMutationsRef.current.add(key);
-
-    // Auto-cleanup after duration expires
-    setTimeout(() => {
-      recentMutationsRef.current.delete(key);
-    }, MUTATION_TRACKING_DURATION_MS);
-  }, []);
-
-  // Helper to check if a mutation is one we recently made
-  const isRecentMutation = useCallback((date: string): boolean => {
-    return recentMutationsRef.current.has(date);
-  }, []);
-
   // Helper to parse ISO date string (YYYY-MM-DD) to Date object in local timezone
   // Avoids timezone shift issues when using new Date(string) which interprets as UTC
   const parseDateString = useCallback((dateStr: string): Date => {
@@ -81,7 +65,47 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     return new Date(year, month - 1, day);
   }, []);
 
+  // Helper function for deep todo comparison
+  const areTodosEqual = (todos1: Todo[], todos2: Todo[]): boolean => {
+    if (todos1.length !== todos2.length) return false;
+
+    // Sort both arrays by id (or instanceDate for virtuals) to ensure order doesn't matter
+    const sorted1 = [...todos1].sort((a, b) => {
+      const idA = a.id ?? a.instanceDate;
+      const idB = b.id ?? b.instanceDate;
+      return String(idA).localeCompare(String(idB));
+    });
+
+    const sorted2 = [...todos2].sort((a, b) => {
+      const idA = a.id ?? a.instanceDate;
+      const idB = b.id ?? b.instanceDate;
+      return String(idA).localeCompare(String(idB));
+    });
+
+    // Compare each todo's properties
+    return sorted1.every((todo1, index) => {
+      const todo2 = sorted2[index];
+      // Note: We don't compare completedAt because frontend/backend timestamps will differ
+      // The isCompleted boolean is what matters for equality
+
+      return (
+        todo1.id === todo2.id &&
+        todo1.text === todo2.text &&
+        todo1.position === todo2.position &&
+        todo1.isCompleted === todo2.isCompleted &&
+        todo1.assignedDate === todo2.assignedDate &&
+        todo1.instanceDate === todo2.instanceDate &&
+        todo1.recurringTodoId === todo2.recurringTodoId &&
+        todo1.isRolledOver === todo2.isRolledOver &&
+        todo1.isVirtual === todo2.isVirtual
+      );
+    });
+  };
+
   const loadTodosForDate = useCallback(async (date: Date, silent: boolean = false): Promise<void> => {
+    // Record when this fetch started
+    const fetchStartTime = Date.now();
+
     // Only show loading state if not silent (e.g., initial load, manual refresh)
     // Silent refetches (from WebSocket) don't clear the UI
     if (!silent) {
@@ -92,7 +116,23 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
       const dateStr = formatDateForAPI(date);
       const fetchedTodos = await todoApi.getTodosForDate(dateStr);
 
+      // Check if a mutation happened after this fetch started
+      if (fetchStartTime < lastMutationTimeRef.current) {
+        console.log('Ignoring stale fetch for date:', dateStr, '- mutation happened during fetch');
+        return; // Don't update state with stale data
+      }
+
       setTodos((prevTodos) => {
+        const currentTodos = prevTodos.get(dateStr);
+
+        // Deep comparison - check if todos are identical
+        if (currentTodos && areTodosEqual(currentTodos, fetchedTodos)) {
+          console.log('Todos unchanged for date:', dateStr, '- skipping update');
+          return prevTodos; // No change - prevents re-render
+        }
+
+        console.log('Todos changed for date:', dateStr, '- updating state');
+
         const newTodos = new Map(prevTodos);
         newTodos.set(dateStr, fetchedTodos);
         return newTodos;
@@ -108,13 +148,24 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     }
   }, []);
 
-  const loadTodosForDateRange = useCallback(async (startDate: Date, endDate: Date): Promise<void> => {
-    setIsLoading(true);
+  const loadTodosForDateRange = useCallback(async (startDate: Date, endDate: Date, silent: boolean = false): Promise<void> => {
+    // Record when this fetch started
+    const fetchStartTime = Date.now();
+
+    if (!silent) {
+      setIsLoading(true);
+    }
     setError(null);
     try {
       const startDateStr = formatDateForAPI(startDate);
       const endDateStr = formatDateForAPI(endDate);
       const fetchedTodos = await todoApi.getTodosForDateRange(startDateStr, endDateStr);
+
+      // Check if a mutation happened after this fetch started
+      if (fetchStartTime < lastMutationTimeRef.current) {
+        console.log('Ignoring stale fetch for date range:', startDateStr, '-', endDateStr, '- mutation happened during fetch');
+        return; // Don't update state with stale data
+      }
 
       // Group todos by assigned_date
       const todosByDate = new Map<string, Todo[]>();
@@ -126,32 +177,54 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
         todosByDate.get(dateKey)!.push(todo);
       });
 
-      setTodos(todosByDate);
+      setTodos((prevTodos) => {
+        const newTodos = new Map(prevTodos);
+        let hasChanges = false;
+
+        // Compare each date's todos
+        todosByDate.forEach((fetchedTodosForDate, dateKey) => {
+          const currentTodosForDate = prevTodos.get(dateKey);
+
+          // Deep comparison - check if todos are identical
+          if (!currentTodosForDate || !areTodosEqual(currentTodosForDate, fetchedTodosForDate)) {
+            console.log('Todos changed for date:', dateKey, '- updating state');
+            newTodos.set(dateKey, fetchedTodosForDate);
+            hasChanges = true;
+          } else {
+            console.log('Todos unchanged for date:', dateKey, '- skipping update');
+          }
+        });
+
+        // If no changes detected, return previous state to prevent re-render
+        return hasChanges ? newTodos : prevTodos;
+      });
     } catch (err) {
       const errorMessage = handleApiError(err);
       setError(errorMessage);
       console.error('Failed to load todos:', err);
     } finally {
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
     }
   }, []);
 
-  const loadTodosForCurrentView = useCallback(async (): Promise<void> => {
+  const loadTodosForCurrentView = useCallback(async (silent: boolean = false): Promise<void> => {
     if (viewMode === 1) {
-      await loadTodosForDate(selectedDate);
+      await loadTodosForDate(selectedDate, silent);
     } else {
       const dates = getDateRange(selectedDate, viewMode);
-      await loadTodosForDateRange(dates[0], dates[dates.length - 1]);
+      await loadTodosForDateRange(dates[0], dates[dates.length - 1], silent);
     }
   }, [viewMode, selectedDate, loadTodosForDate, loadTodosForDateRange]);
 
   const createTodo = async (text: string, date: Date): Promise<void> => {
+    // Record mutation timestamp
+    lastMutationTimeRef.current = Date.now();
+
     setError(null);
     try {
       const dateStr = formatDateForAPI(date);
-
-      // Record mutation BEFORE API call to prevent race condition with WebSocket
-      recordMutation(dateStr);
 
       const newTodo = await todoApi.createTodo(text, dateStr);
 
@@ -171,11 +244,11 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     recurringTodoId: number | null,
     instanceDate: string
   ): Promise<void> => {
+    // Record mutation timestamp
+    lastMutationTimeRef.current = Date.now();
+
     setError(null);
     try {
-      // Record mutation BEFORE API call (use instanceDate for date tracking)
-      recordMutation(instanceDate);
-
       let updatedTodo: Todo;
       if (isVirtual && recurringTodoId) {
         updatedTodo = await todoApi.updateVirtualTodoText(recurringTodoId, instanceDate, text);
@@ -198,6 +271,9 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     recurringTodoId: number | null,
     instanceDate: string
   ): Promise<void> => {
+    // Record mutation timestamp
+    lastMutationTimeRef.current = Date.now();
+
     setError(null);
 
     // Optimistically update local state first for instant feedback
@@ -234,18 +310,15 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
       const [movedTodo] = sortedList.splice(sortedIndex, 1);
       sortedList.splice(position, 0, movedTodo);
 
-      // Update positions to match new order (0, 10, 20, 30...)
+      // Update positions to match new order (1, 2, 3, 4...)
       const reorderedList = sortedList.map((todo, index) => ({
         ...todo,
-        position: index * 10,
+        position: index + 1,
       }));
 
       newTodos.set(instanceDate, reorderedList);
       return newTodos;
     });
-
-    // Record mutation BEFORE API call (use instanceDate for date tracking)
-    recordMutation(instanceDate);
 
     try {
       if (isVirtual && recurringTodoId) {
@@ -272,21 +345,71 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     recurringTodoId: number | null,
     instanceDate: string
   ): Promise<void> => {
+    // Record mutation timestamp
+    lastMutationTimeRef.current = Date.now();
+
     setError(null);
 
-    // Record mutation immediately to catch fast WebSocket messages
-    recordMutation(instanceDate);
+    // Optimistically update local state first for instant feedback
+    setTodos((prevTodos) => {
+      const newTodos = new Map(prevTodos);
+      const dateList = newTodos.get(instanceDate) || [];
 
-    try {
-      let completedTodo: Todo;
-      if (isVirtual && recurringTodoId) {
-        completedTodo = await todoApi.completeVirtualTodo(recurringTodoId, instanceDate);
-      } else {
-        completedTodo = await todoApi.completeTodo(id);
+      // Sort by position
+      const sortedList = [...dateList].sort((a, b) => a.position - b.position);
+
+      // Find the todo being completed
+      const oldIndex = sortedList.findIndex((t) =>
+        isVirtual
+          ? t.isVirtual && t.recurringTodoId === recurringTodoId && t.instanceDate === instanceDate
+          : t.id === id
+      );
+
+      if (oldIndex === -1) {
+        return prevTodos; // Todo not found, no change
       }
 
-      updateTodoInState(completedTodo);
+      // Find first completed todo position (or end if none)
+      let firstCompletedIndex = sortedList.length;
+      for (let i = 0; i < sortedList.length; i++) {
+        if (sortedList[i].isCompleted) {
+          firstCompletedIndex = i;
+          break;
+        }
+      }
+
+      // Mark as completed and move to top of completed section
+      const movedTodo = sortedList.splice(oldIndex, 1)[0];
+      movedTodo.isCompleted = true;
+      movedTodo.completedAt = new Date().toISOString();
+
+      // Adjust index if we're moving forward
+      const newIndex = firstCompletedIndex > oldIndex ? firstCompletedIndex - 1 : firstCompletedIndex;
+      sortedList.splice(newIndex, 0, movedTodo);
+
+      // Renumber affected range (1, 2, 3, 4...)
+      const startIdx = Math.min(oldIndex, newIndex);
+      const endIdx = Math.max(oldIndex, newIndex);
+      for (let i = startIdx; i <= endIdx; i++) {
+        sortedList[i].position = i + 1;
+      }
+
+      newTodos.set(instanceDate, sortedList);
+      return newTodos;
+    });
+
+    try {
+      if (isVirtual && recurringTodoId) {
+        await todoApi.completeVirtualTodo(recurringTodoId, instanceDate);
+      } else {
+        await todoApi.completeTodo(id);
+      }
+
+      // Don't update state with server response - trust the optimistic update
     } catch (err) {
+      // On error, refetch to get the correct state from server
+      await loadTodosForDate(parseDateString(instanceDate), true);
+
       const errorMessage = handleApiError(err);
       setError(errorMessage);
       throw new Error(errorMessage);
@@ -299,18 +422,65 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     recurringTodoId: number | null,
     instanceDate: string
   ): Promise<void> => {
+    // Record mutation timestamp
+    lastMutationTimeRef.current = Date.now();
+
     setError(null);
 
-    // Record mutation immediately to catch fast WebSocket messages
-    recordMutation(instanceDate);
+    // Optimistically update local state first for instant feedback
+    setTodos((prevTodos) => {
+      const newTodos = new Map(prevTodos);
+      const dateList = newTodos.get(instanceDate) || [];
+
+      // Sort by position
+      const sortedList = [...dateList].sort((a, b) => a.position - b.position);
+
+      // Find the todo being uncompleted
+      const oldIndex = sortedList.findIndex((t) => t.id === id);
+
+      if (oldIndex === -1) {
+        return prevTodos; // Todo not found, no change
+      }
+
+      // Find first completed todo position (end of incomplete section)
+      let firstCompletedIndex = sortedList.length;
+      for (let i = 0; i < sortedList.length; i++) {
+        if (sortedList[i].isCompleted && sortedList[i].id !== id) {
+          firstCompletedIndex = i;
+          break;
+        }
+      }
+
+      // Mark as incomplete and move to end of incomplete section
+      const movedTodo = sortedList.splice(oldIndex, 1)[0];
+      movedTodo.isCompleted = false;
+      movedTodo.completedAt = null;
+
+      // Adjust index if we removed before the target
+      const newIndex = firstCompletedIndex > oldIndex ? firstCompletedIndex - 1 : firstCompletedIndex;
+      sortedList.splice(newIndex, 0, movedTodo);
+
+      // Renumber affected range (1, 2, 3, 4...)
+      const startIdx = Math.min(oldIndex, newIndex);
+      const endIdx = Math.max(oldIndex, newIndex);
+      for (let i = startIdx; i <= endIdx; i++) {
+        sortedList[i].position = i + 1;
+      }
+
+      newTodos.set(instanceDate, sortedList);
+      return newTodos;
+    });
 
     try {
       // If todo is completed, it must be materialized (have an ID)
       // So we always use the regular uncomplete endpoint
-      const uncompletedTodo = await todoApi.uncompleteTodo(id);
+      await todoApi.uncompleteTodo(id);
 
-      updateTodoInState(uncompletedTodo);
+      // Don't update state with server response - trust the optimistic update
     } catch (err) {
+      // On error, refetch to get the correct state from server
+      await loadTodosForDate(parseDateString(instanceDate), true);
+
       const errorMessage = handleApiError(err);
       setError(errorMessage);
       throw new Error(errorMessage);
@@ -324,12 +494,12 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     instanceDate: string,
     deleteAllFuture?: boolean
   ): Promise<void> => {
+    // Record mutation timestamp
+    lastMutationTimeRef.current = Date.now();
+
     setError(null);
     try {
       if (isVirtual && recurringTodoId) {
-        // Record mutation BEFORE API call to prevent race condition
-        recordMutation(instanceDate);
-
         await todoApi.deleteVirtualTodo(recurringTodoId, instanceDate, deleteAllFuture);
 
         // Remove virtual todo from state
@@ -343,11 +513,6 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
             todoDateStr = dateKey;
           }
         });
-
-        if (todoDateStr) {
-          // Record mutation BEFORE API call to prevent race condition
-          recordMutation(todoDateStr);
-        }
 
         await todoApi.deleteTodo(id, deleteAllFuture);
 
@@ -422,42 +587,41 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
           const { date } = message.data as { date: string };
 
           if (date) {
-            // Check if this is our own recent mutation
-            if (isRecentMutation(date)) {
-              console.log('Ignoring own mutation for date:', date);
-              return; // Skip refetch for our own changes
-            }
-
-            // Only refetch if this date is currently visible
-            // Use refs to get current values instead of closure values
-            if (viewModeRef.current === 1) {
-              // Single day view - only refetch if it's the selected date
-              if (formatDateForAPI(selectedDateRef.current) === date) {
-                // Silent refetch - don't show loading spinner for external changes
-                loadTodosForDate(parseDateString(date), true);
+            // Small delay to allow database transaction to commit (prevents race condition)
+            setTimeout(() => {
+              // Always refetch - state comparison will prevent unnecessary updates
+              // Use refs to get current values instead of closure values
+              if (viewModeRef.current === 1) {
+                // Single day view - only refetch if it's the selected date
+                if (formatDateForAPI(selectedDateRef.current) === date) {
+                  // Silent refetch - comparison prevents flicker if data unchanged
+                  loadTodosForDate(parseDateString(date), true);
+                }
+              } else {
+                // Multi-day view - refetch if the date is in visible range
+                const dates = getDateRange(selectedDateRef.current, viewModeRef.current);
+                const isVisible = dates.some(d => formatDateForAPI(d) === date);
+                if (isVisible) {
+                  // Silent refetch - comparison prevents flicker if data unchanged
+                  loadTodosForDate(parseDateString(date), true);
+                }
               }
-            } else {
-              // Multi-day view - refetch if the date is in visible range
-              const dates = getDateRange(selectedDateRef.current, viewModeRef.current);
-              const isVisible = dates.some(d => formatDateForAPI(d) === date);
-              if (isVisible) {
-                // Silent refetch - don't show loading spinner for external changes
-                loadTodosForDate(parseDateString(date), true);
-              }
-            }
+            }, 500); // 200ms delay to allow transaction commit
           }
         }
         break;
 
       case WebSocketMessageType.RECURRING_CHANGED:
         // Recurring pattern changed - refetch all currently visible dates
-        loadTodosForCurrentView();
+        setTimeout(() => {
+          loadTodosForCurrentView(true); // Silent refetch - state comparison prevents flicker
+        }, 50); // 50ms delay to allow transaction commit
         break;
 
       default:
         console.warn('Unknown WebSocket message type:', message.type);
     }
-  }, [isRecentMutation, parseDateString, loadTodosForDate, loadTodosForCurrentView]);
+  }, [parseDateString, loadTodosForDate, loadTodosForCurrentView]);
 
   // Load todos when date or view mode changes
   useEffect(() => {

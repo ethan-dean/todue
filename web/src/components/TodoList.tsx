@@ -22,7 +22,7 @@ import InlineAddTodo from './InlineAddTodo';
 
 // Generate unique ID for sortable items
 const getTodoId = (todo: Todo): string => {
-  if (todo.id !== null) {
+  if (todo.id != null) { // Checks both null and undefined
     return `todo-${todo.id}`;
   }
   // Virtual todos: use recurringTodoId + instanceDate
@@ -106,16 +106,9 @@ const TodoList: React.FC<TodoListProps> = ({ todos: initialTodos, date }) => {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
 
-  // Keep todos sorted: incomplete first (by position), then completed (by position)
+  // Sort by position only - position determines everything including completion status
   const sortedTodos = useMemo(() => {
-    return [...initialTodos].sort((a, b) => {
-      // Completed todos always go to the bottom
-      if (a.isCompleted !== b.isCompleted) {
-        return a.isCompleted ? 1 : -1;
-      }
-      // Within the same completion status, sort by position
-      return a.position - b.position;
-    });
+    return [...initialTodos].sort((a, b) => a.position - b.position);
   }, [initialTodos]);
 
   // Configure drag sensors

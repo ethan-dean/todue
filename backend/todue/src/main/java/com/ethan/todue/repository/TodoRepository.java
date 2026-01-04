@@ -13,11 +13,13 @@ import java.util.Optional;
 @Repository
 public interface TodoRepository extends JpaRepository<Todo, Long> {
 
-    List<Todo> findByUserIdAndAssignedDate(Long userId, LocalDate assignedDate);
+    @Query("SELECT t FROM Todo t WHERE t.user.id = :userId AND t.assignedDate = :assignedDate " +
+           "ORDER BY t.position ASC")
+    List<Todo> findByUserIdAndAssignedDate(@Param("userId") Long userId, @Param("assignedDate") LocalDate assignedDate);
 
     @Query("SELECT t FROM Todo t WHERE t.user.id = :userId " +
            "AND t.assignedDate BETWEEN :startDate AND :endDate " +
-           "ORDER BY t.assignedDate, t.isRolledOver DESC, t.position ASC, t.id ASC")
+           "ORDER BY t.assignedDate, t.position ASC")
     List<Todo> findByUserIdAndAssignedDateBetween(
         @Param("userId") Long userId,
         @Param("startDate") LocalDate startDate,
@@ -25,7 +27,8 @@ public interface TodoRepository extends JpaRepository<Todo, Long> {
     );
 
     @Query("SELECT t FROM Todo t WHERE t.user.id = :userId " +
-           "AND t.assignedDate < :date AND t.isCompleted = false")
+           "AND t.assignedDate < :date AND t.isCompleted = false " +
+           "ORDER BY t.assignedDate DESC, t.position ASC")
     List<Todo> findIncompleteBeforeDate(@Param("userId") Long userId, @Param("date") LocalDate date);
 
     // Changed to findFirst to handle duplicates gracefully during cleanup period
