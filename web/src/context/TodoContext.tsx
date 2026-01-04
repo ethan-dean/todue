@@ -247,6 +247,27 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     // Record mutation timestamp
     lastMutationTimeRef.current = Date.now();
 
+    // Optimistically update local state first for instant feedback
+    setTodos((prevTodos) => {
+      const newTodos = new Map(prevTodos);
+      const dateList = newTodos.get(instanceDate) || [];
+
+      const updatedList = dateList.map((t) => {
+        // Match virtual todo by recurringTodoId + instanceDate
+        if (isVirtual && t.recurringTodoId === recurringTodoId && t.instanceDate === instanceDate) {
+          return { ...t, text };
+        }
+        // Match real todo by ID
+        if (!isVirtual && t.id === id) {
+          return { ...t, text };
+        }
+        return t;
+      });
+
+      newTodos.set(instanceDate, updatedList);
+      return newTodos;
+    });
+
     setError(null);
     try {
       let updatedTodo: Todo;
@@ -256,8 +277,12 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
         updatedTodo = await todoApi.updateTodoText(id, text);
       }
 
+      // Update with server response (handles materialization for virtual todos)
       updateTodoInState(updatedTodo);
     } catch (err) {
+      // On error, refetch to get the correct state from server
+      await loadTodosForDate(parseDateString(instanceDate), true);
+
       const errorMessage = handleApiError(err);
       setError(errorMessage);
       throw new Error(errorMessage);
@@ -497,30 +522,77 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     // Record mutation timestamp
     lastMutationTimeRef.current = Date.now();
 
-    setError(null);
-    try {
-      if (isVirtual && recurringTodoId) {
-        await todoApi.deleteVirtualTodo(recurringTodoId, instanceDate, deleteAllFuture);
+    // Optimistically update local state first for instant feedback
+    setTodos((prevTodos) => {
+      const newTodos = new Map(prevTodos);
 
-        // Remove virtual todo from state
-        removeTodoFromState(id, instanceDate);
+      if (isVirtual && recurringTodoId) {
+        if (deleteAllFuture) {
+          // Remove this virtual from ALL dates in state
+          newTodos.forEach((todoList, dateKey) => {
+            const filteredList = todoList.filter((t) =>
+              !(t.isVirtual && t.recurringTodoId === recurringTodoId && t.instanceDate >= instanceDate)
+            );
+            if (filteredList.length === 0) {
+              newTodos.delete(dateKey);
+            } else {
+              newTodos.set(dateKey, filteredList);
+            }
+          });
+        } else {
+          // Remove just this instance
+          const dateList = newTodos.get(instanceDate) || [];
+          const filteredList = dateList.filter((t) =>
+            !(t.isVirtual && t.recurringTodoId === recurringTodoId && t.instanceDate === instanceDate)
+          );
+          if (filteredList.length === 0) {
+            newTodos.delete(instanceDate);
+          } else {
+            newTodos.set(instanceDate, filteredList);
+          }
+        }
       } else {
-        // Find the todo to get its assigned date BEFORE deletion
+        // Real todo - find and remove by ID
         let todoDateStr: string | null = null;
-        todos.forEach((todoList, dateKey) => {
+        prevTodos.forEach((todoList, dateKey) => {
           const foundTodo = todoList.find(t => t.id === id);
           if (foundTodo) {
             todoDateStr = dateKey;
           }
         });
 
-        await todoApi.deleteTodo(id, deleteAllFuture);
-
         if (todoDateStr) {
-          removeTodoFromState(id, todoDateStr);
+          const dateList = newTodos.get(todoDateStr) || [];
+          const filteredList = dateList.filter((t) => t.id !== id);
+          if (filteredList.length === 0) {
+            newTodos.delete(todoDateStr);
+          } else {
+            newTodos.set(todoDateStr, filteredList);
+          }
         }
       }
+
+      return newTodos;
+    });
+
+    setError(null);
+    try {
+      if (isVirtual && recurringTodoId) {
+        await todoApi.deleteVirtualTodo(recurringTodoId, instanceDate, deleteAllFuture);
+      } else {
+        await todoApi.deleteTodo(id, deleteAllFuture);
+      }
+
+      // Don't update state - trust the optimistic update
     } catch (err) {
+      // On error, refetch to get the correct state from server
+      if (isVirtual) {
+        // Refetch all visible dates
+        await loadTodosForCurrentView(true);
+      } else {
+        await loadTodosForDate(parseDateString(instanceDate), true);
+      }
+
       const errorMessage = handleApiError(err);
       setError(errorMessage);
       throw new Error(errorMessage);
@@ -552,11 +624,22 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
       const newTodos = new Map(prevTodos);
       const dateKey = todo.assignedDate;
       const dateList = newTodos.get(dateKey) || [];
-      const updatedList = dateList.map((t) =>
-        (t.id === todo.id || (t.isVirtual && todo.isVirtual && t.instanceDate === todo.instanceDate && t.recurringTodoId === todo.recurringTodoId))
-          ? todo
-          : t
-      );
+      const updatedList = dateList.map((t) => {
+        // Match by ID if both have IDs
+        if (t.id != null && todo.id != null && t.id === todo.id) {
+          return todo;
+        }
+
+        // Match virtual todo by recurringTodoId + instanceDate
+        // This handles when a virtual todo gets materialized (id changes from null to real ID)
+        if (t.recurringTodoId != null && todo.recurringTodoId != null &&
+            t.recurringTodoId === todo.recurringTodoId &&
+            t.instanceDate === todo.instanceDate) {
+          return todo;
+        }
+
+        return t;
+      });
       newTodos.set(dateKey, updatedList);
       return newTodos;
     });
@@ -606,7 +689,7 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
                   loadTodosForDate(parseDateString(date), true);
                 }
               }
-            }, 500); // 200ms delay to allow transaction commit
+            }, 300); // 300ms delay to allow transaction commit
           }
         }
         break;
@@ -615,7 +698,7 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
         // Recurring pattern changed - refetch all currently visible dates
         setTimeout(() => {
           loadTodosForCurrentView(true); // Silent refetch - state comparison prevents flicker
-        }, 50); // 50ms delay to allow transaction commit
+        }, 300); // 300ms delay to allow transaction commit
         break;
 
       default:

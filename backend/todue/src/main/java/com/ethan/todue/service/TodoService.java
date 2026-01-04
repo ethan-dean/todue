@@ -271,8 +271,83 @@ public class TodoService {
         Todo todo = getTodoAndVerifyOwnership(todoId);
         Long userId = todo.getUser().getId();
         LocalDate assignedDate = todo.getAssignedDate();
+        LocalDate currentDate = userService.getCurrentDateForUser();
 
-        // Get all todos for this date, sorted by position
+        // Check if we need to materialize virtuals
+        // This happens when moving a normal todo into the position where virtuals exist
+        boolean needsMaterialization = false;
+
+        // Only check for current/future dates (past dates don't have virtuals)
+        if (!assignedDate.isBefore(currentDate)) {
+            // Count how many recurring todos should exist on this date
+            List<RecurringTodo> allRecurring = recurringTodoRepository.findActiveByUserIdAndDate(userId, assignedDate);
+            int virtualCount = 0;
+
+            for (RecurringTodo rec : allRecurring) {
+                if (RecurrenceCalculator.shouldInstanceExist(rec.getRecurrenceType(), rec.getStartDate(), assignedDate)) {
+                    // Check if not already materialized
+                    if (todoRepository.findFirstByRecurringTodoIdAndInstanceDate(rec.getId(), assignedDate).isEmpty()) {
+                        // Check if not skipped
+                        if (!skipRecurringRepository.existsByRecurringTodoIdAndSkipDate(rec.getId(), assignedDate)) {
+                            virtualCount++;
+                        }
+                    }
+                }
+            }
+
+            // If moving a normal todo to a position that would overlap with virtuals, materialize them
+            if (virtualCount > 0 && newPosition < virtualCount) {
+                needsMaterialization = true;
+            }
+        }
+
+        if (needsMaterialization) {
+            // Materialize all virtuals for this date
+            List<RecurringTodo> allRecurring = recurringTodoRepository.findActiveByUserIdAndDate(userId, assignedDate);
+            allRecurring.sort(Comparator.comparing(RecurringTodo::getId));
+
+            int pos = 1;
+            for (RecurringTodo rec : allRecurring) {
+                // Check if should exist on this date
+                if (!RecurrenceCalculator.shouldInstanceExist(rec.getRecurrenceType(), rec.getStartDate(), assignedDate)) {
+                    continue;
+                }
+
+                // Check if not already materialized
+                if (todoRepository.findFirstByRecurringTodoIdAndInstanceDate(rec.getId(), assignedDate).isEmpty()) {
+                    // Check if not skipped
+                    if (!skipRecurringRepository.existsByRecurringTodoIdAndSkipDate(rec.getId(), assignedDate)) {
+                        Todo materialized = new Todo();
+                        materialized.setUser(userService.getCurrentUser());
+                        materialized.setText(rec.getText());
+                        materialized.setAssignedDate(assignedDate);
+                        materialized.setInstanceDate(assignedDate);
+                        materialized.setPosition(pos++);
+                        materialized.setRecurringTodo(rec);
+                        materialized.setIsCompleted(false);
+                        materialized.setIsRolledOver(false);
+
+                        todoRepository.save(materialized);
+                    }
+                } else {
+                    pos++; // Already materialized - increment counter
+                }
+            }
+
+            // Renumber normal todos to continue after materialized virtuals
+            List<Todo> normalTodos = todoRepository.findByUserIdAndAssignedDate(userId, assignedDate)
+                    .stream()
+                    .filter(t -> t.getRecurringTodo() == null) // Only normal todos
+                    .sorted(Comparator.comparing(Todo::getPosition))
+                    .collect(Collectors.toList());
+
+            for (Todo normalTodo : normalTodos) {
+                normalTodo.setPosition(pos++);
+            }
+            todoRepository.saveAll(normalTodos);
+        }
+
+        // Now perform the actual reordering
         List<Todo> allTodos = todoRepository.findByUserIdAndAssignedDate(userId, assignedDate);
         allTodos.sort(Comparator.comparing(Todo::getPosition).thenComparing(Todo::getId));
 
@@ -510,21 +585,80 @@ public class TodoService {
     @Transactional
     public TodoResponse updateVirtualTodoText(Long recurringTodoId, LocalDate instanceDate, String newText) {
         User user = userService.getCurrentUser();
+        Long userId = user.getId();
 
-        // Skip this instance
+        // Skip this instance (prevents it from appearing as virtual)
         skipRecurringService.skipInstance(recurringTodoId, instanceDate);
 
-        // Create orphaned todo with new text
-        Todo todo = new Todo();
-        todo.setUser(user);
-        todo.setText(newText);
-        todo.setAssignedDate(instanceDate);
-        todo.setInstanceDate(instanceDate);
-        todo.setPosition(getNextPosition(user.getId(), instanceDate));
-        todo.setIsCompleted(false);
-        todo.setIsRolledOver(false);
+        // Get all recurring todos for this date
+        List<RecurringTodo> allRecurring = recurringTodoRepository.findActiveByUserIdAndDate(userId, instanceDate);
+        allRecurring.sort(Comparator.comparing(RecurringTodo::getId)); // Sort by ID (creation order)
 
-        todo = todoRepository.save(todo);
+        // Materialize all virtuals, creating the orphaned one in place of the edited virtual
+        int pos = 1;
+        Todo orphanedTodo = null;
+
+        for (RecurringTodo rec : allRecurring) {
+            // Check if this recurring todo should have an instance on this date
+            if (!RecurrenceCalculator.shouldInstanceExist(rec.getRecurrenceType(), rec.getStartDate(), instanceDate)) {
+                continue; // Skip - no instance on this date
+            }
+
+            if (rec.getId().equals(recurringTodoId)) {
+                // This is the one being edited - create orphaned version instead of materializing
+                orphanedTodo = new Todo();
+                orphanedTodo.setUser(user);
+                orphanedTodo.setText(newText);
+                orphanedTodo.setAssignedDate(instanceDate);
+                orphanedTodo.setInstanceDate(instanceDate);
+                orphanedTodo.setPosition(pos++); // Takes the position of the virtual it's replacing
+                orphanedTodo.setIsCompleted(false);
+                orphanedTodo.setIsRolledOver(false);
+                // Note: no recurringTodoId - it's orphaned
+            } else {
+                // Check if not already materialized
+                if (todoRepository.findFirstByRecurringTodoIdAndInstanceDate(rec.getId(), instanceDate).isEmpty()) {
+                    // Check if not skipped
+                    if (!skipRecurringRepository.existsByRecurringTodoIdAndSkipDate(rec.getId(), instanceDate)) {
+                        Todo materialized = new Todo();
+                        materialized.setUser(user);
+                        materialized.setText(rec.getText());
+                        materialized.setAssignedDate(instanceDate);
+                        materialized.setInstanceDate(instanceDate);
+                        materialized.setPosition(pos++);
+                        materialized.setRecurringTodo(rec);
+                        materialized.setIsCompleted(false);
+                        materialized.setIsRolledOver(false);
+
+                        todoRepository.save(materialized);
+                    }
+                } else {
+                    pos++; // Already materialized - increment position counter
+                }
+            }
+        }
+
+        // Save the orphaned todo
+        if (orphanedTodo != null) {
+            orphanedTodo = todoRepository.save(orphanedTodo);
+        } else {
+            throw new RuntimeException("Recurring todo not found");
+        }
+
+        Todo todo = orphanedTodo;
+
+        // Renumber normal todos to continue after all recurring todos
+        List<Todo> normalTodos = todoRepository.findByUserIdAndAssignedDate(userId, instanceDate)
+                .stream()
+                .filter(t -> t.getRecurringTodo() == null && !t.getId().equals(todo.getId())) // Only normal todos (not the one we just created)
+                .sorted(Comparator.comparing(Todo::getPosition))
+                .collect(Collectors.toList());
+
+        for (Todo normalTodo : normalTodos) {
+            normalTodo.setPosition(pos++);
+        }
+        todoRepository.saveAll(normalTodos);
+
         TodoResponse response = toTodoResponse(todo);
 
         // Send WebSocket notification - orphaning affects only this date
