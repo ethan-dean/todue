@@ -73,10 +73,11 @@ public class RolloverService {
 
         // Step 3: Materialize virtual todos for today
         for (RecurringTodo recurring : todaysRecurring) {
-            // Check if real todo already exists (was manually created)
-            if (todoRepository.findFirstByRecurringTodoIdAndInstanceDate(
-                recurring.getId(), currentDate).isEmpty()) {
+            // Check if real todo already exists (was manually created/materialized before)
+            java.util.Optional<Todo> existingTodo = todoRepository.findFirstByRecurringTodoIdAndInstanceDate(
+                recurring.getId(), currentDate);
 
+            if (existingTodo.isEmpty()) {
                 // Materialize it
                 Todo materializedTodo = new Todo();
                 materializedTodo.setUser(user);
@@ -89,6 +90,11 @@ public class RolloverService {
                 materializedTodo.setIsRolledOver(false);
 
                 todoRepository.save(materializedTodo);
+            } else {
+                // Already materialized - update position to maintain sequential order
+                Todo existing = existingTodo.get();
+                existing.setPosition(position++);
+                todoRepository.save(existing);
             }
         }
 

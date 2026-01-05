@@ -528,10 +528,14 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
 
       if (isVirtual && recurringTodoId) {
         if (deleteAllFuture) {
-          // Remove this virtual from ALL dates in state
+          // Remove virtuals AND incomplete materialized instances from ALL dates in state
           newTodos.forEach((todoList, dateKey) => {
             const filteredList = todoList.filter((t) =>
-              !(t.isVirtual && t.recurringTodoId === recurringTodoId && t.instanceDate >= instanceDate)
+              !(
+                t.recurringTodoId === recurringTodoId &&
+                t.instanceDate >= instanceDate &&
+                !t.isCompleted // Keep completed ones
+              )
             );
             if (filteredList.length === 0) {
               newTodos.delete(dateKey);
@@ -697,7 +701,15 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
       case WebSocketMessageType.RECURRING_CHANGED:
         // Recurring pattern changed - refetch all currently visible dates
         setTimeout(() => {
-          loadTodosForCurrentView(true); // Silent refetch - state comparison prevents flicker
+          // Use refs to get current values instead of closure values
+          if (viewModeRef.current === 1) {
+            // Single day view
+            loadTodosForDate(selectedDateRef.current, true);
+          } else {
+            // Multi-day view
+            const dates = getDateRange(selectedDateRef.current, viewModeRef.current);
+            loadTodosForDateRange(dates[0], dates[dates.length - 1], true);
+          }
         }, 300); // 300ms delay to allow transaction commit
         break;
 
