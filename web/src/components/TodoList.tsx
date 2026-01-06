@@ -99,12 +99,21 @@ const SortableTodoItem: React.FC<SortableTodoItemProps> = ({
 interface TodoListProps {
   todos: Todo[];
   date: Date;
+  enableDragContext?: boolean; // Whether to wrap in its own DndContext
+  activeId?: string | null; // From parent when enableDragContext=false
+  overId?: string | null; // From parent when enableDragContext=false
+  suppressPlaceholders?: boolean; // Hide placeholders when dragging from different day
 }
 
-const TodoList: React.FC<TodoListProps> = ({ todos: initialTodos, date }) => {
-  const { updateTodoPosition } = useTodos();
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [overId, setOverId] = useState<string | null>(null);
+const TodoList: React.FC<TodoListProps> = ({ todos: initialTodos, date, enableDragContext = true, activeId: parentActiveId, overId: parentOverId, suppressPlaceholders = false }) => {
+  const { updateTodoPosition, setTodoInMoveMode, todoInMoveMode } = useTodos();
+  const [localActiveId, setLocalActiveId] = useState<string | null>(null);
+  const [localOverId, setLocalOverId] = useState<string | null>(null);
+  const longPressTimerRef = React.useRef<number | null>(null);
+
+  // Use parent's activeId/overId if not managing own context, otherwise use local state
+  const activeId = enableDragContext ? localActiveId : parentActiveId;
+  const overId = enableDragContext ? localOverId : parentOverId;
 
   // Sort by position only - position determines everything including completion status
   const sortedTodos = useMemo(() => {
@@ -121,18 +130,18 @@ const TodoList: React.FC<TodoListProps> = ({ todos: initialTodos, date }) => {
   );
 
   const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
+    setLocalActiveId(event.active.id as string);
   };
 
   const handleDragOver = (event: { over: { id: string } | null }) => {
-    setOverId(event.over?.id || null);
+    setLocalOverId(event.over?.id || null);
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
 
-    setActiveId(null);
-    setOverId(null);
+    setLocalActiveId(null);
+    setLocalOverId(null);
 
     if (!over || active.id === over.id) {
       return;
@@ -162,8 +171,27 @@ const TodoList: React.FC<TodoListProps> = ({ todos: initialTodos, date }) => {
   };
 
   const handleDragCancel = () => {
-    setActiveId(null);
-    setOverId(null);
+    setLocalActiveId(null);
+    setLocalOverId(null);
+  };
+
+  // Long-press handlers for mobile move mode
+  const handleTouchStart = (todo: Todo) => {
+    longPressTimerRef.current = window.setTimeout(() => {
+      // Trigger move mode
+      setTodoInMoveMode(todo);
+      // Haptic feedback on mobile
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+    }, 500); // 500ms long-press
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
   };
 
   // Find the active todo for the drag overlay
@@ -171,15 +199,8 @@ const TodoList: React.FC<TodoListProps> = ({ todos: initialTodos, date }) => {
     ? sortedTodos.find((t) => getTodoId(t) === activeId)
     : null;
 
-  return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragStart={handleDragStart}
-      onDragOver={handleDragOver}
-      onDragEnd={handleDragEnd}
-      onDragCancel={handleDragCancel}
-    >
+  const content = (
+    <>
       <div className="todo-list-container">
         <div className="todo-list">
           <SortableContext
@@ -189,15 +210,25 @@ const TodoList: React.FC<TodoListProps> = ({ todos: initialTodos, date }) => {
             {sortedTodos.map((todo) => {
               const todoId = getTodoId(todo);
               const isActive = activeId === todoId;
-              const showPlaceholderAbove = overId === todoId && activeId !== todoId;
+              const showPlaceholderAbove = !suppressPlaceholders && overId === todoId && activeId !== todoId;
+              const isInMoveMode = todoInMoveMode?.id === todo.id &&
+                                   todoInMoveMode?.recurringTodoId === todo.recurringTodoId &&
+                                   todoInMoveMode?.instanceDate === todo.instanceDate;
 
               return (
-                <SortableTodoItem
+                <div
                   key={todoId}
-                  todo={todo}
-                  isActive={isActive}
-                  showPlaceholderAbove={showPlaceholderAbove}
-                />
+                  onTouchStart={() => handleTouchStart(todo)}
+                  onTouchEnd={handleTouchEnd}
+                  onTouchCancel={handleTouchEnd}
+                  className={isInMoveMode ? 'todo-in-move-mode' : ''}
+                >
+                  <SortableTodoItem
+                    todo={todo}
+                    isActive={isActive}
+                    showPlaceholderAbove={showPlaceholderAbove}
+                  />
+                </div>
               );
             })}
           </SortableContext>
@@ -208,19 +239,40 @@ const TodoList: React.FC<TodoListProps> = ({ todos: initialTodos, date }) => {
       </div>
 
       {/* Drag overlay - shows the todo being dragged following the cursor */}
-      <DragOverlay>
-        {activeTodo ? (
-          <div className="todo-item drag-preview" style={{ cursor: 'grabbing' }}>
-            <div className="todo-checkbox">
-              <input type="checkbox" checked={activeTodo.isCompleted} readOnly />
+      {enableDragContext && (
+        <DragOverlay>
+          {activeTodo ? (
+            <div className="todo-item drag-preview" style={{ cursor: 'grabbing' }}>
+              <div className="todo-checkbox">
+                <input type="checkbox" checked={activeTodo.isCompleted} readOnly />
+              </div>
+              <div className="todo-text">{activeTodo.text}</div>
+              <div className="todo-actions"></div>
             </div>
-            <div className="todo-text">{activeTodo.text}</div>
-            <div className="todo-actions"></div>
-          </div>
-        ) : null}
-      </DragOverlay>
-    </DndContext>
+          ) : null}
+        </DragOverlay>
+      )}
+    </>
   );
+
+  // Only wrap in DndContext if enableDragContext is true (single-day view)
+  // In multi-day view, parent provides the DndContext
+  if (enableDragContext) {
+    return (
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
+      >
+        {content}
+      </DndContext>
+    );
+  }
+
+  return content;
 };
 
 export default TodoList;

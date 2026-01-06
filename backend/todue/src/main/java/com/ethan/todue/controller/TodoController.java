@@ -2,6 +2,7 @@ package com.ethan.todue.controller;
 
 import com.ethan.todue.dto.CreateTodoRequest;
 import com.ethan.todue.dto.TodoResponse;
+import com.ethan.todue.dto.UpdateAssignedDateRequest;
 import com.ethan.todue.dto.UpdateTodoPositionRequest;
 import com.ethan.todue.dto.UpdateTodoTextRequest;
 import com.ethan.todue.dto.VirtualTodoRequest;
@@ -59,6 +60,15 @@ public class TodoController {
             @Valid @RequestBody UpdateTodoPositionRequest request
     ) {
         TodoResponse response = todoService.updateTodoPosition(id, request.getPosition());
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{id}/assigned-date")
+    public ResponseEntity<TodoResponse> updateTodoAssignedDate(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateAssignedDateRequest request
+    ) {
+        TodoResponse response = todoService.updateTodoAssignedDate(id, request.getToDate());
         return ResponseEntity.ok(response);
     }
 
@@ -128,5 +138,18 @@ public class TodoController {
     ) {
         todoService.deleteVirtualTodo(recurringTodoId, instanceDate, deleteAllFuture);
         return ResponseEntity.ok(Map.of("message", "Virtual todo deleted successfully"));
+    }
+
+    @PostMapping("/virtual/update-assigned-date")
+    public ResponseEntity<TodoResponse> updateVirtualTodoAssignedDate(
+            @Valid @RequestBody VirtualTodoRequest request,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate
+    ) {
+        TodoResponse response = todoService.updateVirtualTodoAssignedDate(
+                request.getRecurringTodoId(),
+                request.getInstanceDate(),
+                toDate
+        );
+        return ResponseEntity.ok(response);
     }
 }

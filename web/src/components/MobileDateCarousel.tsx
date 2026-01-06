@@ -3,7 +3,7 @@ import { useTodos } from '../context/TodoContext';
 import { addDays, formatDate, isToday } from '../utils/dateUtils';
 
 const MobileDateCarousel: React.FC = () => {
-  const { selectedDate, changeDate } = useTodos();
+  const { selectedDate, changeDate, moveTodo, todoInMoveMode, setTodoInMoveMode } = useTodos();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Generate array of dates (selected date +/- 30 days for scrolling)
@@ -30,7 +30,14 @@ const MobileDateCarousel: React.FC = () => {
   }, [selectedDate]);
 
   const handleDateClick = (date: Date) => {
-    changeDate(date);
+    if (todoInMoveMode) {
+      // Move mode active - move the todo to this date
+      moveTodo(todoInMoveMode, date);
+      setTodoInMoveMode(null); // Exit move mode
+    } else {
+      // Normal mode - change selected date
+      changeDate(date);
+    }
   };
 
   const getDayOfWeek = (date: Date): string => {
@@ -51,9 +58,18 @@ const MobileDateCarousel: React.FC = () => {
 
   return (
     <div className="mobile-date-carousel">
+      {todoInMoveMode && (
+        <div className="move-mode-banner">
+          <span>Tap a date to move todo</span>
+          <button onClick={() => setTodoInMoveMode(null)} className="btn-cancel-move">
+            Cancel
+          </button>
+        </div>
+      )}
+
       <div className="carousel-header">
         <h2 className="carousel-title">{formatDate(selectedDate, 'MMMM yyyy')}</h2>
-        {!isToday(selectedDate) && (
+        {!isToday(selectedDate) && !todoInMoveMode && (
           <button onClick={() => changeDate(new Date())} className="btn-today-mobile">
             Today
           </button>
@@ -63,11 +79,12 @@ const MobileDateCarousel: React.FC = () => {
         {dates.map((date, index) => {
           const isSelected = isSameDay(date, selectedDate);
           const isTodayDate = isToday(date);
+          const isMoveMode = todoInMoveMode !== null;
 
           return (
             <button
               key={index}
-              className={`date-item ${isSelected ? 'selected' : ''} ${isTodayDate ? 'today' : ''}`}
+              className={`date-item ${isSelected ? 'selected' : ''} ${isTodayDate ? 'today' : ''} ${isMoveMode ? 'move-mode' : ''}`}
               onClick={() => handleDateClick(date)}
             >
               <div className="date-day">{getDayOfWeek(date)}</div>

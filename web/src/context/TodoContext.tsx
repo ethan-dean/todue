@@ -15,6 +15,7 @@ interface TodoContextType {
   viewMode: ViewMode;
   isLoading: boolean;
   error: string | null;
+  todoInMoveMode: Todo | null;
   loadTodosForDate: (date: Date) => Promise<void>;
   loadTodosForDateRange: (startDate: Date, endDate: Date) => Promise<void>;
   createTodo: (text: string, date: Date) => Promise<void>;
@@ -23,6 +24,8 @@ interface TodoContextType {
   completeTodo: (id: number, isVirtual: boolean, recurringTodoId: number | null, instanceDate: string) => Promise<void>;
   uncompleteTodo: (id: number, isVirtual: boolean, recurringTodoId: number | null, instanceDate: string) => Promise<void>;
   deleteTodo: (id: number, isVirtual: boolean, recurringTodoId: number | null, instanceDate: string, deleteAllFuture?: boolean) => Promise<void>;
+  moveTodo: (todo: Todo, toDate: Date) => Promise<void>;
+  setTodoInMoveMode: (todo: Todo | null) => void;
   setViewMode: (mode: ViewMode) => void;
   changeDate: (newDate: Date) => void;
   clearError: () => void;
@@ -41,6 +44,7 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
   const [viewMode, setViewMode] = useState<ViewMode>(1);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [todoInMoveMode, setTodoInMoveMode] = useState<Todo | null>(null);
 
   // Refs to track current values for WebSocket callback
   const selectedDateRef = useRef(selectedDate);
@@ -603,6 +607,82 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     }
   };
 
+  const moveTodo = async (todo: Todo, toDate: Date): Promise<void> => {
+    const fromDateStr = todo.assignedDate;
+    const toDateStr = formatDateForAPI(toDate);
+
+    // Don't move if already on target date
+    if (fromDateStr === toDateStr) return;
+
+    // Record mutation timestamp
+    lastMutationTimeRef.current = Date.now();
+
+    try {
+      // Optimistic update: remove from source, add to target
+      setTodos((prevTodos) => {
+        const newTodos = new Map(prevTodos);
+
+        // Remove from source date
+        const fromList = newTodos.get(fromDateStr) || [];
+        const filteredFromList = fromList.filter((t) => {
+          if (todo.isVirtual) {
+            return !(t.recurringTodoId === todo.recurringTodoId &&
+                     t.instanceDate === todo.instanceDate);
+          }
+          return t.id !== todo.id;
+        });
+
+        // Renumber source date positions
+        const renumberedFromList = filteredFromList
+          .sort((a, b) => a.position - b.position)
+          .map((t, idx) => ({ ...t, position: idx + 1 }));
+        newTodos.set(fromDateStr, renumberedFromList);
+
+        // Add to target date (at end)
+        const toList = newTodos.get(toDateStr) || [];
+        const maxPos = toList.reduce((max, t) => Math.max(max, t.position), 0);
+
+        const movedTodo: Todo = {
+          ...todo,
+          assignedDate: toDateStr,
+          position: maxPos + 1,
+          isRolledOver: false,
+          // If was recurring, will be orphaned by backend
+        };
+
+        newTodos.set(toDateStr, [...toList, movedTodo]);
+
+        return newTodos;
+      });
+
+      // Make API call
+      let updatedTodo: Todo;
+      if (todo.isVirtual && todo.recurringTodoId) {
+        updatedTodo = await todoApi.updateVirtualTodoAssignedDate(
+          todo.recurringTodoId,
+          todo.instanceDate,
+          toDateStr
+        );
+      } else {
+        updatedTodo = await todoApi.updateTodoAssignedDate(todo.id!, toDateStr);
+      }
+
+      // Update state with real todo (handles materialization)
+      updateTodoInState(updatedTodo);
+
+    } catch (err) {
+      // Rollback: refetch both dates
+      await Promise.all([
+        loadTodosForDate(parseDateString(fromDateStr), true),
+        loadTodosForDate(toDate, true),
+      ]);
+
+      const errorMessage = handleApiError(err);
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    }
+  };
+
   const changeDate = (newDate: Date): void => {
     setSelectedDate(newDate);
   };
@@ -750,6 +830,7 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     viewMode,
     isLoading,
     error,
+    todoInMoveMode,
     loadTodosForDate,
     loadTodosForDateRange,
     createTodo,
@@ -758,6 +839,8 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     completeTodo,
     uncompleteTodo,
     deleteTodo,
+    moveTodo,
+    setTodoInMoveMode,
     setViewMode,
     changeDate,
     clearError,

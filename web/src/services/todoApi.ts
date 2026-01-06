@@ -1,5 +1,5 @@
 import api from './api';
-import type { Todo, CreateTodoRequest, UpdateTodoTextRequest, UpdateTodoPositionRequest, VirtualTodoRequest } from '../types';
+import type { Todo, CreateTodoRequest, UpdateTodoTextRequest, UpdateTodoPositionRequest, UpdateAssignedDateRequest, VirtualTodoRequest } from '../types';
 
 export const todoApi = {
   /**
@@ -46,6 +46,15 @@ export const todoApi = {
   async updateTodoPosition(id: number, position: number): Promise<Todo> {
     const request: UpdateTodoPositionRequest = { position };
     const response = await api.put<Todo>(`/todos/${id}/position`, request);
+    return response.data;
+  },
+
+  /**
+   * Update todo assigned date
+   */
+  async updateTodoAssignedDate(id: number, toDate: string): Promise<Todo> {
+    const request: UpdateAssignedDateRequest = { toDate };
+    const response = await api.put<Todo>(`/todos/${id}/assigned-date`, request);
     return response.data;
   },
 
@@ -117,6 +126,21 @@ export const todoApi = {
       params.deleteAllFuture = deleteAllFuture;
     }
     const response = await api.delete<{ message: string }>('/todos/virtual', { params });
+    return response.data;
+  },
+
+  /**
+   * Update virtual todo assigned date
+   */
+  async updateVirtualTodoAssignedDate(
+    recurringTodoId: number,
+    instanceDate: string,
+    toDate: string
+  ): Promise<Todo> {
+    const request: VirtualTodoRequest = { recurringTodoId, instanceDate };
+    const response = await api.post<Todo>('/todos/virtual/update-assigned-date', request, {
+      params: { toDate },
+    });
     return response.data;
   },
 };

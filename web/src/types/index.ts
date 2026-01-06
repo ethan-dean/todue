@@ -86,6 +86,10 @@ export interface UpdateTodoPositionRequest {
   position: number;
 }
 
+export interface UpdateAssignedDateRequest {
+  toDate: string; // ISO date string
+}
+
 export interface VirtualTodoRequest {
   recurringTodoId: number;
   instanceDate: string; // ISO date string

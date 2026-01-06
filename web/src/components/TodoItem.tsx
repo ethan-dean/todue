@@ -8,11 +8,12 @@ interface TodoItemProps {
 }
 
 const TodoItem: React.FC<TodoItemProps> = ({ todo, onDelete }) => {
-  const { updateTodoText, completeTodo, uncompleteTodo } = useTodos();
+  const { updateTodoText, completeTodo, uncompleteTodo, moveTodo } = useTodos();
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(todo.text);
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const dateInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -111,6 +112,32 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onDelete }) => {
     }
   };
 
+  const handleMoveClick = () => {
+    if (isLoading) return;
+    dateInputRef.current?.showPicker();
+  };
+
+  const handleDateChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const dateStr = e.target.value;
+    if (!dateStr) return;
+
+    setIsLoading(true);
+    try {
+      // Parse YYYY-MM-DD to Date object
+      const [year, month, day] = dateStr.split('-').map(Number);
+      const newDate = new Date(year, month - 1, day);
+      await moveTodo(todo, newDate);
+    } catch (err) {
+      console.error('Failed to move todo:', err);
+    } finally {
+      setIsLoading(false);
+      // Reset date input for next use
+      if (dateInputRef.current) {
+        dateInputRef.current.value = '';
+      }
+    }
+  };
+
   const getClassName = () => {
     const classes = ['todo-item'];
     if (todo.isCompleted) classes.push('completed');
@@ -162,6 +189,14 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onDelete }) => {
           </button>
         )}
         <button
+          className="btn-move"
+          onClick={handleMoveClick}
+          disabled={isLoading}
+          title="Move to date"
+        >
+          📅
+        </button>
+        <button
           className="btn-delete"
           onClick={handleDeleteClick}
           disabled={isLoading}
@@ -170,6 +205,14 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onDelete }) => {
           🗑️
         </button>
       </div>
+
+      {/* Hidden date picker */}
+      <input
+        ref={dateInputRef}
+        type="date"
+        onChange={handleDateChange}
+        style={{ position: 'absolute', opacity: 0, pointerEvents: 'none' }}
+      />
     </div>
   );
 };

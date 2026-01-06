@@ -729,6 +729,80 @@ public class TodoService {
         return updateTodoPosition(materialized.getId(), newPosition);
     }
 
+    @Transactional
+    public TodoResponse updateTodoAssignedDate(Long todoId, LocalDate toDate) {
+        // 1. Get todo and validate ownership
+        Todo todo = getTodoAndVerifyOwnership(todoId);
+        User user = userService.getCurrentUser();
+        LocalDate fromDate = todo.getAssignedDate();
+
+        // If already on target date, do nothing
+        if (fromDate.equals(toDate)) {
+            return toTodoResponse(todo);
+        }
+
+        // 2. Handle orphaning if this is a recurring instance
+        if (todo.getRecurringTodo() != null) {
+            // Orphan it - moving a recurring instance breaks the pattern
+            skipRecurringService.skipInstance(
+                    todo.getRecurringTodo().getId(),
+                    todo.getInstanceDate()
+            );
+            todo.setRecurringTodo(null); // Break link
+        }
+
+        // 3. Update assigned date
+        todo.setAssignedDate(toDate);
+        todo.setIsRolledOver(false); // Clear rollover flag when manually moved
+        todoRepository.save(todo);
+
+        // 4. Renumber source date (remove gap)
+        renumberPositionsAfterRemoval(fromDate, user.getId());
+
+        // 5. Add to end of target date
+        int maxPosition = getMaxPositionForDate(toDate, user.getId());
+        todo.setPosition(maxPosition + 1);
+        todoRepository.save(todo);
+
+        // 6. Send WebSocket notifications for BOTH dates
+        webSocketService.notifyTodosChanged(user.getId(), fromDate);
+        webSocketService.notifyTodosChanged(user.getId(), toDate);
+
+        return toTodoResponse(todo);
+    }
+
+    @Transactional
+    public TodoResponse updateVirtualTodoAssignedDate(
+            Long recurringTodoId,
+            LocalDate instanceDate,
+            LocalDate toDate
+    ) {
+        // 1. Materialize the virtual todo first
+        TodoResponse materialized = materializeVirtual(recurringTodoId, instanceDate);
+
+        // 2. Use the real todo update method
+        return updateTodoAssignedDate(materialized.getId(), toDate);
+    }
+
+    private void renumberPositionsAfterRemoval(LocalDate date, Long userId) {
+        List<Todo> todos = todoRepository.findByUserIdAndAssignedDate(userId, date);
+        todos.sort(Comparator.comparing(Todo::getPosition).thenComparing(Todo::getId));
+
+        int pos = 1;
+        for (Todo t : todos) {
+            t.setPosition(pos++);
+        }
+        todoRepository.saveAll(todos);
+    }
+
+    private int getMaxPositionForDate(LocalDate date, Long userId) {
+        return todoRepository.findByUserIdAndAssignedDate(userId, date)
+                .stream()
+                .mapToInt(Todo::getPosition)
+                .max()
+                .orElse(0);
+    }
+
     private Todo getTodoAndVerifyOwnership(Long todoId) {
         Todo todo = todoRepository.findById(todoId)
                 .orElseThrow(() -> new RuntimeException("Todo not found"));
