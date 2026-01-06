@@ -1,15 +1,34 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTodos } from '../context/TodoContext';
 import { useTheme } from '../context/ThemeContext';
 import DateNavigator from '../components/DateNavigator';
+import MobileDateCarousel from '../components/MobileDateCarousel';
 import TodoList from '../components/TodoList';
 import { formatDateForAPI, formatDate, getDateRange } from '../utils/dateUtils';
 
 const TodosPage: React.FC = () => {
   const { user, logout } = useAuth();
-  const { todos, selectedDate, viewMode, isLoading, error } = useTodos();
+  const { todos, selectedDate, viewMode, setViewMode, isLoading, error } = useTodos();
   const { theme, toggleTheme } = useTheme();
+
+  // Detect mobile vs desktop
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+
+      // Force single day view on mobile
+      if (mobile && viewMode !== 1) {
+        setViewMode(1);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [viewMode, setViewMode]);
 
   const handleLogout = () => {
     logout();
@@ -21,6 +40,9 @@ const TodosPage: React.FC = () => {
 
     return (
       <div className="single-day-view">
+        <div className="day-header">
+          <h3>{formatDate(selectedDate, 'EEE, MMM d')}</h3>
+        </div>
         <TodoList todos={todosForDate} date={selectedDate} />
       </div>
     );
@@ -70,7 +92,7 @@ const TodosPage: React.FC = () => {
       </header>
 
       <main className="app-main">
-        <DateNavigator />
+        {isMobile ? <MobileDateCarousel /> : <DateNavigator />}
 
         {error && (
           <div className="error-banner" role="alert">

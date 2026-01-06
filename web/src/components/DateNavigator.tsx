@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { useTodos } from '../context/TodoContext';
-import { formatDate, addDays, isToday } from '../utils/dateUtils';
+import { addDays, isToday } from '../utils/dateUtils';
 
 const DateNavigator: React.FC = () => {
   const { selectedDate, viewMode, setViewMode, changeDate } = useTodos();
@@ -51,16 +51,6 @@ const DateNavigator: React.FC = () => {
     setViewMode(mode);
   };
 
-  const getViewModeLabel = () => {
-    if (viewMode === 1) {
-      return formatDate(selectedDate, 'EEEE, MMMM d, yyyy');
-    } else {
-      const startDate = addDays(selectedDate, -Math.floor(viewMode / 2));
-      const endDate = addDays(selectedDate, Math.floor(viewMode / 2));
-      return `${formatDate(startDate, 'MMM d')} - ${formatDate(endDate, 'MMM d, yyyy')}`;
-    }
-  };
-
   return (
     <div className="date-navigator">
       <div className="date-controls">
@@ -72,7 +62,6 @@ const DateNavigator: React.FC = () => {
         </button>
 
         <div className="date-display">
-          <span className="date-label">{getViewModeLabel()}</span>
           <div className="date-actions">
             <button onClick={handleCalendarClick} className="btn-calendar" title="Pick a date">
               📅
@@ -101,30 +90,29 @@ const DateNavigator: React.FC = () => {
       </div>
 
       <div className="view-mode-selector">
-        <span className="view-mode-label">View:</span>
         <button
           onClick={() => handleViewModeChange(1)}
           className={`btn-view-mode ${viewMode === 1 ? 'active' : ''}`}
         >
-          1 Day
+          1
         </button>
         <button
           onClick={() => handleViewModeChange(3)}
           className={`btn-view-mode ${viewMode === 3 ? 'active' : ''}`}
         >
-          3 Days
+          3
         </button>
         <button
           onClick={() => handleViewModeChange(5)}
           className={`btn-view-mode ${viewMode === 5 ? 'active' : ''}`}
         >
-          5 Days
+          5
         </button>
         <button
           onClick={() => handleViewModeChange(7)}
           className={`btn-view-mode ${viewMode === 7 ? 'active' : ''}`}
         >
-          7 Days
+          7
         </button>
       </div>
     </div>
