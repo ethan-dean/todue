@@ -4,13 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Todue is a multi-platform todo list application in **early development stage** (currently ~3% complete - only scaffolding exists). The project uses a monorepo structure with three main components:
+Todue is a multi-platform todo list application. **Core development is complete** (Phases 1-19 finished). The project is currently in the **Testing & Deployment** phase.
 
-- **Backend**: Java Spring Boot 3.5.7 with MySQL
-- **Web**: React 19.1.1 + TypeScript + Vite
-- **Mobile**: Flutter (iOS/Android)
+- **Backend**: Java Spring Boot 3.5.7 with MySQL (Fully implemented)
+- **Web**: React 19.1.1 + TypeScript + Vite (Fully implemented)
+- **Mobile**: Flutter (iOS/Android) (Fully implemented)
 
-**Important**: This codebase contains comprehensive requirements (requirements.md) and a detailed 23-phase implementation plan (todo.md), but minimal actual implementation. Only boilerplate code exists - all core features, API endpoints, database entities, and UI components need to be built.
+**Important**: This codebase contains comprehensive requirements (requirements.md) and a detailed 23-phase implementation plan (todo.md). Refer to `todo-human.md` for remaining manual tasks, specifically regarding testing and deployment.
 
 ## Repository Structure
 
