@@ -167,7 +167,8 @@ const TodosPage: React.FC = () => {
         newIndex,
         sourceTodo.isVirtual,
         sourceTodo.recurringTodoId,
-        sourceTodo.instanceDate
+        sourceTodo.instanceDate,
+        sourceTodo.assignedDate
       );
     }
   };

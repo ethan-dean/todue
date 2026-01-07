@@ -33,7 +33,8 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onDelete }) => {
           todo.id!,
           todo.isVirtual,
           todo.recurringTodoId,
-          todo.instanceDate
+          todo.instanceDate,
+          todo.assignedDate
         );
       } else {
         // Complete the todo
@@ -41,7 +42,8 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onDelete }) => {
           todo.id!,
           todo.isVirtual,
           todo.recurringTodoId,
-          todo.instanceDate
+          todo.instanceDate,
+          todo.assignedDate
         );
       }
     } catch (err) {
@@ -76,7 +78,8 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onDelete }) => {
         editText,
         todo.isVirtual,
         todo.recurringTodoId,
-        todo.instanceDate
+        todo.instanceDate,
+        todo.assignedDate
       );
       setIsEditing(false);
     } catch (err) {

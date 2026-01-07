@@ -163,7 +163,8 @@ const TodoList: React.FC<TodoListProps> = ({ todos: initialTodos, date, enableDr
         newIndex,
         todo.isVirtual,
         todo.recurringTodoId,
-        todo.instanceDate
+        todo.instanceDate,
+        todo.assignedDate
       );
     } catch (err) {
       console.error('Failed to update todo position:', err);

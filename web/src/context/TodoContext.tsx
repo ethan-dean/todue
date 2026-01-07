@@ -19,10 +19,10 @@ interface TodoContextType {
   loadTodosForDate: (date: Date) => Promise<void>;
   loadTodosForDateRange: (startDate: Date, endDate: Date) => Promise<void>;
   createTodo: (text: string, date: Date) => Promise<void>;
-  updateTodoText: (id: number, text: string, isVirtual: boolean, recurringTodoId: number | null, instanceDate: string) => Promise<void>;
-  updateTodoPosition: (id: number, position: number, isVirtual: boolean, recurringTodoId: number | null, instanceDate: string) => Promise<void>;
-  completeTodo: (id: number, isVirtual: boolean, recurringTodoId: number | null, instanceDate: string) => Promise<void>;
-  uncompleteTodo: (id: number, isVirtual: boolean, recurringTodoId: number | null, instanceDate: string) => Promise<void>;
+  updateTodoText: (id: number, text: string, isVirtual: boolean, recurringTodoId: number | null, instanceDate: string, assignedDate: string) => Promise<void>;
+  updateTodoPosition: (id: number, position: number, isVirtual: boolean, recurringTodoId: number | null, instanceDate: string, assignedDate: string) => Promise<void>;
+  completeTodo: (id: number, isVirtual: boolean, recurringTodoId: number | null, instanceDate: string, assignedDate: string) => Promise<void>;
+  uncompleteTodo: (id: number, isVirtual: boolean, recurringTodoId: number | null, instanceDate: string, assignedDate: string) => Promise<void>;
   deleteTodo: (id: number, isVirtual: boolean, recurringTodoId: number | null, instanceDate: string, deleteAllFuture?: boolean) => Promise<void>;
   moveTodo: (todo: Todo, toDate: Date) => Promise<void>;
   setTodoInMoveMode: (todo: Todo | null) => void;
@@ -246,7 +246,8 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     text: string,
     isVirtual: boolean,
     recurringTodoId: number | null,
-    instanceDate: string
+    instanceDate: string,
+    assignedDate: string
   ): Promise<void> => {
     // Record mutation timestamp
     lastMutationTimeRef.current = Date.now();
@@ -254,7 +255,7 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     // Optimistically update local state first for instant feedback
     setTodos((prevTodos) => {
       const newTodos = new Map(prevTodos);
-      const dateList = newTodos.get(instanceDate) || [];
+      const dateList = newTodos.get(assignedDate) || [];
 
       const updatedList = dateList.map((t) => {
         // Match virtual todo by recurringTodoId + instanceDate
@@ -268,7 +269,7 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
         return t;
       });
 
-      newTodos.set(instanceDate, updatedList);
+      newTodos.set(assignedDate, updatedList);
       return newTodos;
     });
 
@@ -285,7 +286,7 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
       updateTodoInState(updatedTodo);
     } catch (err) {
       // On error, refetch to get the correct state from server
-      await loadTodosForDate(parseDateString(instanceDate), true);
+      await loadTodosForDate(parseDateString(assignedDate), true);
 
       const errorMessage = handleApiError(err);
       setError(errorMessage);
@@ -298,7 +299,8 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     position: number,
     isVirtual: boolean,
     recurringTodoId: number | null,
-    instanceDate: string
+    instanceDate: string,
+    assignedDate: string
   ): Promise<void> => {
     // Record mutation timestamp
     lastMutationTimeRef.current = Date.now();
@@ -308,7 +310,7 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     // Optimistically update local state first for instant feedback
     setTodos((prevTodos) => {
       const newTodos = new Map(prevTodos);
-      const dateList = newTodos.get(instanceDate) || [];
+      const dateList = newTodos.get(assignedDate) || [];
 
       // Find the todo being moved
       const todoIndex = dateList.findIndex((t) =>
@@ -345,7 +347,7 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
         position: index + 1,
       }));
 
-      newTodos.set(instanceDate, reorderedList);
+      newTodos.set(assignedDate, reorderedList);
       return newTodos;
     });
 
@@ -360,7 +362,7 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
       // The optimistic update already reordered the entire list correctly
     } catch (err) {
       // On error, refetch to get the correct state from server
-      await loadTodosForDate(parseDateString(instanceDate), true);
+      await loadTodosForDate(parseDateString(assignedDate), true);
 
       const errorMessage = handleApiError(err);
       setError(errorMessage);
@@ -372,7 +374,8 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     id: number,
     isVirtual: boolean,
     recurringTodoId: number | null,
-    instanceDate: string
+    instanceDate: string,
+    assignedDate: string
   ): Promise<void> => {
     // Record mutation timestamp
     lastMutationTimeRef.current = Date.now();
@@ -382,7 +385,7 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     // Optimistically update local state first for instant feedback
     setTodos((prevTodos) => {
       const newTodos = new Map(prevTodos);
-      const dateList = newTodos.get(instanceDate) || [];
+      const dateList = newTodos.get(assignedDate) || [];
 
       // Sort by position
       const sortedList = [...dateList].sort((a, b) => a.position - b.position);
@@ -423,7 +426,7 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
         sortedList[i].position = i + 1;
       }
 
-      newTodos.set(instanceDate, sortedList);
+      newTodos.set(assignedDate, sortedList);
       return newTodos;
     });
 
@@ -437,7 +440,7 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
       // Don't update state with server response - trust the optimistic update
     } catch (err) {
       // On error, refetch to get the correct state from server
-      await loadTodosForDate(parseDateString(instanceDate), true);
+      await loadTodosForDate(parseDateString(assignedDate), true);
 
       const errorMessage = handleApiError(err);
       setError(errorMessage);
@@ -449,7 +452,8 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     id: number,
     isVirtual: boolean,
     recurringTodoId: number | null,
-    instanceDate: string
+    instanceDate: string,
+    assignedDate: string
   ): Promise<void> => {
     // Record mutation timestamp
     lastMutationTimeRef.current = Date.now();
@@ -459,7 +463,7 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     // Optimistically update local state first for instant feedback
     setTodos((prevTodos) => {
       const newTodos = new Map(prevTodos);
-      const dateList = newTodos.get(instanceDate) || [];
+      const dateList = newTodos.get(assignedDate) || [];
 
       // Sort by position
       const sortedList = [...dateList].sort((a, b) => a.position - b.position);
@@ -496,7 +500,7 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
         sortedList[i].position = i + 1;
       }
 
-      newTodos.set(instanceDate, sortedList);
+      newTodos.set(assignedDate, sortedList);
       return newTodos;
     });
 
@@ -508,7 +512,7 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
       // Don't update state with server response - trust the optimistic update
     } catch (err) {
       // On error, refetch to get the correct state from server
-      await loadTodosForDate(parseDateString(instanceDate), true);
+      await loadTodosForDate(parseDateString(assignedDate), true);
 
       const errorMessage = handleApiError(err);
       setError(errorMessage);
