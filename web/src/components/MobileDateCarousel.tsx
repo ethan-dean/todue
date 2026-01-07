@@ -58,15 +58,6 @@ const MobileDateCarousel: React.FC = () => {
 
   return (
     <div className="mobile-date-carousel">
-      {todoInMoveMode && (
-        <div className="move-mode-banner">
-          <span>Tap a date to move todo</span>
-          <button onClick={() => setTodoInMoveMode(null)} className="btn-cancel-move">
-            Cancel
-          </button>
-        </div>
-      )}
-
       <div className="carousel-header">
         <h2 className="carousel-title">{formatDate(selectedDate, 'MMMM yyyy')}</h2>
         {!isToday(selectedDate) && !todoInMoveMode && (

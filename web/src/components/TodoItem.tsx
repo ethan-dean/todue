@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, type KeyboardEvent } from 'react';
+import { Pencil, Calendar, Trash2, Repeat } from 'lucide-react';
 import type { Todo } from '../types';
 import { useTodos } from '../context/TodoContext';
 
@@ -175,8 +176,7 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onDelete }) => {
       ) : (
         <div className="todo-text" onDoubleClick={handleEdit}>
           {todo.text}
-          {todo.recurringTodoId && <span className="recurring-indicator">🔄</span>}
-          {todo.isRolledOver && <span className="rollover-indicator">↻</span>}
+          {todo.recurringTodoId && <span className="recurring-indicator"><Repeat size={14} /></span>}
         </div>
       )}
 
@@ -188,7 +188,7 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onDelete }) => {
             disabled={isLoading}
             title="Edit"
           >
-            ✏️
+            <Pencil size={16} />
           </button>
         )}
         <button
@@ -197,7 +197,7 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onDelete }) => {
           disabled={isLoading}
           title="Move to date"
         >
-          📅
+          <Calendar size={16} />
         </button>
         <button
           className="btn-delete"
@@ -205,7 +205,7 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onDelete }) => {
           disabled={isLoading}
           title="Delete"
         >
-          🗑️
+          <Trash2 size={16} />
         </button>
       </div>
 

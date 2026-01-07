@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { User } from 'lucide-react';
 import {
   DndContext,
   closestCorners,
@@ -11,7 +13,6 @@ import {
 } from '@dnd-kit/core';
 import { useAuth } from '../context/AuthContext';
 import { useTodos } from '../context/TodoContext';
-import { useTheme } from '../context/ThemeContext';
 import DateNavigator from '../components/DateNavigator';
 import MobileDateCarousel from '../components/MobileDateCarousel';
 import TodoList from '../components/TodoList';
@@ -20,9 +21,9 @@ import { formatDateForAPI, formatDate, getDateRange } from '../utils/dateUtils';
 import type { Todo } from '../types';
 
 const TodosPage: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { todos, selectedDate, viewMode, setViewMode, isLoading, error, moveTodo, updateTodoPosition } = useTodos();
-  const { theme, toggleTheme } = useTheme();
+  const navigate = useNavigate();
 
   // Detect mobile vs desktop
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -55,8 +56,8 @@ const TodosPage: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [viewMode, setViewMode]);
 
-  const handleLogout = () => {
-    logout();
+  const handleSettingsClick = () => {
+    navigate('/settings');
   };
 
   const renderSingleDayView = () => {
@@ -241,24 +242,23 @@ const TodosPage: React.FC = () => {
       <header className="app-header">
         <div className="header-content">
           <h1>Todue</h1>
-          <div className="user-info">
-            <button
-              onClick={toggleTheme}
-              className="btn-theme-toggle"
-              title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-            >
-              {theme === 'light' ? '🌙' : '☀️'}
-            </button>
-            <span className="user-email">{user?.email}</span>
-            <button onClick={handleLogout} className="btn-logout">
-              Logout
-            </button>
+          <div className="header-right">
+            {!isMobile && <DateNavigator />}
+            <div className="user-info">
+              <button
+                onClick={handleSettingsClick}
+                className="btn-account"
+                title="Settings"
+              >
+                <User size={20} color="#ffffff" />
+              </button>
+            </div>
           </div>
         </div>
       </header>
 
       <main className="app-main">
-        {isMobile ? <MobileDateCarousel /> : <DateNavigator />}
+        {isMobile && <MobileDateCarousel />}
 
         {error && (
           <div className="error-banner" role="alert">

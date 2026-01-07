@@ -41,7 +41,23 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
   const { isAuthenticated } = useAuth();
   const [todos, setTodos] = useState<Map<string, Todo[]>>(new Map());
   const [selectedDate, setSelectedDate] = useState<Date>(getCurrentDate());
-  const [viewMode, setViewMode] = useState<ViewMode>(1);
+  
+  // Initialize viewMode from localStorage or defaults
+  const [viewMode, setViewModeState] = useState<ViewMode>(() => {
+    const savedMode = localStorage.getItem('todue_view_mode');
+    if (savedMode) {
+      const mode = parseInt(savedMode, 10);
+      if ([1, 3, 5, 7].includes(mode)) return mode as ViewMode;
+    }
+    // Default: 3 for desktop, 1 for mobile
+    return window.innerWidth >= 768 ? 3 : 1;
+  });
+
+  const setViewMode = (mode: ViewMode) => {
+    setViewModeState(mode);
+    localStorage.setItem('todue_view_mode', mode.toString());
+  };
+
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [todoInMoveMode, setTodoInMoveMode] = useState<Todo | null>(null);

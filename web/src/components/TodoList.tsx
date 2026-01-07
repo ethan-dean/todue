@@ -96,6 +96,24 @@ const SortableTodoItem: React.FC<SortableTodoItemProps> = ({
   );
 };
 
+// Reorder Target Component
+interface ReorderTargetProps {
+  index: number;
+  onSelect: (index: number) => void;
+  isHidden: boolean;
+}
+
+const ReorderTarget: React.FC<ReorderTargetProps> = ({ index, onSelect, isHidden }) => {
+  if (isHidden) return <div className="reorder-target hidden" />;
+
+  return (
+    <div className="reorder-target" onClick={() => onSelect(index)}>
+      <div className="reorder-button" />
+      <div className="reorder-line" />
+    </div>
+  );
+};
+
 interface TodoListProps {
   todos: Todo[];
   date: Date;
@@ -110,22 +128,49 @@ const TodoList: React.FC<TodoListProps> = ({ todos: initialTodos, date, enableDr
   const [localActiveId, setLocalActiveId] = useState<string | null>(null);
   const [localOverId, setLocalOverId] = useState<string | null>(null);
   const longPressTimerRef = React.useRef<number | null>(null);
+  const isLongPressRef = React.useRef<boolean>(false);
 
   // Use parent's activeId/overId if not managing own context, otherwise use local state
   const activeId = enableDragContext ? localActiveId : parentActiveId;
   const overId = enableDragContext ? localOverId : parentOverId;
+
+  // Helper to compare todos
+  const isSameTodo = (a: Todo | null, b: Todo | null): boolean => {
+    if (!a || !b) return false;
+    // Check IDs first
+    if (a.id != null && b.id != null) {
+      return a.id === b.id;
+    }
+    // Fallback to recurrence ID + instance date
+    return a.recurringTodoId === b.recurringTodoId &&
+           a.instanceDate === b.instanceDate;
+  };
 
   // Sort by position only - position determines everything including completion status
   const sortedTodos = useMemo(() => {
     return [...initialTodos].sort((a, b) => a.position - b.position);
   }, [initialTodos]);
 
-  // Configure drag sensors
+  // Check if we are in "Reorder Mode" for this specific list
+  const isReorderMode = useMemo(() => {
+    if (!todoInMoveMode) return false;
+    
+    // Check if the moving todo belongs to this list's date
+    // We compare the date strings to ensure match
+    // Note: virtual todos might not have 'assignedDate' set to this date if they are future instances? 
+    // Actually virtuals have assignedDate == instanceDate usually.
+    // Let's rely on finding the todo in the passed 'todos' array
+    return sortedTodos.some(t => isSameTodo(t, todoInMoveMode));
+  }, [todoInMoveMode, sortedTodos]);
+
+  // Configure drag sensors - disable if in reorder mode
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
         distance: 8, // Require 8px movement before dragging starts
       },
+      // Disable sensors if in reorder mode to prevent conflict
+      disabled: isReorderMode,
     })
   );
 
@@ -178,7 +223,9 @@ const TodoList: React.FC<TodoListProps> = ({ todos: initialTodos, date, enableDr
 
   // Long-press handlers for mobile move mode
   const handleTouchStart = (todo: Todo) => {
+    isLongPressRef.current = false;
     longPressTimerRef.current = window.setTimeout(() => {
+      isLongPressRef.current = true;
       // Trigger move mode
       setTodoInMoveMode(todo);
       // Haptic feedback on mobile
@@ -195,6 +242,45 @@ const TodoList: React.FC<TodoListProps> = ({ todos: initialTodos, date, enableDr
     }
   };
 
+  const handleTodoClick = (todo: Todo) => {
+    // If it was a long press, the click event might fire on release
+    // We don't want to immediately deselect what we just selected
+    if (isLongPressRef.current) {
+      isLongPressRef.current = false;
+      return;
+    }
+
+    // If already in move mode and we tap the same todo, deselect it
+    if (todoInMoveMode && isSameTodo(todoInMoveMode, todo)) {
+      setTodoInMoveMode(null);
+    }
+  };
+
+  const handleReorder = async (newIndex: number) => {
+    if (!todoInMoveMode) return;
+
+    // Find the current index of the todo being moved
+    const currentIndex = sortedTodos.findIndex(t => isSameTodo(t, todoInMoveMode));
+    
+    if (currentIndex === -1) return;
+
+    try {
+      // Exit move mode immediately for better UX
+      setTodoInMoveMode(null);
+      
+      await updateTodoPosition(
+        todoInMoveMode.id!,
+        newIndex,
+        todoInMoveMode.isVirtual,
+        todoInMoveMode.recurringTodoId,
+        todoInMoveMode.instanceDate,
+        todoInMoveMode.assignedDate
+      );
+    } catch (err) {
+      console.error('Failed to reorder todo:', err);
+    }
+  };
+
   // Find the active todo for the drag overlay
   const activeTodo = activeId
     ? sortedTodos.find((t) => getTodoId(t) === activeId)
@@ -203,39 +289,68 @@ const TodoList: React.FC<TodoListProps> = ({ todos: initialTodos, date, enableDr
   const content = (
     <>
       <div className="todo-list-container">
-        <div className="todo-list">
+        <div className={`todo-list ${isReorderMode ? 'reorder-mode' : ''}`}>
+          
+          {/* Render ReorderTarget at the very top (index 0) */}
+          {isReorderMode && (
+            <ReorderTarget 
+              index={0} 
+              onSelect={handleReorder}
+              // Hide if selected todo is at index 0
+              isHidden={isSameTodo(sortedTodos[0], todoInMoveMode)}
+            />
+          )}
+
           <SortableContext
             items={sortedTodos.map(getTodoId)}
             strategy={verticalListSortingStrategy}
+            // Disable sortable context strategy if in reorder mode to prevent interference
+            // (Though disabling sensors above might be enough)
           >
-            {sortedTodos.map((todo) => {
+            {sortedTodos.map((todo, index) => {
               const todoId = getTodoId(todo);
               const isActive = activeId === todoId;
               const showPlaceholderAbove = !suppressPlaceholders && overId === todoId && activeId !== todoId;
-              const isInMoveMode = todoInMoveMode?.id === todo.id &&
-                                   todoInMoveMode?.recurringTodoId === todo.recurringTodoId &&
-                                   todoInMoveMode?.instanceDate === todo.instanceDate;
+              const isInMoveMode = isSameTodo(todoInMoveMode, todo);
+
+              // Determine if next target should be hidden
+              // Hidden if:
+              // 1. This todo is the selected one (moving below self is no-op)
+              // 2. Next todo is the selected one (moving above self is no-op)
+              const nextTodo = sortedTodos[index + 1];
+              const isNextHidden = isInMoveMode || (nextTodo && isSameTodo(nextTodo, todoInMoveMode));
 
               return (
-                <div
-                  key={todoId}
-                  onTouchStart={() => handleTouchStart(todo)}
-                  onTouchEnd={handleTouchEnd}
-                  onTouchCancel={handleTouchEnd}
-                  className={isInMoveMode ? 'todo-in-move-mode' : ''}
-                >
-                  <SortableTodoItem
-                    todo={todo}
-                    isActive={isActive}
-                    showPlaceholderAbove={showPlaceholderAbove}
-                  />
-                </div>
+                <React.Fragment key={todoId}>
+                  <div
+                    onTouchStart={() => handleTouchStart(todo)}
+                    onTouchEnd={handleTouchEnd}
+                    onTouchCancel={handleTouchEnd}
+                    onClick={() => handleTodoClick(todo)}
+                    className={isInMoveMode ? 'todo-in-move-mode' : ''}
+                  >
+                    <SortableTodoItem
+                      todo={todo}
+                      isActive={isActive}
+                      showPlaceholderAbove={showPlaceholderAbove}
+                    />
+                  </div>
+                  
+                  {/* Render ReorderTarget after each item (index + 1) */}
+                  {isReorderMode && (
+                    <ReorderTarget 
+                      index={index + 1} 
+                      onSelect={handleReorder}
+                      isHidden={!!isNextHidden}
+                    />
+                  )}
+                </React.Fragment>
               );
             })}
           </SortableContext>
 
-          {/* Add new todo input */}
-          <InlineAddTodo date={date} />
+          {/* Add new todo input - hide in reorder mode to reduce clutter? */}
+          {!isReorderMode && <InlineAddTodo date={date} />}
         </div>
       </div>
 

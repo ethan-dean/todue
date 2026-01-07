@@ -36,8 +36,8 @@
   --color-warning-bg: #fff3e0;
 
   /* Rolled Over Todo */
-  --color-rollover-bg: #fff3e0;
-  --color-rollover-border: #ff9800;
+  --color-rollover-bg: #fffaf0;
+  --color-rollover-border: #fff3e0;
 
   /* Virtual Todo */
   --color-virtual-bg: #f3f4f6;
@@ -88,8 +88,8 @@
   --color-warning-bg: #3d2f1f;
 
   /* Rolled Over Todo */
-  --color-rollover-bg: #3d2f1f;
-  --color-rollover-border: #ffa726;
+  --color-rollover-bg: #332f2a;
+  --color-rollover-border: #45403a;
 
   /* Virtual Todo */
   --color-virtual-bg: #252525;
@@ -254,6 +254,7 @@ body {
   align-items: center;
   max-width: 1400px;
   margin: 0 auto;
+  width: 100%;
 }
 
 .app-header h1 {
@@ -300,6 +301,154 @@ body {
   background: var(--color-secondary-hover);
 }
 
+/* Settings Page */
+.settings-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--bg-page);
+}
+
+.settings-container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 2rem;
+}
+
+.settings-card {
+  background: var(--bg-container);
+  border-radius: 8px;
+  box-shadow: var(--shadow-md);
+  width: 100%;
+  max-width: 600px;
+  padding: 2rem;
+}
+
+.user-profile-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 2.5rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.avatar-large {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+}
+
+.user-email-large {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.25rem;
+  font-weight: 500;
+}
+
+.settings-group {
+  margin-bottom: 2rem;
+}
+
+.settings-group h3 {
+  margin: 0 0 1rem 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.setting-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.setting-item:last-child {
+  border-bottom: none;
+}
+
+.setting-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.setting-label {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.setting-value {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.setting-description {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+/* Header Updates */
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.btn-icon {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-icon:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.btn-account {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  padding: 0;
+  overflow: hidden;
+}
+
+.btn-account:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.btn-account svg {
+  display: block;
+}
+
 /* Main Content Area */
 .app-main {
   flex: 1;
@@ -310,92 +459,120 @@ body {
   width: 100%;
 }
 
-/* Date Navigator */
-.date-navigator {
-  background: var(--bg-container);
-  padding: 1.5rem;
-  border-radius: 8px;
-  margin-bottom: 2rem;
-  box-shadow: var(--shadow-sm);
-}
-
-.date-controls {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.date-display {
+/* Header Date Navigator */
+.header-right {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 1.5rem;
 }
 
-.date-label {
-  font-size: 1.25rem;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.btn-nav {
-  padding: 0.5rem 1rem;
-  background: var(--color-primary);
+.header-date-navigator {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   color: white;
+}
+
+.nav-group {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem; /* Slightly reduced */
+}
+
+.center-group {
+  gap: 0.5rem; /* Reduced from 0.75rem */
+  justify-content: center;
+}
+
+.header-date-display {
+  font-size: 1.1rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.header-date-display:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+}
+
+.btn-header-nav {
+  background: transparent;
   border: none;
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0.25rem 0.5rem;
   border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.btn-header-nav:hover {
+  color: white;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.btn-header-calendar {
+  background: transparent;
+  border: none;
   cursor: pointer;
   font-size: 1.2rem;
-}
-
-.btn-nav:hover {
-  background: var(--color-primary-hover);
-}
-
-.btn-today {
-  padding: 0.4rem 0.8rem;
-  background: var(--color-warning);
-  color: white;
-  border: none;
+  padding: 0.25rem;
   border-radius: 4px;
+  transition: transform 0.2s;
+}
+
+.btn-header-calendar:hover {
+  transform: scale(1.1);
+}
+
+.btn-header-today {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-header-today:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.header-view-mode {
+  display: flex;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  padding: 2px;
+  gap: 2px;
+  margin-left: 1rem;
+}
+
+.btn-header-view {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  padding: 0.25rem 0.75rem;
+  border-radius: 3px;
   cursor: pointer;
   font-size: 0.9rem;
-}
-
-.btn-today:hover {
-  background: var(--color-warning-hover);
-}
-
-.view-mode-selector {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.view-mode-label {
   font-weight: 500;
-  margin-right: 0.5rem;
-  color: var(--text-primary);
+  transition: all 0.2s;
 }
 
-.btn-view-mode {
-  padding: 0.5rem 1rem;
-  background: var(--bg-card);
-  border: 1px solid var(--border-light);
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background 0.2s;
-  color: var(--text-primary);
-}
-
-.btn-view-mode:hover {
-  background: var(--bg-hover);
-}
-
-.btn-view-mode.active {
-  background: var(--color-primary);
+.btn-header-view:hover {
   color: white;
-  border-color: var(--color-primary);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.btn-header-view.active {
+  background: white;
+  color: var(--color-primary);
+  font-weight: bold;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 /* Todos Container */
@@ -686,9 +863,7 @@ body {
   }
 
   .header-content {
-    flex-direction: column;
-    gap: 1rem;
-    text-align: center;
+    gap: 0.5rem;
   }
 }
 
@@ -830,38 +1005,6 @@ body {
 
 /* ===== Mobile Move Mode Styles ===== */
 
-.move-mode-banner {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem 1rem;
-  background-color: var(--color-primary);
-  color: white;
-  font-weight: 500;
-  font-size: 0.9rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.btn-cancel-move {
-  background: transparent;
-  border: 1px solid white;
-  color: white;
-  padding: 0.4rem 1rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.875rem;
-  font-weight: 500;
-  transition: background 0.2s ease;
-}
-
-.btn-cancel-move:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.btn-cancel-move:active {
-  background: rgba(255, 255, 255, 0.2);
-}
-
 /* Pulse animation for dates in move mode */
 .date-item.move-mode {
   animation: pulse 1.5s ease-in-out infinite;
@@ -886,6 +1029,65 @@ body {
   transform: scale(1.02);
   transition: all 0.2s ease;
 }
+
+/* Mobile Reorder Targets */
+.reorder-target {
+  position: relative;
+  height: 2px; /* Reduced from 24px */
+  margin: 0; /* Removed margins */
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  z-index: 10;
+  transition: height 0.2s ease;
+  /* Ensure it extends to the left to catch taps in the margin */
+  margin-left: -24px;
+  padding-left: 24px;
+}
+
+.reorder-target.hidden {
+  opacity: 0;
+  pointer-events: none;
+  height: 0;
+  margin: 0;
+}
+
+.reorder-line {
+  flex: 1;
+  height: 2px;
+  background-image: linear-gradient(to right, var(--color-primary) 50%, transparent 50%);
+  background-position: top;
+  background-size: 10px 2px;
+  background-repeat: repeat-x;
+}
+
+.reorder-button {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: var(--color-primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: bold;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  /* Absolute position in the margin */
+  position: absolute;
+  left: 0; 
+  flex-shrink: 0;
+}
+
+.reorder-button::after {
+  content: '+';
+}
+
+/* Adjust TodoList for Reorder Mode */
+.todo-list.reorder-mode {
+  /* Add padding to accommodate targets if needed */
+}
+
 
 /* Move button in TodoItem */
 .btn-move {
