@@ -21,8 +21,8 @@ export const userApi = {
   /**
    * Update user's timezone
    */
-  async updateTimezone(timezone: string): Promise<{ message: string }> {
-    const response = await api.put<{ message: string }>('/user/timezone', { timezone });
+  async updateTimezone(timezone: string): Promise<User> {
+    const response = await api.put<User>('/user/timezone', { timezone });
     return response.data;
   },
 };

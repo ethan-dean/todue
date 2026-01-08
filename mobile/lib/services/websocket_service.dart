@@ -31,6 +31,8 @@ class WebSocketMessage {
 class WebSocketService {
   static final String wsUrl = Environment.wsUrl;
 
+  static WebSocketService get instance => websocketService;
+
   WebSocketChannel? _channel;
   String? _token;
   int? _userId;

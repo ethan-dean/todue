@@ -3,6 +3,9 @@ export interface User {
   id: number;
   email: string;
   timezone: string;
+  createdAt?: string;
+  lastRolloverDate?: string | null;
+  updatedAt?: string;
 }
 
 export interface AuthResponse {

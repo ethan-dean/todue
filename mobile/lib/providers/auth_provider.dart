@@ -32,11 +32,11 @@ class AuthProvider extends ChangeNotifier {
     ApiService? apiService,
     DatabaseService? databaseService,
     WebSocketService? websocketService,
-  })  : _authApi = authApi ?? authApi,
-        _userApi = userApi ?? userApi,
-        _apiService = apiService ?? apiService,
-        _databaseService = databaseService ?? databaseService,
-        _websocketService = websocketService ?? websocketService {
+  })  : _authApi = authApi ?? AuthApi.instance,
+        _userApi = userApi ?? UserApi.instance,
+        _apiService = apiService ?? ApiServiceInstance.instance,
+        _databaseService = databaseService ?? DatabaseService.instance,
+        _websocketService = websocketService ?? WebSocketService.instance {
     // Check authentication on initialization
     checkAuth();
   }
@@ -109,17 +109,23 @@ class AuthProvider extends ChangeNotifier {
     required String email,
     required String password,
   }) async {
+    print('AuthProvider: login called for $email');
     _setLoading(true);
     _clearError();
 
     try {
+      print('AuthProvider: sending login request...');
       final response = await _authApi.login(
         email: email,
         password: password,
       );
+      print('AuthProvider: login response received');
 
       await _handleAuthSuccess(response);
-    } catch (e) {
+      print('AuthProvider: login success handled');
+    } catch (e, stackTrace) {
+      print('AuthProvider: Login failed: $e');
+      print(stackTrace);
       _setError('Login failed: $e');
       rethrow;
     } finally {
@@ -129,24 +135,39 @@ class AuthProvider extends ChangeNotifier {
 
   /// Handle successful authentication
   Future<void> _handleAuthSuccess(AuthResponse response) async {
+    print('AuthProvider: handling auth success');
     _user = response.user;
     _token = response.token;
+    print('AuthProvider: user and token set in memory');
 
     // Store in shared preferences
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('token', response.token);
     await prefs.setString('user', response.user.toJson().toString());
+    print('AuthProvider: stored in SharedPreferences');
 
     // Set token in API service
     await _apiService.setToken(response.token);
+    print('AuthProvider: token set in ApiService');
 
     // Save user to local database
-    await _databaseService.saveUser(response.user);
+    try {
+      await _databaseService.saveUser(response.user);
+      print('AuthProvider: user saved to DatabaseService');
+    } catch (e) {
+      print('AuthProvider: Error saving user to DB: $e');
+    }
 
     // Connect to WebSocket
-    await _websocketService.connect(response.token, response.user.id);
+    try {
+      await _websocketService.connect(response.token, response.user.id);
+      print('AuthProvider: WebSocket connected');
+    } catch (e) {
+      print('AuthProvider: Error connecting WebSocket: $e');
+    }
 
     notifyListeners();
+    print('AuthProvider: listeners notified');
   }
 
   /// Logout

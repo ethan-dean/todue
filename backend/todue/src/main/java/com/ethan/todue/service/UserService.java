@@ -25,10 +25,10 @@ public class UserService {
     }
 
     @Transactional
-    public void updateTimezone(String timezone) {
+    public User updateTimezone(String timezone) {
         User user = getCurrentUser();
         user.setTimezone(timezone);
-        userRepository.save(user);
+        return userRepository.save(user);
     }
 
     public String getUserTimezone() {

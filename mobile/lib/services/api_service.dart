@@ -188,3 +188,7 @@ class ApiService {
 
 // Singleton instance
 final apiService = ApiService();
+
+extension ApiServiceInstance on ApiService {
+  static ApiService get instance => apiService;
+}

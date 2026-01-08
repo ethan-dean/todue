@@ -93,7 +93,14 @@ public class AuthService {
 
         // Note: lastRolloverDate is updated by RolloverService, not on login
         String token = jwtUtil.generateToken(email);
-        UserResponse userResponse = new UserResponse(user.getId(), user.getEmail(), user.getTimezone());
+        UserResponse userResponse = new UserResponse(
+            user.getId(),
+            user.getEmail(),
+            user.getTimezone(),
+            user.getCreatedAt().toString(),
+            user.getLastRolloverDate() != null ? user.getLastRolloverDate().toString() : null,
+            user.getUpdatedAt().toString()
+        );
 
         return new AuthResponse(token, userResponse);
     }

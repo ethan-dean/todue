@@ -4,6 +4,8 @@ import 'api_service.dart';
 class UserApi {
   final ApiService _apiService;
 
+  static UserApi get instance => userApi;
+
   UserApi(this._apiService);
 
   /// Get current user information

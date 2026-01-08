@@ -4,6 +4,8 @@ import 'api_service.dart';
 class AuthApi {
   final ApiService _apiService;
 
+  static AuthApi get instance => authApi;
+
   AuthApi(this._apiService);
 
   /// Register a new user

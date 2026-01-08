@@ -1,14 +1,15 @@
 import 'dart:convert';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:sqflite/sqflite.dart';
 import 'database_service.dart';
 import 'todo_api.dart';
 
 enum ChangeType {
   CREATE_TODO,
-  UPDATE_TODO_TEXT,
-  UPDATE_TODO_POSITION,
-  COMPLETE_TODO,
+  UPDATE_TODO,
   DELETE_TODO,
+  COMPLETE_TODO,
+  REORDER_TODOS,
   COMPLETE_VIRTUAL_TODO,
   UPDATE_VIRTUAL_TODO_TEXT,
   UPDATE_VIRTUAL_TODO_POSITION,
@@ -56,6 +57,8 @@ class OfflineQueueService {
   final TodoApi _todoApi;
   final Connectivity _connectivity;
 
+  static OfflineQueueService get instance => offlineQueueService;
+
   bool _isSyncing = false;
   static const int _maxAttempts = 3;
 
@@ -63,12 +66,12 @@ class OfflineQueueService {
     DatabaseService? databaseService,
     TodoApi? todoApi,
     Connectivity? connectivity,
-  })  : _databaseService = databaseService ?? databaseService,
-        _todoApi = todoApi ?? todoApi,
+  })  : _databaseService = databaseService ?? DatabaseService.instance,
+        _todoApi = todoApi ?? TodoApi.instance,
         _connectivity = connectivity ?? Connectivity();
 
   /// Add a change to the offline queue
-  Future<void> addChange(ChangeType type, Map<String, dynamic> payload) async {
+  Future<void> queueChange({required ChangeType type, required Map<String, dynamic> payload}) async {
     final db = await _databaseService.database;
 
     final change = PendingChange(
@@ -183,31 +186,36 @@ class OfflineQueueService {
         await _todoApi.createTodo(
           text: payload['text'] as String,
           assignedDate: payload['assignedDate'] as String,
+          recurringTodoId: payload['recurringTodoId'] as int?,
         );
         break;
 
-      case ChangeType.UPDATE_TODO_TEXT:
-        await _todoApi.updateTodoText(
+      case ChangeType.UPDATE_TODO:
+        await _todoApi.updateTodo(
           id: payload['id'] as int,
-          text: payload['text'] as String,
+          text: payload['text'] as String?,
+          assignedDate: payload['assignedDate'] as String?,
         );
-        break;
-
-      case ChangeType.UPDATE_TODO_POSITION:
-        await _todoApi.updateTodoPosition(
-          id: payload['id'] as int,
-          position: payload['position'] as int,
-        );
-        break;
-
-      case ChangeType.COMPLETE_TODO:
-        await _todoApi.completeTodo(id: payload['id'] as int);
         break;
 
       case ChangeType.DELETE_TODO:
         await _todoApi.deleteTodo(
           id: payload['id'] as int,
           deleteAllFuture: payload['deleteAllFuture'] as bool?,
+        );
+        break;
+
+      case ChangeType.COMPLETE_TODO:
+        await _todoApi.completeTodo(
+          id: payload['id'] as int,
+          isCompleted: payload['isCompleted'] as bool? ?? true,
+        );
+        break;
+
+      case ChangeType.REORDER_TODOS:
+        await _todoApi.reorderTodos(
+          date: payload['date'] as String,
+          todoIds: (payload['todoIds'] as List).cast<int>(),
         );
         break;
 
@@ -254,7 +262,8 @@ class OfflineQueueService {
   Future<int> getPendingCount() async {
     final db = await _databaseService.database;
     final result = await db.rawQuery('SELECT COUNT(*) as count FROM pending_changes');
-    return Sqflite.firstIntValue(result) ?? 0;
+    if (result.isEmpty) return 0;
+    return result.first['count'] as int? ?? 0;
   }
 }
 
@@ -273,9 +282,6 @@ class SyncResult {
     this.errors = const [],
   });
 }
-
-// Import sqflite for firstIntValue
-import 'package:sqflite/sqflite.dart' as Sqflite;
 
 // Singleton instance
 final offlineQueueService = OfflineQueueService();

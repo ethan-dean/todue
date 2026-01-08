@@ -31,15 +31,15 @@ class _LoginScreenState extends State<LoginScreen> {
     final authProvider = context.read<AuthProvider>();
 
     try {
+      print('LoginScreen: calling authProvider.login');
       await authProvider.login(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-
-      if (mounted && authProvider.isAuthenticated) {
-        Navigator.of(context).pushReplacementNamed('/todos');
-      }
+      print('LoginScreen: authProvider.login completed');
+      // Navigation is handled by AuthWrapper listening to auth state
     } catch (e) {
+      print('LoginScreen: caught error $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

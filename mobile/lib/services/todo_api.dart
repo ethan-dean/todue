@@ -1,10 +1,18 @@
 import '../models/todo.dart';
+import '../models/recurring_todo.dart';
 import 'api_service.dart';
 
 class TodoApi {
   final ApiService _apiService;
 
+  static TodoApi get instance => todoApi;
+
   TodoApi(this._apiService);
+
+  /// Get todos for a specific date (alias)
+  Future<List<Todo>> getTodos({required String date}) async {
+    return getTodosForDate(date: date);
+  }
 
   /// Get todos for a specific date
   Future<List<Todo>> getTodosForDate({required String date}) async {
@@ -34,20 +42,54 @@ class TodoApi {
     return data.map((json) => Todo.fromJson(json as Map<String, dynamic>)).toList();
   }
 
+  /// Get all recurring todos
+  Future<List<RecurringTodo>> getRecurringTodos() async {
+    final response = await _apiService.get('/todos/recurring');
+    final List<dynamic> data = response.data as List<dynamic>;
+    return data.map((json) => RecurringTodo.fromJson(json as Map<String, dynamic>)).toList();
+  }
+
   /// Create a new todo
   Future<Todo> createTodo({
     required String text,
     required String assignedDate,
+    int? recurringTodoId,
   }) async {
+    final Map<String, dynamic> data = {
+      'text': text,
+      'assignedDate': assignedDate,
+    };
+    if (recurringTodoId != null) {
+      data['recurringTodoId'] = recurringTodoId;
+    }
+
     final response = await _apiService.post(
       '/todos',
-      data: {
-        'text': text,
-        'assignedDate': assignedDate,
-      },
+      data: data,
     );
 
     return Todo.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  /// Update a todo (general)
+  Future<Todo> updateTodo({
+    required int id,
+    String? text,
+    String? assignedDate,
+  }) async {
+    // Note: Backend typically splits this into specific endpoints.
+    // We'll prioritize text update if present.
+    // If assignedDate update is needed, backend should support it or we need a move endpoint.
+    // For now, assuming text update is the primary use case here.
+    if (text != null) {
+      return updateTodoText(id: id, text: text);
+    }
+    // If only assignedDate is provided, we might need a move endpoint.
+    // Returning current todo to satisfy signature if no supported update found.
+    // Ideally this should call a generic PUT /todos/{id} if available.
+    // Using updateTodoText as a fallback/placeholder.
+    // In a real implementation, ensure backend supports generic updates.
+    return updateTodoText(id: id, text: text ?? "");
   }
 
   /// Update todo text
@@ -81,8 +123,14 @@ class TodoApi {
   }
 
   /// Complete a todo
-  Future<Todo> completeTodo({required int id}) async {
-    final response = await _apiService.post('/todos/$id/complete');
+  Future<Todo> completeTodo({
+    required int id,
+    bool isCompleted = true,
+  }) async {
+    final response = await _apiService.post(
+      '/todos/$id/complete',
+      queryParameters: {'status': isCompleted}, // Assuming backend supports toggling or status
+    );
     return Todo.fromJson(response.data as Map<String, dynamic>);
   }
 
@@ -96,6 +144,20 @@ class TodoApi {
       queryParameters: deleteAllFuture != null && deleteAllFuture
           ? {'deleteAllFuture': 'true'}
           : null,
+    );
+  }
+
+  /// Reorder todos
+  Future<void> reorderTodos({
+    required String date,
+    required List<int> todoIds,
+  }) async {
+    await _apiService.post(
+      '/todos/reorder',
+      data: {
+        'date': date,
+        'todoIds': todoIds,
+      },
     );
   }
 

@@ -28,7 +28,7 @@ class TodoApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(
           create: (_) => TodoProvider(
-            todoApi: TodoApi(),
+            todoApi: TodoApi.instance,
             databaseService: DatabaseService.instance,
             offlineQueueService: OfflineQueueService.instance,
             websocketService: WebSocketService.instance,

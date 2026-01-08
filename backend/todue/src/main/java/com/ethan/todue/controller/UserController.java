@@ -20,7 +20,14 @@ public class UserController {
     @GetMapping("/me")
     public ResponseEntity<UserResponse> getCurrentUser() {
         User user = userService.getCurrentUser();
-        UserResponse response = new UserResponse(user.getId(), user.getEmail(), user.getTimezone());
+        UserResponse response = new UserResponse(
+            user.getId(),
+            user.getEmail(),
+            user.getTimezone(),
+            user.getCreatedAt().toString(),
+            user.getLastRolloverDate() != null ? user.getLastRolloverDate().toString() : null,
+            user.getUpdatedAt().toString()
+        );
         return ResponseEntity.ok(response);
     }
 
@@ -31,9 +38,17 @@ public class UserController {
     }
 
     @PutMapping("/timezone")
-    public ResponseEntity<Map<String, String>> updateTimezone(@RequestBody Map<String, String> request) {
+    public ResponseEntity<UserResponse> updateTimezone(@RequestBody Map<String, String> request) {
         String timezone = request.get("timezone");
-        userService.updateTimezone(timezone);
-        return ResponseEntity.ok(Map.of("message", "Timezone updated successfully"));
+        User user = userService.updateTimezone(timezone);
+        UserResponse response = new UserResponse(
+            user.getId(),
+            user.getEmail(),
+            user.getTimezone(),
+            user.getCreatedAt().toString(),
+            user.getLastRolloverDate() != null ? user.getLastRolloverDate().toString() : null,
+            user.getUpdatedAt().toString()
+        );
+        return ResponseEntity.ok(response);
     }
 }

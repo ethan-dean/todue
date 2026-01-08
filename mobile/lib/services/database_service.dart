@@ -9,6 +9,8 @@ class DatabaseService {
   static const String _dbName = 'todue.db';
   static const int _dbVersion = 1;
 
+  static DatabaseService get instance => databaseService;
+
   /// Get database instance (singleton pattern)
   Future<Database> get database async {
     if (_database != null) return _database!;
@@ -38,7 +40,7 @@ class DatabaseService {
         email TEXT NOT NULL,
         timezone TEXT NOT NULL,
         created_at TEXT NOT NULL,
-        last_login TEXT,
+        last_rollover_date TEXT,
         updated_at TEXT NOT NULL
       )
     ''');
@@ -70,7 +72,6 @@ class DatabaseService {
         recurrence_type TEXT NOT NULL,
         start_date TEXT NOT NULL,
         end_date TEXT,
-        default_position INTEGER NOT NULL,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       )
@@ -122,7 +123,7 @@ class DatabaseService {
         'email': user.email,
         'timezone': user.timezone,
         'created_at': user.createdAt.toIso8601String(),
-        'last_login': user.lastLogin?.toIso8601String(),
+        'last_rollover_date': user.lastRolloverDate?.toIso8601String(),
         'updated_at': user.updatedAt.toIso8601String(),
       },
       conflictAlgorithm: ConflictAlgorithm.replace,
@@ -141,8 +142,8 @@ class DatabaseService {
       email: map['email'] as String,
       timezone: map['timezone'] as String,
       createdAt: DateTime.parse(map['created_at'] as String),
-      lastLogin: map['last_login'] != null
-          ? DateTime.parse(map['last_login'] as String)
+      lastRolloverDate: map['last_rollover_date'] != null
+          ? DateTime.parse(map['last_rollover_date'] as String)
           : null,
       updatedAt: DateTime.parse(map['updated_at'] as String),
     );
@@ -229,6 +230,10 @@ class DatabaseService {
     return maps.map((map) => _todoFromMap(map)).toList();
   }
 
+  Future<List<Todo>> getTodos({required String date}) {
+    return getTodosForDate(date);
+  }
+
   Future<void> deleteTodo(int id) async {
     final db = await database;
     await db.delete('todos', where: 'id = ?', whereArgs: [id]);
@@ -251,12 +256,34 @@ class DatabaseService {
         'recurrence_type': recurringTodo.recurrenceType.name,
         'start_date': recurringTodo.startDate,
         'end_date': recurringTodo.endDate,
-        'default_position': recurringTodo.defaultPosition,
         'created_at': recurringTodo.createdAt.toIso8601String(),
         'updated_at': recurringTodo.updatedAt.toIso8601String(),
       },
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+  }
+
+  Future<void> saveRecurringTodos(List<RecurringTodo> recurringTodos) async {
+    final db = await database;
+    final batch = db.batch();
+
+    for (final recurringTodo in recurringTodos) {
+      batch.insert(
+        'recurring_todos',
+        {
+          'id': recurringTodo.id,
+          'text': recurringTodo.text,
+          'recurrence_type': recurringTodo.recurrenceType.name,
+          'start_date': recurringTodo.startDate,
+          'end_date': recurringTodo.endDate,
+          'created_at': recurringTodo.createdAt.toIso8601String(),
+          'updated_at': recurringTodo.updatedAt.toIso8601String(),
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+
+    await batch.commit(noResult: true);
   }
 
   Future<List<RecurringTodo>> getRecurringTodos() async {
@@ -272,6 +299,13 @@ class DatabaseService {
   }
 
   // Helper methods
+
+  Future<void> saveTodosForDate(String date, List<Todo> todos) async {
+    // In a real scenario, you might want to delete existing todos for the date first
+    // or rely on ConflictAlgorithm.replace which works by ID.
+    // For syncing a full day list, replacing is usually safer if IDs are consistent.
+    await saveTodos(todos);
+  }
 
   Todo _todoFromMap(Map<String, dynamic> map) {
     return Todo(
@@ -305,7 +339,6 @@ class DatabaseService {
       ),
       startDate: map['start_date'] as String,
       endDate: map['end_date'] as String?,
-      defaultPosition: map['default_position'] as int,
       createdAt: DateTime.parse(map['created_at'] as String),
       updatedAt: DateTime.parse(map['updated_at'] as String),
     );

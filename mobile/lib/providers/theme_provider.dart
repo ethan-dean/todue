@@ -98,7 +98,7 @@ class ThemeProvider extends ChangeNotifier {
       brightness: Brightness.light,
     ),
     scaffoldBackgroundColor: Colors.grey[50],
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       elevation: 1,
       color: Colors.white,
       surfaceTintColor: Colors.white,
@@ -143,7 +143,7 @@ class ThemeProvider extends ChangeNotifier {
       brightness: Brightness.dark,
     ),
     scaffoldBackgroundColor: const Color(0xFF121212),
-    cardTheme: const CardTheme(
+    cardTheme: const CardThemeData(
       elevation: 2,
       color: Color(0xFF1E1E1E),
       surfaceTintColor: Color(0xFF1E1E1E),

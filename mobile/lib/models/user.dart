@@ -3,7 +3,7 @@ class User {
   final String email;
   final String timezone;
   final DateTime createdAt;
-  final DateTime? lastLogin;
+  final DateTime? lastRolloverDate;
   final DateTime updatedAt;
 
   User({
@@ -11,7 +11,7 @@ class User {
     required this.email,
     required this.timezone,
     required this.createdAt,
-    this.lastLogin,
+    this.lastRolloverDate,
     required this.updatedAt,
   });
 
@@ -21,8 +21,8 @@ class User {
       email: json['email'] as String,
       timezone: json['timezone'] as String,
       createdAt: DateTime.parse(json['createdAt'] as String),
-      lastLogin: json['lastLogin'] != null
-          ? DateTime.parse(json['lastLogin'] as String)
+      lastRolloverDate: json['lastRolloverDate'] != null
+          ? DateTime.parse(json['lastRolloverDate'] as String)
           : null,
       updatedAt: DateTime.parse(json['updatedAt'] as String),
     );
@@ -34,7 +34,7 @@ class User {
       'email': email,
       'timezone': timezone,
       'createdAt': createdAt.toIso8601String(),
-      'lastLogin': lastLogin?.toIso8601String(),
+      'lastRolloverDate': lastRolloverDate?.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
   }
@@ -44,7 +44,7 @@ class User {
     String? email,
     String? timezone,
     DateTime? createdAt,
-    DateTime? lastLogin,
+    DateTime? lastRolloverDate,
     DateTime? updatedAt,
   }) {
     return User(
@@ -52,7 +52,7 @@ class User {
       email: email ?? this.email,
       timezone: timezone ?? this.timezone,
       createdAt: createdAt ?? this.createdAt,
-      lastLogin: lastLogin ?? this.lastLogin,
+      lastRolloverDate: lastRolloverDate ?? this.lastRolloverDate,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }

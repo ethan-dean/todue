@@ -282,7 +282,7 @@ class TodoProvider extends ChangeNotifier {
 
         // Queue the change
         await _offlineQueueService.queueChange(
-          type: 'CREATE_TODO',
+          type: ChangeType.CREATE_TODO,
           payload: {
             'text': text,
             'assignedDate': dateStr,
@@ -359,7 +359,7 @@ class TodoProvider extends ChangeNotifier {
 
         // Queue the change
         await _offlineQueueService.queueChange(
-          type: 'UPDATE_TODO',
+          type: ChangeType.UPDATE_TODO,
           payload: {
             'id': todoId,
             'text': text,
@@ -402,7 +402,7 @@ class TodoProvider extends ChangeNotifier {
 
         // Queue the change
         await _offlineQueueService.queueChange(
-          type: 'DELETE_TODO',
+          type: ChangeType.DELETE_TODO,
           payload: {
             'id': todoId,
           },
@@ -464,7 +464,7 @@ class TodoProvider extends ChangeNotifier {
 
         // Queue the change
         await _offlineQueueService.queueChange(
-          type: 'COMPLETE_TODO',
+          type: ChangeType.COMPLETE_TODO,
           payload: {
             'id': todoId,
             'isCompleted': isCompleted,
@@ -544,7 +544,7 @@ class TodoProvider extends ChangeNotifier {
 
         // Queue the change
         await _offlineQueueService.queueChange(
-          type: 'REORDER_TODOS',
+          type: ChangeType.REORDER_TODOS,
           payload: {
             'date': date,
             'todoIds': todoIds,
