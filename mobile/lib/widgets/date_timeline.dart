@@ -19,6 +19,7 @@ class _DateTimelineState extends State<DateTimeline> {
   late ScrollController _scrollController;
   final int _daysRange = 365;
   final double _itemWidth = 60.0;
+  final double _itemMargin = 4.0;
 
   @override
   void initState() {
@@ -26,7 +27,7 @@ class _DateTimelineState extends State<DateTimeline> {
     _scrollController = ScrollController();
     // Scroll to selected date after build
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollToDate(widget.selectedDate);
+      _scrollToDate(widget.selectedDate, animate: false);
     });
   }
 
@@ -34,7 +35,7 @@ class _DateTimelineState extends State<DateTimeline> {
   void didUpdateWidget(DateTimeline oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.selectedDate != widget.selectedDate) {
-      _scrollToDate(widget.selectedDate);
+      _scrollToDate(widget.selectedDate, animate: true);
     }
   }
 
@@ -44,23 +45,30 @@ class _DateTimelineState extends State<DateTimeline> {
     super.dispose();
   }
 
-  void _scrollToDate(DateTime date) {
+  void _scrollToDate(DateTime date, {bool animate = true}) {
     // Calculate index relative to today
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final diff = date.difference(today).inDays;
     final index = _daysRange + diff;
 
+    // Calculate total width of one item including margin
+    final fullItemWidth = _itemWidth + (_itemMargin * 2);
+
     // Center the item
     final screenWidth = MediaQuery.of(context).size.width;
-    final offset = (index * _itemWidth) - (screenWidth / 2) + (_itemWidth / 2);
+    final offset = (index * fullItemWidth) - (screenWidth / 2) + (fullItemWidth / 2);
 
     if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        offset,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
+      if (animate) {
+        _scrollController.animateTo(
+          offset,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      } else {
+        _scrollController.jumpTo(offset);
+      }
     }
   }
 
@@ -86,7 +94,7 @@ class _DateTimelineState extends State<DateTimeline> {
             onTap: () => widget.onDateSelected(date),
             child: Container(
               width: _itemWidth,
-              margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+              margin: EdgeInsets.symmetric(vertical: 10, horizontal: _itemMargin),
               decoration: BoxDecoration(
                 color: isSelected
                     ? Colors.green
@@ -111,9 +119,9 @@ class _DateTimelineState extends State<DateTimeline> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    DateFormat('d').format(date),
+                    DateFormat('M/d').format(date),
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: 16,
                       fontWeight: FontWeight.w600,
                       color: isSelected
                           ? Colors.white

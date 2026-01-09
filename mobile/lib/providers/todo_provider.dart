@@ -50,13 +50,6 @@ class TodoProvider extends ChangeNotifier {
   }
 
   Future<void> _init() async {
-    // Restore selected date from preferences
-    final prefs = await SharedPreferences.getInstance();
-    final savedDate = prefs.getString('selectedDate');
-    if (savedDate != null) {
-      _selectedDate = DateTime.parse(savedDate);
-    }
-
     // Set up WebSocket listener
     _wsSubscription = _websocketService.messageStream.listen((message) {
       _handleWebSocketMessage(message);

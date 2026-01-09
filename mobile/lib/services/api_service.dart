@@ -155,7 +155,15 @@ class ApiService {
 
       case DioExceptionType.badResponse:
         final statusCode = error.response?.statusCode;
-        final message = error.response?.data?['message'] ?? error.response?.statusMessage;
+        String? message;
+        
+        if (error.response?.data is Map) {
+          message = error.response?.data['message'];
+        } else if (error.response?.data is String) {
+          message = error.response?.data;
+        }
+        
+        message = message ?? error.response?.statusMessage;
 
         if (statusCode == 400) {
           return Exception(message ?? 'Bad request');

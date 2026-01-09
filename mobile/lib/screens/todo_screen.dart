@@ -207,6 +207,11 @@ class _TodoScreenState extends State<TodoScreen> {
             },
           ),
           IconButton(
+            icon: const Icon(Icons.calendar_today),
+            onPressed: _goToToday,
+            tooltip: 'Today',
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
               context.read<TodoProvider>().refresh();
@@ -451,50 +456,51 @@ class _TodoScreenState extends State<TodoScreen> {
             },
             activeColor: Colors.green,
           ),
-          title: Text(
-            todo.text,
-            style: TextStyle(
-              fontSize: 16,
-              decoration: todo.isCompleted
-                  ? TextDecoration.lineThrough
-                  : TextDecoration.none,
-              color: todo.isCompleted ? Colors.grey : Colors.black,
-            ),
+          title: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  todo.text,
+                  style: TextStyle(
+                    fontSize: 16,
+                    decoration: todo.isCompleted
+                        ? TextDecoration.lineThrough
+                        : TextDecoration.none,
+                    color: todo.isCompleted ? Colors.grey : Colors.black,
+                  ),
+                ),
+              ),
+              if (todo.isVirtual)
+                Container(
+                  margin: const EdgeInsets.only(left: 8),
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade100,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.repeat,
+                    size: 14,
+                    color: Colors.blue.shade700,
+                  ),
+                ),
+              if (todo.isRolledOver)
+                Container(
+                  margin: const EdgeInsets.only(left: 8),
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade100,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.history,
+                    size: 14,
+                    color: Colors.orange.shade700,
+                  ),
+                ),
+            ],
           ),
-          subtitle: (todo.isVirtual || todo.isRolledOver) 
-            ? Row(
-                children: [
-                  if (todo.isVirtual)
-                    Container(
-                      margin: const EdgeInsets.only(top: 4, right: 8),
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade100,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.repeat,
-                        size: 14,
-                        color: Colors.blue.shade700,
-                      ),
-                    ),
-                  if (todo.isRolledOver)
-                    Container(
-                      margin: const EdgeInsets.only(top: 4),
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade100,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.history,
-                        size: 14,
-                        color: Colors.orange.shade700,
-                      ),
-                    ),
-                ],
-              )
-            : null,
+          subtitle: null,
           trailing: PopupMenuButton<String>(
             onSelected: (value) async {
               if (value == 'edit') {

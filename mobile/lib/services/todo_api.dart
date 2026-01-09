@@ -33,8 +33,8 @@ class TodoApi {
     final response = await _apiService.get(
       '/todos',
       queryParameters: {
-        'start_date': startDate,
-        'end_date': endDate,
+        'startDate': startDate,
+        'endDate': endDate,
       },
     );
 
