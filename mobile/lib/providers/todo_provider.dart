@@ -21,6 +21,7 @@ class TodoProvider extends ChangeNotifier {
   String? _error;
   bool _isOnline = true;
   StreamSubscription? _wsSubscription;
+  DateTime _lastMutationTime = DateTime.now();
 
   // Getters
   Map<String, List<Todo>> get todos => _todos;
@@ -152,7 +153,10 @@ class TodoProvider extends ChangeNotifier {
   }
 
   // Handle WebSocket messages
-  void _handleWebSocketMessage(WebSocketMessage message) {
+  void _handleWebSocketMessage(WebSocketMessage message) async {
+    // Delay to allow backend DB to settle
+    await Future.delayed(const Duration(milliseconds: 300));
+
     switch (message.type) {
       case WebSocketMessageType.TODOS_CHANGED:
         // Single date changed - refetch that specific date
@@ -285,6 +289,8 @@ class TodoProvider extends ChangeNotifier {
     DateTime? date,
     int? recurringTodoId,
   }) async {
+    _lastMutationTime = DateTime.now(); // Track local mutation
+    
     await _checkOnlineStatus();
     if (!_isOnline) {
       throw Exception('Cannot create todo while offline');
@@ -350,6 +356,8 @@ class TodoProvider extends ChangeNotifier {
     String? text,
     String? assignedDate,
   }) async {
+    _lastMutationTime = DateTime.now(); // Track local mutation
+
     await _checkOnlineStatus();
     if (!_isOnline) {
       throw Exception('Cannot update todo while offline');
@@ -434,6 +442,8 @@ class TodoProvider extends ChangeNotifier {
 
   // Delete a todo
   Future<void> deleteTodo(int todoId, String assignedDate) async {
+    _lastMutationTime = DateTime.now(); // Track local mutation
+
     await _checkOnlineStatus();
     if (!_isOnline) {
       throw Exception('Cannot delete todo while offline');
@@ -468,6 +478,8 @@ class TodoProvider extends ChangeNotifier {
 
   // Complete/uncomplete a todo
   Future<void> completeTodo(int todoId, String assignedDate, bool isCompleted) async {
+    _lastMutationTime = DateTime.now(); // Track local mutation
+
     await _checkOnlineStatus();
     if (!_isOnline) {
       throw Exception('Cannot complete todo while offline');
@@ -521,6 +533,8 @@ class TodoProvider extends ChangeNotifier {
 
   // Reorder todos
   Future<void> reorderTodos(String date, List<int> todoIds) async {
+    _lastMutationTime = DateTime.now(); // Track local mutation
+
     await _checkOnlineStatus();
     if (!_isOnline) {
       throw Exception('Cannot reorder todos while offline');
