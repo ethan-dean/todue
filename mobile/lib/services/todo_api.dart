@@ -122,15 +122,13 @@ class TodoApi {
     return Todo.fromJson(response.data as Map<String, dynamic>);
   }
 
-  /// Complete a todo
+  /// Complete or uncomplete a todo
   Future<Todo> completeTodo({
     required int id,
     bool isCompleted = true,
   }) async {
-    final response = await _apiService.post(
-      '/todos/$id/complete',
-      queryParameters: {'status': isCompleted}, // Assuming backend supports toggling or status
-    );
+    final endpoint = isCompleted ? '/todos/$id/complete' : '/todos/$id/uncomplete';
+    final response = await _apiService.post(endpoint);
     return Todo.fromJson(response.data as Map<String, dynamic>);
   }
 
