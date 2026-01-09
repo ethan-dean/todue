@@ -10,7 +10,6 @@ import 'screens/reset_password_screen.dart';
 import 'screens/todo_screen.dart';
 import 'services/todo_api.dart';
 import 'services/database_service.dart';
-import 'services/offline_queue_service.dart';
 import 'services/websocket_service.dart';
 
 void main() {
@@ -30,7 +29,6 @@ class TodoApp extends StatelessWidget {
           create: (_) => TodoProvider(
             todoApi: TodoApi.instance,
             databaseService: DatabaseService.instance,
-            offlineQueueService: OfflineQueueService.instance,
             websocketService: WebSocketService.instance,
           ),
         ),

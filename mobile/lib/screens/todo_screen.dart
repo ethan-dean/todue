@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import '../widgets/date_timeline.dart';
 import '../providers/todo_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
@@ -257,76 +258,10 @@ class _TodoScreenState extends State<TodoScreen> {
 
           return Column(
             children: [
-              // Date Navigation Bar
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                decoration: BoxDecoration(
-                  color: Colors.green.shade50,
-                  border: Border(
-                    bottom: BorderSide(
-                      color: Colors.green.shade200,
-                      width: 1,
-                    ),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.chevron_left),
-                      onPressed: _goToPreviousDay,
-                      tooltip: 'Previous Day',
-                    ),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () async {
-                          final pickedDate = await showDatePicker(
-                            context: context,
-                            initialDate: todoProvider.selectedDate,
-                            firstDate: DateTime(2000),
-                            lastDate: DateTime(2100),
-                          );
-                          if (pickedDate != null) {
-                            _navigateToDate(pickedDate);
-                          }
-                        },
-                        child: Column(
-                          children: [
-                            Text(
-                              _formatDate(todoProvider.selectedDate),
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            if (!_isToday(todoProvider.selectedDate))
-                              TextButton(
-                                onPressed: _goToToday,
-                                style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  minimumSize: const Size(0, 0),
-                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                ),
-                                child: const Text(
-                                  'Go to Today',
-                                  style: TextStyle(fontSize: 12),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.chevron_right),
-                      onPressed: _goToNextDay,
-                      tooltip: 'Next Day',
-                    ),
-                  ],
-                ),
+              // Date Timeline
+              DateTimeline(
+                selectedDate: todoProvider.selectedDate,
+                onDateSelected: _navigateToDate,
               ),
 
               // Offline indicator
@@ -431,96 +366,8 @@ class _TodoScreenState extends State<TodoScreen> {
       );
     }
 
-    // Separate todos into categories
-    final rolledOverTodos = todos.where((t) => t.isRolledOver && !t.isCompleted).toList();
-    final activeTodos = todos.where((t) => !t.isRolledOver && !t.isCompleted).toList();
-    final completedTodos = todos.where((t) => t.isCompleted).toList();
-
-    return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      children: [
-        // Rolled over todos section (not reorderable)
-        if (rolledOverTodos.isNotEmpty) ...[
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                Text(
-                  'Rolled Over',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.orange.shade700,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Icon(Icons.lock, size: 14, color: Colors.orange.shade700),
-              ],
-            ),
-          ),
-          ...rolledOverTodos.map((todo) => _buildTodoItem(todo, todoProvider, isReorderable: false)),
-          const Divider(height: 24),
-        ],
-
-        // Active todos section (reorderable)
-        if (activeTodos.isNotEmpty) ...[
-          if (rolledOverTodos.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  Text(
-                    'Today',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey.shade600,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Icon(Icons.drag_handle, size: 14, color: Colors.grey.shade600),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Long press to reorder',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Colors.grey.shade500,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          _buildReorderableSection(activeTodos, todoProvider),
-        ],
-
-        // Completed todos section (not reorderable)
-        if (completedTodos.isNotEmpty) ...[
-          const Divider(height: 24),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text(
-              'Completed',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey.shade600,
-                letterSpacing: 1.2,
-              ),
-            ),
-          ),
-          ...completedTodos.map((todo) => _buildTodoItem(todo, todoProvider, isReorderable: false)),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildReorderableSection(List<Todo> todos, TodoProvider todoProvider) {
     return ReorderableListView(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       onReorder: (oldIndex, newIndex) async {
         // Adjust newIndex if item moved down
         if (oldIndex < newIndex) {
@@ -614,66 +461,40 @@ class _TodoScreenState extends State<TodoScreen> {
               color: todo.isCompleted ? Colors.grey : Colors.black,
             ),
           ),
-          subtitle: Row(
-            children: [
-              if (todo.isVirtual)
-                Container(
-                  margin: const EdgeInsets.only(top: 4, right: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade100,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
+          subtitle: (todo.isVirtual || todo.isRolledOver) 
+            ? Row(
+                children: [
+                  if (todo.isVirtual)
+                    Container(
+                      margin: const EdgeInsets.only(top: 4, right: 8),
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade100,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
                         Icons.repeat,
-                        size: 12,
+                        size: 14,
                         color: Colors.blue.shade700,
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Recurring',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.blue.shade700,
-                          fontWeight: FontWeight.w500,
-                        ),
+                    ),
+                  if (todo.isRolledOver)
+                    Container(
+                      margin: const EdgeInsets.only(top: 4),
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade100,
+                        shape: BoxShape.circle,
                       ),
-                    ],
-                  ),
-                ),
-              if (todo.isRolledOver)
-                Container(
-                  margin: const EdgeInsets.only(top: 4),
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.shade100,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
+                      child: Icon(
                         Icons.history,
-                        size: 12,
+                        size: 14,
                         color: Colors.orange.shade700,
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Rolled Over',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.orange.shade700,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
-          ),
+                    ),
+                ],
+              )
+            : null,
           trailing: PopupMenuButton<String>(
             onSelected: (value) async {
               if (value == 'edit') {
