@@ -22,6 +22,7 @@ class _TodoScreenState extends State<TodoScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       final todoProvider = context.read<TodoProvider>();
       todoProvider.loadTodos(force: true);
     });
@@ -375,7 +376,7 @@ class _TodoScreenState extends State<TodoScreen> {
       );
     }
 
-    return ReorderableListView(
+    return ReorderableListView.builder(
       padding: const EdgeInsets.symmetric(vertical: 8),
       onReorder: (oldIndex, newIndex) {
         // Call the provider to update on backend
@@ -386,15 +387,19 @@ class _TodoScreenState extends State<TodoScreen> {
           newIndex,
         );
       },
-      children: todos.map((todo) {
+      itemCount: todos.length,
+      itemBuilder: (context, index) {
+        final todo = todos[index];
+        // ReorderableListView.builder requires each item to have a key. 
+        // _buildTodoItem returns a Dismissible which has a key.
         return _buildTodoItem(todo, todoProvider, isReorderable: true);
-      }).toList(),
+      },
     );
   }
 
   Widget _buildTodoItem(Todo todo, TodoProvider todoProvider, {bool isReorderable = false}) {
     final widget = Dismissible(
-      key: Key('todo_${todo.id}_${todo.instanceDate}'),
+      key: Key('todo_${todo.id ?? 'v'}_${todo.recurringTodoId ?? 'n'}_${todo.instanceDate}'),
       background: Container(
         color: Colors.green,
         alignment: Alignment.centerLeft,
