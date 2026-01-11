@@ -21,7 +21,7 @@ class TodoProvider extends ChangeNotifier {
   String? _error;
   bool _isOnline = true;
   StreamSubscription? _wsSubscription;
-  DateTime _lastMutationTime = DateTime.now();
+  DateTime _lastMutationTime = DateTime.fromMillisecondsSinceEpoch(0);
 
   // Getters
   Map<String, List<Todo>> get todos => _todos;
@@ -214,32 +214,50 @@ class TodoProvider extends ChangeNotifier {
 
   // Load todos for a date (or selected date if not specified)
   Future<void> loadTodos({DateTime? date, bool force = false}) async {
+    final fetchStartTime = DateTime.now();
     final targetDate = date ?? _selectedDate;
     final dateStr = _formatDate(targetDate);
 
-    // If we have data in memory and not forcing, return immediately
+    // Skip if already loaded and not forcing
     if (!force && _todos.containsKey(dateStr) && _todos[dateStr]!.isNotEmpty) {
       return;
     }
 
     _setError(null);
 
-    // 1. Load from Cache (DB) immediately
-    try {
-      final localTodos = await _databaseService.getTodos(date: dateStr);
-      if (localTodos.isNotEmpty) {
-        _todos[dateStr] = localTodos;
-        notifyListeners(); // Show cached data instantly
-      } else {
-        _setLoading(true); // Only show spinner if cache is empty
+    // 1. Load from Cache (DB) immediately - BUT only if no recent mutation
+    // If we just mutated, the DB might be stale compared to our optimistic RAM state.
+    // We want to keep showing RAM state until API confirms.
+    const recentMutationWindow = Duration(seconds: 2);
+    final hasRecentMutation = DateTime.now().difference(_lastMutationTime) < recentMutationWindow;
+
+    if (!hasRecentMutation) {
+      try {
+        final localTodos = await _databaseService.getTodos(date: dateStr);
+        if (localTodos.isNotEmpty) {
+          _todos[dateStr] = localTodos;
+          notifyListeners(); // Show cached data instantly
+        } else {
+          _setLoading(true); // Only show spinner if cache is empty
+        }
+      } catch (e) {
+        print('Cache load failed: $e');
       }
-    } catch (e) {
-      print('Cache load failed: $e');
+    } else {
+      print('Skipping DB load due to recent mutation');
     }
 
     // 2. Fetch from API (Stale-While-Revalidate)
     try {
       final fetchedTodos = await _todoApi.getTodos(date: dateStr);
+      
+      // Guard: If a mutation happened since we started fetching, ignore this result
+      // to avoid overwriting optimistic updates with stale data.
+      if (_lastMutationTime.isAfter(fetchStartTime)) {
+        print('Discarding stale fetch result (mutation occurred during fetch)');
+        return;
+      }
+
       _todos[dateStr] = fetchedTodos;
       _isOnline = true;
 
@@ -253,7 +271,9 @@ class TodoProvider extends ChangeNotifier {
         _setError('Failed to load todos');
       }
     } finally {
-      _setLoading(false);
+      if (!hasRecentMutation) {
+        _setLoading(false);
+      }
       notifyListeners();
     }
   }
@@ -541,8 +561,6 @@ class TodoProvider extends ChangeNotifier {
       );
 
       // Update with server data
-      // We keep our local order until a full refresh happens or reorder event
-      // Just update the item data itself
       final idx = _todos[assignedDate]!.indexWhere((t) => t.id == todoId);
       if (idx != -1) {
         _todos[assignedDate]![idx] = serverTodo;
