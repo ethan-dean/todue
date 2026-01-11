@@ -2,7 +2,6 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/user.dart';
 import '../models/todo.dart';
-import '../models/recurring_todo.dart';
 
 class DatabaseService {
   static Database? _database;
@@ -59,33 +58,7 @@ class DatabaseService {
         is_rolled_over INTEGER NOT NULL DEFAULT 0,
         is_virtual INTEGER NOT NULL DEFAULT 0,
         created_at TEXT,
-        updated_at TEXT,
-        FOREIGN KEY (recurring_todo_id) REFERENCES recurring_todos (id)
-      )
-    ''');
-
-    // Recurring todos table
-    await db.execute('''
-      CREATE TABLE recurring_todos (
-        id INTEGER PRIMARY KEY,
-        text TEXT NOT NULL,
-        recurrence_type TEXT NOT NULL,
-        start_date TEXT NOT NULL,
-        end_date TEXT,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      )
-    ''');
-
-    // Skip recurring table
-    await db.execute('''
-      CREATE TABLE skip_recurring (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        recurring_todo_id INTEGER NOT NULL,
-        skip_date TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        FOREIGN KEY (recurring_todo_id) REFERENCES recurring_todos (id),
-        UNIQUE (recurring_todo_id, skip_date)
+        updated_at TEXT
       )
     ''');
 
@@ -104,7 +77,6 @@ class DatabaseService {
     await db.execute('CREATE INDEX idx_todos_assigned_date ON todos (assigned_date)');
     await db.execute('CREATE INDEX idx_todos_instance_date ON todos (instance_date)');
     await db.execute('CREATE INDEX idx_todos_recurring_id ON todos (recurring_todo_id)');
-    await db.execute('CREATE INDEX idx_skip_recurring_date ON skip_recurring (recurring_todo_id, skip_date)');
   }
 
   /// Handle database upgrades
@@ -244,60 +216,6 @@ class DatabaseService {
     await db.delete('todos');
   }
 
-  // Recurring todo operations
-
-  Future<void> saveRecurringTodo(RecurringTodo recurringTodo) async {
-    final db = await database;
-    await db.insert(
-      'recurring_todos',
-      {
-        'id': recurringTodo.id,
-        'text': recurringTodo.text,
-        'recurrence_type': recurringTodo.recurrenceType.name,
-        'start_date': recurringTodo.startDate,
-        'end_date': recurringTodo.endDate,
-        'created_at': recurringTodo.createdAt.toIso8601String(),
-        'updated_at': recurringTodo.updatedAt.toIso8601String(),
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
-  }
-
-  Future<void> saveRecurringTodos(List<RecurringTodo> recurringTodos) async {
-    final db = await database;
-    final batch = db.batch();
-
-    for (final recurringTodo in recurringTodos) {
-      batch.insert(
-        'recurring_todos',
-        {
-          'id': recurringTodo.id,
-          'text': recurringTodo.text,
-          'recurrence_type': recurringTodo.recurrenceType.name,
-          'start_date': recurringTodo.startDate,
-          'end_date': recurringTodo.endDate,
-          'created_at': recurringTodo.createdAt.toIso8601String(),
-          'updated_at': recurringTodo.updatedAt.toIso8601String(),
-        },
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
-    }
-
-    await batch.commit(noResult: true);
-  }
-
-  Future<List<RecurringTodo>> getRecurringTodos() async {
-    final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query('recurring_todos');
-
-    return maps.map((map) => _recurringTodoFromMap(map)).toList();
-  }
-
-  Future<void> deleteRecurringTodo(int id) async {
-    final db = await database;
-    await db.delete('recurring_todos', where: 'id = ?', whereArgs: [id]);
-  }
-
   // Helper methods
 
   Future<void> saveTodosForDate(String date, List<Todo> todos) async {
@@ -330,27 +248,11 @@ class DatabaseService {
     );
   }
 
-  RecurringTodo _recurringTodoFromMap(Map<String, dynamic> map) {
-    return RecurringTodo(
-      id: map['id'] as int,
-      text: map['text'] as String,
-      recurrenceType: RecurrenceType.values.firstWhere(
-        (e) => e.name == map['recurrence_type'],
-      ),
-      startDate: map['start_date'] as String,
-      endDate: map['end_date'] as String?,
-      createdAt: DateTime.parse(map['created_at'] as String),
-      updatedAt: DateTime.parse(map['updated_at'] as String),
-    );
-  }
-
   /// Clear all data (for logout)
   Future<void> clearAllData() async {
     final db = await database;
     await db.delete('users');
     await db.delete('todos');
-    await db.delete('recurring_todos');
-    await db.delete('skip_recurring');
     await db.delete('pending_changes');
   }
 

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../models/todo.dart';
-import '../models/recurring_todo.dart';
 import '../services/todo_api.dart';
 import '../services/database_service.dart';
 import '../services/websocket_service.dart';
@@ -15,7 +14,6 @@ class TodoProvider extends ChangeNotifier {
 
   // State
   Map<String, List<Todo>> _todos = {};
-  List<RecurringTodo> _recurringTodos = [];
   DateTime _selectedDate = DateTime.now();
   bool _isLoading = false;
   String? _error;
@@ -25,7 +23,6 @@ class TodoProvider extends ChangeNotifier {
 
   // Getters
   Map<String, List<Todo>> get todos => _todos;
-  List<RecurringTodo> get recurringTodos => _recurringTodos;
   DateTime get selectedDate => _selectedDate;
   bool get isLoading => _isLoading;
   String? get error => _error;
@@ -59,7 +56,6 @@ class TodoProvider extends ChangeNotifier {
     // Check online status and load initial data
     await _checkOnlineStatus();
     await loadTodos(force: true);
-    await loadRecurringTodos();
     
     // Background pre-fetch for offline availability (-7 to +14 days)
     _prefetchWindow();
@@ -178,7 +174,7 @@ class TodoProvider extends ChangeNotifier {
 
       case WebSocketMessageType.RECURRING_CHANGED:
         // Recurring pattern changed - refetch all loaded dates
-        loadRecurringTodos();
+        // loadRecurringTodos(); // Removed
         // Also refetch all currently loaded dates to update virtual todos
         _todos.keys.toList().forEach((dateStr) {
           try {
@@ -275,31 +271,6 @@ class TodoProvider extends ChangeNotifier {
         _setLoading(false);
       }
       notifyListeners();
-    }
-  }
-
-  // Load recurring todos
-  Future<void> loadRecurringTodos() async {
-    try {
-      await _checkOnlineStatus();
-
-      if (_isOnline) {
-        try {
-          _recurringTodos = await _todoApi.getRecurringTodos();
-
-          // Update local database
-          await _databaseService.saveRecurringTodos(_recurringTodos);
-        } catch (e) {
-          // Fall back to local database
-          _recurringTodos = await _databaseService.getRecurringTodos();
-        }
-      } else {
-        _recurringTodos = await _databaseService.getRecurringTodos();
-      }
-
-      notifyListeners();
-    } catch (e) {
-      _setError('Failed to load recurring todos: $e');
     }
   }
 
@@ -659,6 +630,5 @@ class TodoProvider extends ChangeNotifier {
   Future<void> refresh() async {
     await _checkOnlineStatus();
     await loadTodos(force: true);
-    await loadRecurringTodos();
   }
 }

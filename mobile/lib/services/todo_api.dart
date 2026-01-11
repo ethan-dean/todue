@@ -1,5 +1,4 @@
 import '../models/todo.dart';
-import '../models/recurring_todo.dart';
 import 'api_service.dart';
 
 class TodoApi {
@@ -40,13 +39,6 @@ class TodoApi {
 
     final List<dynamic> data = response.data as List<dynamic>;
     return data.map((json) => Todo.fromJson(json as Map<String, dynamic>)).toList();
-  }
-
-  /// Get all recurring todos
-  Future<List<RecurringTodo>> getRecurringTodos() async {
-    final response = await _apiService.get('/todos/recurring');
-    final List<dynamic> data = response.data as List<dynamic>;
-    return data.map((json) => RecurringTodo.fromJson(json as Map<String, dynamic>)).toList();
   }
 
   /// Create a new todo
