@@ -234,6 +234,9 @@ class _TodoScreenState extends State<TodoScreen> {
               DateTimeline(
                 selectedDate: todoProvider.selectedDate,
                 onDateSelected: _navigateToDate,
+                onTodoDropped: (date, todo) {
+                  todoProvider.moveTodo(todo, date);
+                },
               ),
 
               // Offline indicator
@@ -488,37 +491,70 @@ class _TodoScreenState extends State<TodoScreen> {
             ],
           ),
           subtitle: null,
-          trailing: PopupMenuButton<String>(
-            onSelected: (value) async {
-              if (value == 'edit') {
-                _showEditTodoDialog(todo, todoProvider);
-              } else if (value == 'delete') {
-                final confirmed = await _confirmDelete(todo);
-                if (confirmed) {
-                  todoProvider.deleteTodo(todo.id!, todo.assignedDate);
-                }
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'edit',
-                child: Row(
-                  children: [
-                    Icon(Icons.edit, size: 20),
-                    SizedBox(width: 8),
-                    Text('Edit'),
-                  ],
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Draggable<Todo>(
+                data: todo,
+                feedback: Material(
+                  elevation: 4,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      todo.text.length > 20 
+                          ? '${todo.text.substring(0, 20)}...' 
+                          : todo.text,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+                childWhenDragging: Opacity(
+                  opacity: 0.5,
+                  child: Icon(Icons.calendar_month, color: Colors.grey.shade400),
+                ),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8.0),
+                  child: Icon(Icons.calendar_month, color: Colors.grey),
                 ),
               ),
-              const PopupMenuItem(
-                value: 'delete',
-                child: Row(
-                  children: [
-                    Icon(Icons.delete, size: 20, color: Colors.red),
-                    SizedBox(width: 8),
-                    Text('Delete', style: TextStyle(color: Colors.red)),
-                  ],
-                ),
+              PopupMenuButton<String>(
+                onSelected: (value) async {
+                  if (value == 'edit') {
+                    _showEditTodoDialog(todo, todoProvider);
+                  } else if (value == 'delete') {
+                    final confirmed = await _confirmDelete(todo);
+                    if (confirmed) {
+                      todoProvider.deleteTodo(todo.id!, todo.assignedDate);
+                    }
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'edit',
+                    child: Row(
+                      children: [
+                        Icon(Icons.edit, size: 20),
+                        SizedBox(width: 8),
+                        Text('Edit'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete, size: 20, color: Colors.red),
+                        SizedBox(width: 8),
+                        Text('Delete', style: TextStyle(color: Colors.red)),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

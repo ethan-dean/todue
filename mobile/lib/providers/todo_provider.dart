@@ -626,6 +626,88 @@ class TodoProvider extends ChangeNotifier {
     }
   }
 
+  // Move todo to another date
+  Future<void> moveTodo(Todo todo, DateTime toDate) async {
+    _lastMutationTime = DateTime.now(); // Track local mutation
+
+    await _checkOnlineStatus();
+    if (!_isOnline) {
+      throw Exception('Cannot move todo while offline');
+    }
+
+    final fromDateStr = todo.assignedDate;
+    final toDateStr = _formatDate(toDate);
+
+    if (fromDateStr == toDateStr) return;
+
+    // Snapshot for rollback
+    final originalFromList = _todos[fromDateStr] != null ? List<Todo>.from(_todos[fromDateStr]!) : <Todo>[];
+    final originalToList = _todos[toDateStr] != null ? List<Todo>.from(_todos[toDateStr]!) : <Todo>[];
+
+    // Optimistic Update
+    // 1. Remove from source
+    if (_todos.containsKey(fromDateStr)) {
+      _todos[fromDateStr]!.removeWhere((t) => t.id == todo.id && 
+          (!t.isVirtual || (t.recurringTodoId == todo.recurringTodoId && t.instanceDate == todo.instanceDate)));
+    }
+
+    // 2. Add to target (at bottom)
+    if (!_todos.containsKey(toDateStr)) {
+      _todos[toDateStr] = [];
+    }
+    // Create updated todo object
+    final movedTodo = todo.copyWith(
+      assignedDate: toDateStr,
+      // If it was virtual, it becomes real (orphaned) on the new date, so isVirtual=false
+      // But we let the backend handle the ID generation. Locally we keep the old ID/data 
+      // but treat it as a "Pending" item on the new list.
+      // We set position to end.
+      position: (_todos[toDateStr]!.isEmpty ? 0 : _todos[toDateStr]!.last.position) + 1,
+      isRolledOver: false, // Reset rollover status
+    );
+    _todos[toDateStr]!.add(movedTodo);
+
+    notifyListeners();
+
+    try {
+      // Call API
+      Todo serverTodo;
+      if (todo.isVirtual && todo.recurringTodoId != null) {
+        serverTodo = await _todoApi.updateVirtualTodoAssignedDate(
+          recurringTodoId: todo.recurringTodoId!,
+          instanceDate: todo.instanceDate,
+          assignedDate: toDateStr,
+        );
+      } else {
+        serverTodo = await _todoApi.updateTodoAssignedDate(
+          id: todo.id!,
+          assignedDate: toDateStr,
+        );
+      }
+
+      // Update target list with real server object
+      final index = _todos[toDateStr]!.indexWhere((t) => 
+          (t.id != null && t.id == todo.id) || 
+          (t.isVirtual && t.recurringTodoId == todo.recurringTodoId && t.instanceDate == todo.instanceDate)
+      );
+      if (index != -1) {
+        _todos[toDateStr]![index] = serverTodo;
+      }
+      
+      // Save both lists to DB cache
+      await _databaseService.saveTodosForDate(fromDateStr, _todos[fromDateStr] ?? []);
+      await _databaseService.saveTodosForDate(toDateStr, _todos[toDateStr]!);
+
+    } catch (e) {
+      // Rollback
+      _todos[fromDateStr] = originalFromList;
+      _todos[toDateStr] = originalToList;
+      notifyListeners();
+      _setError('Failed to move todo: $e');
+      rethrow;
+    }
+  }
+
   // Refresh todos (force reload from backend)
   Future<void> refresh() async {
     await _checkOnlineStatus();

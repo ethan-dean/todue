@@ -114,6 +114,21 @@ class TodoApi {
     return Todo.fromJson(response.data as Map<String, dynamic>);
   }
 
+  /// Update todo assigned date
+  Future<Todo> updateTodoAssignedDate({
+    required int id,
+    required String assignedDate,
+  }) async {
+    final response = await _apiService.put(
+      '/todos/$id/assigned-date',
+      data: {
+        'toDate': assignedDate,
+      },
+    );
+
+    return Todo.fromJson(response.data as Map<String, dynamic>);
+  }
+
   /// Complete or uncomplete a todo
   Future<Todo> completeTodo({
     required int id,
@@ -214,6 +229,26 @@ class TodoApi {
       '/todos/virtual',
       queryParameters: params,
     );
+  }
+
+  /// Update virtual todo assigned date
+  Future<Todo> updateVirtualTodoAssignedDate({
+    required int recurringTodoId,
+    required String instanceDate,
+    required String assignedDate,
+  }) async {
+    final response = await _apiService.post(
+      '/todos/virtual/update-assigned-date',
+      data: {
+        'recurringTodoId': recurringTodoId,
+        'instanceDate': instanceDate,
+      },
+      queryParameters: {
+        'toDate': assignedDate,
+      },
+    );
+
+    return Todo.fromJson(response.data as Map<String, dynamic>);
   }
 }
 

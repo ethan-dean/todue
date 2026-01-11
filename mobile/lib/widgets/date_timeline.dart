@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../models/todo.dart';
 
 class DateTimeline extends StatefulWidget {
   final DateTime selectedDate;
   final Function(DateTime) onDateSelected;
+  final Function(DateTime, Todo)? onTodoDropped;
 
   const DateTimeline({
     Key? key,
     required this.selectedDate,
     required this.onDateSelected,
+    this.onTodoDropped,
   }) : super(key: key);
 
   @override
@@ -90,47 +93,60 @@ class _DateTimelineState extends State<DateTimeline> {
           final isSelected = _isSameDay(date, widget.selectedDate);
           final isToday = _isSameDay(date, today);
 
-          return GestureDetector(
-            onTap: () => widget.onDateSelected(date),
-            child: Container(
-              width: _itemWidth,
-              margin: EdgeInsets.symmetric(vertical: 10, horizontal: _itemMargin),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? Colors.green
-                    : (isToday ? Colors.green.withOpacity(0.1) : Colors.transparent),
-                borderRadius: BorderRadius.circular(16),
-                border: isToday && !isSelected
-                    ? Border.all(color: Colors.green, width: 1)
-                    : null,
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    DateFormat('E').format(date).toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: isSelected
-                          ? Colors.white
-                          : Colors.grey,
-                    ),
+          return DragTarget<Todo>(
+            onWillAccept: (todo) => todo != null && !_isSameDay(date, widget.selectedDate),
+            onAccept: (todo) {
+              if (widget.onTodoDropped != null) {
+                widget.onTodoDropped!(date, todo);
+              }
+            },
+            builder: (context, candidateData, rejectedData) {
+              final isHovering = candidateData.isNotEmpty;
+              
+              return GestureDetector(
+                onTap: () => widget.onDateSelected(date),
+                child: Container(
+                  width: _itemWidth,
+                  margin: EdgeInsets.symmetric(vertical: 10, horizontal: _itemMargin),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? Colors.green
+                        : (isToday ? Colors.green.withOpacity(0.1) : (isHovering ? Colors.green.withOpacity(0.2) : Colors.transparent)),
+                    borderRadius: BorderRadius.circular(16),
+                    border: (isToday && !isSelected) || isHovering
+                        ? Border.all(color: Colors.green, width: isHovering ? 2 : 1)
+                        : null,
+                    boxShadow: isHovering ? [BoxShadow(color: Colors.green.withOpacity(0.3), blurRadius: 8, spreadRadius: 2)] : null,
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    DateFormat('M/d').format(date),
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: isSelected
-                          ? Colors.white
-                          : Theme.of(context).textTheme.bodyLarge?.color,
-                    ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        DateFormat('E').format(date).toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: isSelected
+                              ? Colors.white
+                              : Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        DateFormat('M/d').format(date),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: isSelected
+                              ? Colors.white
+                              : Theme.of(context).textTheme.bodyLarge?.color,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           );
         },
       ),
