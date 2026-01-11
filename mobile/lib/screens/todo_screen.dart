@@ -448,7 +448,7 @@ class _TodoScreenState extends State<TodoScreen> {
                   ),
                 ),
               ),
-              if (todo.isVirtual)
+              if (todo.isVirtual || todo.recurringTodoId != null)
                 Container(
                   margin: const EdgeInsets.only(left: 8),
                   padding: const EdgeInsets.all(4),
