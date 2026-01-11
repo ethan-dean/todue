@@ -658,19 +658,32 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
           .map((t, idx) => ({ ...t, position: idx + 1 }));
         newTodos.set(fromDateStr, renumberedFromList);
 
-        // Add to target date (at end)
-        const toList = newTodos.get(toDateStr) || [];
-        const maxPos = toList.reduce((max, t) => Math.max(max, t.position), 0);
+        // Add to target date (at end of active items)
+        const toList = [...(newTodos.get(toDateStr) || [])];
+        
+        // Find insertion point (before first completed item)
+        let insertIndex = toList.findIndex(t => t.isCompleted);
+        if (insertIndex === -1) insertIndex = toList.length;
 
         const movedTodo: Todo = {
           ...todo,
           assignedDate: toDateStr,
-          position: maxPos + 1,
           isRolledOver: false,
           // If was recurring, will be orphaned by backend
+          // Position will be set during renumbering
+          position: 0, 
         };
 
-        newTodos.set(toDateStr, [...toList, movedTodo]);
+        // Insert at correct position
+        toList.splice(insertIndex, 0, movedTodo);
+
+        // Renumber all items in target list
+        const renumberedToList = toList.map((t, idx) => ({ 
+          ...t, 
+          position: idx + 1 
+        }));
+
+        newTodos.set(toDateStr, renumberedToList);
 
         return newTodos;
       });

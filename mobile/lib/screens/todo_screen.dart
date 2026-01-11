@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -17,11 +18,19 @@ class TodoScreen extends StatefulWidget {
 class _TodoScreenState extends State<TodoScreen> {
   final PageController _pageController = PageController(initialPage: 1000);
   int _currentPageIndex = 1000;
+  final GlobalKey<DateTimelineState> _timelineKey = GlobalKey();
+  Todo? _draggedTodo;
+  bool _isHoveringTimeline = false;
+  double _dragX = 0;
+  double _dragY = 0;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Delay to next event loop to prevent 'childSemantics._needsLayout' assertion
+      // when ReorderableListView and DateTimeline are initializing simultaneously.
+      await Future.delayed(Duration.zero);
       if (!mounted) return;
       final todoProvider = context.read<TodoProvider>();
       todoProvider.loadTodos(force: true);
@@ -190,137 +199,228 @@ class _TodoScreenState extends State<TodoScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Todue'),
-        backgroundColor: Colors.green,
-        foregroundColor: Colors.white,
-        actions: [
-          Consumer<ThemeProvider>(
-            builder: (context, themeProvider, _) {
-              final isDark = Theme.of(context).brightness == Brightness.dark;
-              return IconButton(
-                icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
-                onPressed: () {
-                  themeProvider.toggleTheme();
-                },
-                tooltip: isDark ? 'Light Mode' : 'Dark Mode',
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.calendar_today),
-            onPressed: _goToToday,
-            tooltip: 'Today',
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              context.read<TodoProvider>().refresh();
-            },
-            tooltip: 'Refresh',
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _handleLogout,
-            tooltip: 'Logout',
-          ),
-        ],
-      ),
       body: Consumer<TodoProvider>(
         builder: (context, todoProvider, child) {
-          return Column(
-            children: [
-              // Date Timeline
-              DateTimeline(
-                selectedDate: todoProvider.selectedDate,
-                onDateSelected: _navigateToDate,
-                onTodoDropped: (date, todo) {
+          return Listener(
+            behavior: HitTestBehavior.translucent,
+            onPointerMove: (event) {
+              if (_draggedTodo != null) {
+                final date = _timelineKey.currentState?.checkDragPosition(event.position);
+                final isHovering = date != null;
+                
+                setState(() {
+                  _dragX = event.position.dx;
+                  _dragY = event.position.dy;
+                  if (_isHoveringTimeline != isHovering) {
+                    _isHoveringTimeline = isHovering;
+                  }
+                });
+              }
+            },
+            onPointerUp: (event) {
+              if (_draggedTodo != null) {
+                final date = _timelineKey.currentState?.checkDragPosition(event.position);
+                _timelineKey.currentState?.clearHover();
+                
+                if (date != null && date != todoProvider.selectedDate) {
+                  // Drop on timeline!
+                  final todo = _draggedTodo!;
+                  // Reset drag state
+                  setState(() {
+                    _draggedTodo = null;
+                    _isHoveringTimeline = false;
+                    _dragX = 0;
+                    _dragY = 0;
+                  });
+                  // Perform move
                   todoProvider.moveTodo(todo, date);
-                },
-              ),
-
-              // Offline indicator
-              if (!todoProvider.isOnline)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  color: Colors.orange.shade100,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.cloud_off, size: 16, color: Colors.orange.shade900),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Offline Mode',
-                        style: TextStyle(
-                          color: Colors.orange.shade900,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-              // Main Content Area (Loading / Error / List)
-              Expanded(
-                child: Builder(
-                  builder: (context) {
-                    if (todoProvider.isLoading && todoProvider.selectedDateTodos.isEmpty) {
-                      return const Center(
-                        child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
-                        ),
-                      );
-                    }
-
-                    if (todoProvider.error != null) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                } else {
+                  // Normal drop or cancel
+                  setState(() {
+                    _draggedTodo = null;
+                    _isHoveringTimeline = false;
+                    _dragX = 0;
+                    _dragY = 0;
+                  });
+                }
+              }
+            },
+            child: Stack(
+              children: [
+                Column(
+                  children: [
+                    // Manual AppBar (Replacement for Scaffold.appBar)
+                    Container(
+                      padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
+                      color: Colors.green,
+                      child: SizedBox(
+                        height: 56,
+                        child: Row(
                           children: [
-                            const Icon(
-                              Icons.error_outline,
-                              size: 60,
-                              color: Colors.red,
+                            const SizedBox(width: 16),
+                            const Text(
+                              'Todue',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Error: ${todoProvider.error}',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(color: Colors.red),
+                            const Spacer(),
+                            Consumer<ThemeProvider>(
+                              builder: (context, themeProvider, _) {
+                                final isDark = Theme.of(context).brightness == Brightness.dark;
+                                return IconButton(
+                                  icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
+                                  onPressed: () {
+                                    themeProvider.toggleTheme();
+                                  },
+                                  color: Colors.white,
+                                  tooltip: isDark ? 'Light Mode' : 'Dark Mode',
+                                );
+                              },
                             ),
-                            const SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: () => todoProvider.refresh(),
-                              child: const Text('Retry'),
+                            IconButton(
+                              icon: const Icon(Icons.calendar_today),
+                              onPressed: _goToToday,
+                              color: Colors.white,
+                              tooltip: 'Today',
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.refresh),
+                              onPressed: () {
+                                context.read<TodoProvider>().refresh();
+                              },
+                              color: Colors.white,
+                              tooltip: 'Refresh',
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.logout),
+                              onPressed: _handleLogout,
+                              color: Colors.white,
+                              tooltip: 'Logout',
                             ),
                           ],
                         ),
-                      );
-                    }
-
-                    return GestureDetector(
-                      onHorizontalDragEnd: (details) {
-                        if (details.primaryVelocity != null) {
-                          if (details.primaryVelocity! < 0) {
-                            // Swiped left - go to next day
-                            _goToNextDay();
-                          } else if (details.primaryVelocity! > 0) {
-                            // Swiped right - go to previous day
-                            _goToPreviousDay();
-                          }
-                        }
-                      },
-                      child: RefreshIndicator(
-                        onRefresh: () => todoProvider.refresh(),
-                        color: Colors.green,
-                        child: _buildTodoList(todoProvider),
                       ),
-                    );
-                  },
+                    ),
+                    
+                    // Date Timeline
+                    DateTimeline(
+                      key: _timelineKey,
+                      selectedDate: todoProvider.selectedDate,
+                      onDateSelected: _navigateToDate,
+                    ),
+
+                    // Offline indicator
+                    if (!todoProvider.isOnline)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        color: Colors.orange.shade100,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.cloud_off, size: 16, color: Colors.orange.shade900),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Offline Mode',
+                              style: TextStyle(
+                                color: Colors.orange.shade900,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    // Main Content Area (Loading / Error / List)
+                    Expanded(
+                      child: Builder(
+                        builder: (context) {
+                          if (todoProvider.isLoading && todoProvider.selectedDateTodos.isEmpty) {
+                            return const Center(
+                              child: CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+                              ),
+                            );
+                          }
+
+                          if (todoProvider.error != null) {
+                            return Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(
+                                    Icons.error_outline,
+                                    size: 60,
+                                    color: Colors.red,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'Error: ${todoProvider.error}',
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(color: Colors.red),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  ElevatedButton(
+                                    onPressed: () => todoProvider.refresh(),
+                                    child: const Text('Retry'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+
+                          return GestureDetector(
+                            onHorizontalDragEnd: (details) {
+                              if (details.primaryVelocity != null) {
+                                if (details.primaryVelocity! < 0) {
+                                  _goToNextDay();
+                                } else if (details.primaryVelocity! > 0) {
+                                  _goToPreviousDay();
+                                }
+                              }
+                            },
+                            child: RefreshIndicator(
+                              onRefresh: () => todoProvider.refresh(),
+                              color: Colors.green,
+                              child: _buildTodoList(todoProvider),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
+                
+                // Custom Drag Feedback (Manual Stack)
+                if (_isHoveringTimeline && _draggedTodo != null)
+                  Positioned(
+                    left: _dragX - 50, // Center roughly on finger (assuming ~100 width)
+                    top: _dragY - 75,  // Center roughly vertically above finger
+                    child: IgnorePointer(
+                      child: Material(
+                        color: Colors.transparent,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.95),
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: const [
+                              BoxShadow(color: Colors.black26, blurRadius: 8, spreadRadius: 1)
+                            ],
+                          ),
+                          child: Text(
+                            _draggedTodo?.text ?? '',
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           );
         },
       ),
@@ -381,9 +481,47 @@ class _TodoScreenState extends State<TodoScreen> {
 
     return ReorderableListView.builder(
       padding: const EdgeInsets.symmetric(vertical: 8),
+      onReorderStart: (index) {
+        setState(() {
+          _draggedTodo = todos[index];
+        });
+      },
+      onReorderEnd: (index) {
+        // Will be cleared in onPointerUp, but safety clear here if canceled
+        if (_draggedTodo != null && !_isHoveringTimeline) {
+          setState(() {
+            _draggedTodo = null;
+          });
+        }
+      },
+      proxyDecorator: (child, index, animation) {
+        return AnimatedBuilder(
+          animation: animation,
+          builder: (context, child) {
+            // If hovering timeline, hide the list's native drag avatar
+            // (We render a custom one in the Stack instead)
+            if (_isHoveringTimeline) {
+              return const SizedBox.shrink();
+            }
+            
+            final double animValue = Curves.easeInOut.transform(animation.value);
+            final double elevation = lerpDouble(0, 6, animValue)!;
+            
+            // Normal drag appearance - No shadow/elevation
+            return Material(
+              elevation: 0,
+              color: Colors.transparent,
+              child: child,
+            );
+          },
+          child: child,
+        );
+      },
       onReorder: (oldIndex, newIndex) {
+        // If we dropped on the timeline (detected in onPointerUp), do nothing here
+        if (_isHoveringTimeline) return;
+
         // Call the provider to update on backend
-        // We don't await here to keep UI responsive, provider handles optimistic update
         todoProvider.reorderTodos(
           todoProvider.selectedDate.toString().split(' ')[0],
           oldIndex,
@@ -393,8 +531,6 @@ class _TodoScreenState extends State<TodoScreen> {
       itemCount: todos.length,
       itemBuilder: (context, index) {
         final todo = todos[index];
-        // ReorderableListView.builder requires each item to have a key. 
-        // _buildTodoItem returns a Dismissible which has a key.
         return _buildTodoItem(todo, todoProvider, isReorderable: true);
       },
     );
@@ -491,70 +627,37 @@ class _TodoScreenState extends State<TodoScreen> {
             ],
           ),
           subtitle: null,
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Draggable<Todo>(
-                data: todo,
-                feedback: Material(
-                  elevation: 4,
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      todo.text.length > 20 
-                          ? '${todo.text.substring(0, 20)}...' 
-                          : todo.text,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-                childWhenDragging: Opacity(
-                  opacity: 0.5,
-                  child: Icon(Icons.calendar_month, color: Colors.grey.shade400),
-                ),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 8.0),
-                  child: Icon(Icons.calendar_month, color: Colors.grey),
+          trailing: PopupMenuButton<String>(
+            onSelected: (value) async {
+              if (value == 'edit') {
+                _showEditTodoDialog(todo, todoProvider);
+              } else if (value == 'delete') {
+                final confirmed = await _confirmDelete(todo);
+                if (confirmed) {
+                  todoProvider.deleteTodo(todo.id!, todo.assignedDate);
+                }
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'edit',
+                child: Row(
+                  children: [
+                    Icon(Icons.edit, size: 20),
+                    SizedBox(width: 8),
+                    Text('Edit'),
+                  ],
                 ),
               ),
-              PopupMenuButton<String>(
-                onSelected: (value) async {
-                  if (value == 'edit') {
-                    _showEditTodoDialog(todo, todoProvider);
-                  } else if (value == 'delete') {
-                    final confirmed = await _confirmDelete(todo);
-                    if (confirmed) {
-                      todoProvider.deleteTodo(todo.id!, todo.assignedDate);
-                    }
-                  }
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'edit',
-                    child: Row(
-                      children: [
-                        Icon(Icons.edit, size: 20),
-                        SizedBox(width: 8),
-                        Text('Edit'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Row(
-                      children: [
-                        Icon(Icons.delete, size: 20, color: Colors.red),
-                        SizedBox(width: 8),
-                        Text('Delete', style: TextStyle(color: Colors.red)),
-                      ],
-                    ),
-                  ),
-                ],
+              const PopupMenuItem(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete, size: 20, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Delete', style: TextStyle(color: Colors.red)),
+                  ],
+                ),
               ),
             ],
           ),

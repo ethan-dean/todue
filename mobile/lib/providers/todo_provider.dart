@@ -651,21 +651,33 @@ class TodoProvider extends ChangeNotifier {
           (!t.isVirtual || (t.recurringTodoId == todo.recurringTodoId && t.instanceDate == todo.instanceDate)));
     }
 
-    // 2. Add to target (at bottom)
+    // 2. Add to target (at end of active items)
     if (!_todos.containsKey(toDateStr)) {
       _todos[toDateStr] = [];
     }
+    
+    final targetList = _todos[toDateStr]!;
+    
+    // Find insertion index (before first completed)
+    int insertIndex = targetList.indexWhere((t) => t.isCompleted);
+    if (insertIndex == -1) insertIndex = targetList.length;
+
     // Create updated todo object
     final movedTodo = todo.copyWith(
       assignedDate: toDateStr,
       // If it was virtual, it becomes real (orphaned) on the new date, so isVirtual=false
       // But we let the backend handle the ID generation. Locally we keep the old ID/data 
       // but treat it as a "Pending" item on the new list.
-      // We set position to end.
-      position: (_todos[toDateStr]!.isEmpty ? 0 : _todos[toDateStr]!.last.position) + 1,
       isRolledOver: false, // Reset rollover status
+      // Position will be set in renumbering loop
     );
-    _todos[toDateStr]!.add(movedTodo);
+    
+    targetList.insert(insertIndex, movedTodo);
+    
+    // Renumber all items in target list
+    for (int i = 0; i < targetList.length; i++) {
+      targetList[i] = targetList[i].copyWith(position: i + 1);
+    }
 
     notifyListeners();
 

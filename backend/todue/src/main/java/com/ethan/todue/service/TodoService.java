@@ -751,20 +751,42 @@ public class TodoService {
             todo.setRecurringTodo(null); // Break link
         }
 
-        // 3. Update assigned date
+        // 3. Remove from old date and renumber
+        // We do this before updating the todo's date so it's not included in the renumbering logic for fromDate
+        // if we were using a list-based approach for removal.
+        // But here we rely on the DB state.
+        // Let's update the todo first so it "leaves" the old date.
+        
         todo.setAssignedDate(toDate);
         todo.setIsRolledOver(false); // Clear rollover flag when manually moved
-        todoRepository.save(todo);
-
-        // 4. Renumber source date (remove gap)
+        // Don't save yet, we want to slot it in correctly.
+        
+        // Renumber source date (remove gap)
         renumberPositionsAfterRemoval(fromDate, user.getId());
 
-        // 5. Add to end of target date
-        int maxPosition = getMaxPositionForDate(toDate, user.getId());
-        todo.setPosition(maxPosition + 1);
-        todoRepository.save(todo);
+        // 4. Add to target date (at end of active items)
+        List<Todo> targetTodos = todoRepository.findByUserIdAndAssignedDate(user.getId(), toDate);
+        targetTodos.sort(Comparator.comparing(Todo::getPosition).thenComparing(Todo::getId));
+        
+        // Find insertion point: Before first completed item, or at end
+        int insertIndex = targetTodos.size();
+        for (int i = 0; i < targetTodos.size(); i++) {
+            if (targetTodos.get(i).getIsCompleted()) {
+                insertIndex = i;
+                break;
+            }
+        }
+        
+        targetTodos.add(insertIndex, todo);
+        
+        // Renumber target date
+        for (int i = 0; i < targetTodos.size(); i++) {
+            targetTodos.get(i).setPosition(i + 1);
+        }
+        
+        todoRepository.saveAll(targetTodos);
 
-        // 6. Send WebSocket notifications for BOTH dates
+        // 5. Send WebSocket notifications for BOTH dates
         webSocketService.notifyTodosChanged(user.getId(), fromDate);
         webSocketService.notifyTodosChanged(user.getId(), toDate);
 
