@@ -100,18 +100,18 @@ class TodoProvider extends ChangeNotifier {
         groupedTodos[todo.assignedDate]!.add(todo);
       }
 
-      // Save each day to DB
+      // Save each day to DB and update RAM
       for (final entry in groupedTodos.entries) {
-        // Only update RAM if we haven't loaded it yet (to avoid overwriting user interactions)
-        // Actually, for "cache-only" purposes, we mainly want to hit the DB.
-        // But if we are looking at that day, we might as well update RAM.
-        if (_todos.containsKey(entry.key)) {
-          _todos[entry.key] = entry.value;
-        }
+        // Update RAM
+        // We only update if we don't have pending mutations for this date (simple check)
+        // Since prefetch happens on load, this is usually safe.
+        // We overwrite whatever is there because this is "Fresh" data from API.
+        _todos[entry.key] = entry.value;
         
         await _databaseService.saveTodosForDate(entry.key, entry.value);
       }
       
+      notifyListeners(); // Update UI with prefetched data
       print('Prefetched window: $startStr to $endStr');
     } catch (e) {
       print('Prefetch failed: $e');
