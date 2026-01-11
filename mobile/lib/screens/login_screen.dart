@@ -37,7 +37,10 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordController.text,
       );
       print('LoginScreen: authProvider.login completed');
-      // Navigation is handled by AuthWrapper listening to auth state
+      
+      if (mounted) {
+        Navigator.of(context).pushReplacementNamed('/todos');
+      }
     } catch (e) {
       print('LoginScreen: caught error $e');
       if (mounted) {

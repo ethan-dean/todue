@@ -491,13 +491,46 @@ class TodoProvider extends ChangeNotifier {
     if (index == -1) return;
 
     // Snapshot for rollback
+    final originalList = List<Todo>.from(_todos[assignedDate]!);
     final originalTodo = _todos[assignedDate]![index];
     
     // Optimistic Update
     final optimisticTodo = originalTodo.copyWith(isCompleted: isCompleted);
-    _todos[assignedDate]![index] = optimisticTodo;
     
-    // We don't sort yet, just show the checkmark change instantly
+    // Remove from old position
+    final newList = List<Todo>.from(originalList);
+    newList.removeAt(index);
+    
+    // Calculate new insertion index
+    int newIndex = 0;
+    if (isCompleted) {
+      // Move to top of COMPLETED section
+      // Find first completed item
+      int firstCompleted = newList.indexWhere((t) => t.isCompleted);
+      if (firstCompleted == -1) {
+        newIndex = newList.length; // Append to end
+      } else {
+        newIndex = firstCompleted; // Insert before first completed
+      }
+    } else {
+      // Move to bottom of ACTIVE section
+      // Find first completed item (start of completed section)
+      int firstCompleted = newList.indexWhere((t) => t.isCompleted);
+      if (firstCompleted == -1) {
+        newIndex = newList.length; // Append to end (all active)
+      } else {
+        newIndex = firstCompleted; // Insert before first completed (end of active)
+      }
+    }
+    
+    newList.insert(newIndex, optimisticTodo);
+    
+    // Renumber positions (1-based) locally for UI consistency
+    // Note: Backend handles authoritative renumbering
+    // We update local position state just for UI logic consistency if needed
+    // But since we use ReorderableListView with a list, order in list matters most.
+    
+    _todos[assignedDate] = newList;
     notifyListeners();
 
     try {
@@ -507,32 +540,28 @@ class TodoProvider extends ChangeNotifier {
         isCompleted: isCompleted,
       );
 
-      // Update with server data (which includes new position)
-      // Check index again in case list changed
-      final newIndex = _todos[assignedDate]!.indexWhere((t) => t.id == todoId);
-      if (newIndex != -1) {
-        _todos[assignedDate]![newIndex] = serverTodo;
-        // Now we sort, so the item "jumps" to the bottom if completed
-        _todos[assignedDate]!.sort((a, b) => a.position.compareTo(b.position));
+      // Update with server data
+      // We keep our local order until a full refresh happens or reorder event
+      // Just update the item data itself
+      final idx = _todos[assignedDate]!.indexWhere((t) => t.id == todoId);
+      if (idx != -1) {
+        _todos[assignedDate]![idx] = serverTodo;
       }
 
       // Update Cache
-      await _databaseService.saveTodo(serverTodo);
+      await _databaseService.saveTodosForDate(assignedDate, _todos[assignedDate]!);
       notifyListeners();
     } catch (e) {
       // Rollback
-      final rollbackIndex = _todos[assignedDate]!.indexWhere((t) => t.id == todoId);
-      if (rollbackIndex != -1) {
-        _todos[assignedDate]![rollbackIndex] = originalTodo;
-        notifyListeners();
-      }
-      _setError('Failed to complete todo: $e');
+      _todos[assignedDate] = originalList;
+      notifyListeners();
+      _setError('Failed to update completion status: $e');
       rethrow;
     }
   }
 
   // Reorder todos
-  Future<void> reorderTodos(String date, List<int> todoIds) async {
+  Future<void> reorderTodos(String date, int oldIndex, int newIndex) async {
     _lastMutationTime = DateTime.now(); // Track local mutation
 
     await _checkOnlineStatus();
@@ -540,29 +569,57 @@ class TodoProvider extends ChangeNotifier {
       throw Exception('Cannot reorder todos while offline');
     }
 
+    if (!_todos.containsKey(date)) return;
+
+    // Snapshot for rollback
+    final originalList = List<Todo>.from(_todos[date]!);
+    
+    // Adjust newIndex if moving down (Flutter ReorderableListView quirk)
+    if (oldIndex < newIndex) {
+      newIndex -= 1;
+    }
+    
+    if (oldIndex == newIndex) return;
+
+    final movedTodo = originalList[oldIndex];
+
+    // Optimistic Update
+    final newList = List<Todo>.from(originalList);
+    newList.removeAt(oldIndex);
+    newList.insert(newIndex, movedTodo);
+    
+    // Update position numbers locally (1-based)
+    for (int i = 0; i < newList.length; i++) {
+      newList[i] = newList[i].copyWith(position: i + 1);
+    }
+
+    _todos[date] = newList;
+    notifyListeners();
+
     try {
-      // Online mode: send to backend
-      await _todoApi.reorderTodos(date: date, todoIds: todoIds);
-
-      // Update positions in state (Optimistic-ish, assuming backend accepts order)
-      // The backend doesn't return the list, so we rely on local sort logic matching backend
-      // or subsequent fetch. For now, we updated the UI optimistically in the screen,
-      // but we should probably update the local model positions if we want perfect sync.
-      // However, reorder is complex to sync perfectly without a refetch.
-      // We will rely on WebSocket REORDER_TODOS signal to refetch if needed,
-      // or just assume it worked.
+      // Call API for the single moved item
+      // Backend expects 0-based list index for insertion
+      final position = newIndex;
       
-      // We'll trust the caller (UI) has visually updated, but we should update RAM/DB to match
-      // effectively "saving" the new order to cache.
-      if (_todos.containsKey(date)) {
-        // Simple approach: Refetch to ensure we have backend's exact positions
-        // Or just leave it and wait for next load.
-        // Let's refetch to be safe and update cache.
-        await loadTodos(date: DateTime.parse(date), force: true);
+      if (movedTodo.isVirtual && movedTodo.recurringTodoId != null) {
+        await _todoApi.updateVirtualTodoPosition(
+          recurringTodoId: movedTodo.recurringTodoId!,
+          instanceDate: movedTodo.instanceDate,
+          position: position,
+        );
+      } else {
+        await _todoApi.updateTodoPosition(
+          id: movedTodo.id!,
+          position: position,
+        );
       }
-
-      notifyListeners();
+      
+      // Update Cache with optimistic state
+      await _databaseService.saveTodosForDate(date, newList);
     } catch (e) {
+      // Rollback
+      _todos[date] = originalList;
+      notifyListeners();
       _setError('Failed to reorder todos: $e');
       rethrow;
     }

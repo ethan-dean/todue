@@ -373,27 +373,14 @@ class _TodoScreenState extends State<TodoScreen> {
 
     return ReorderableListView(
       padding: const EdgeInsets.symmetric(vertical: 8),
-      onReorder: (oldIndex, newIndex) async {
-        // Adjust newIndex if item moved down
-        if (oldIndex < newIndex) {
-          newIndex -= 1;
-        }
-
-        // Create a new list with the reordered items
-        final reorderedTodos = List<Todo>.from(todos);
-        final movedTodo = reorderedTodos.removeAt(oldIndex);
-        reorderedTodos.insert(newIndex, movedTodo);
-
-        // Extract IDs in the new order
-        final todoIds = reorderedTodos.map((t) => t.id!).toList();
-
+      onReorder: (oldIndex, newIndex) {
         // Call the provider to update on backend
-        try {
-          await todoProvider.reorderTodos(
-            todoProvider.selectedDate.toString().split(' ')[0],
-            todoIds,
-          );
-        } catch (e) {
+        // We don't await here to keep UI responsive, provider handles optimistic update
+        todoProvider.reorderTodos(
+          todoProvider.selectedDate.toString().split(' ')[0],
+          oldIndex,
+          newIndex,
+        ).catchError((e) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -402,7 +389,7 @@ class _TodoScreenState extends State<TodoScreen> {
               ),
             );
           }
-        }
+        });
       },
       children: todos.map((todo) {
         return _buildTodoItem(todo, todoProvider, isReorderable: true);

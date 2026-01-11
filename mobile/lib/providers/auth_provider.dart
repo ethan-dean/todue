@@ -89,13 +89,13 @@ class AuthProvider extends ChangeNotifier {
     _clearError();
 
     try {
-      final response = await _authApi.register(
+      await _authApi.register(
         email: email,
         password: password,
         timezone: timezone,
       );
-
-      await _handleAuthSuccess(response);
+      
+      // Do not auto-login. Verification required.
     } catch (e) {
       _setError('Registration failed: $e');
       rethrow;

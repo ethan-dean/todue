@@ -147,7 +147,10 @@ destination:/user/$userId/queue/updates
   void _handleDisconnect() {
     print('WebSocket disconnected');
     _isConnected = false;
-    _handleReconnect();
+    // Only reconnect if we didn't intentionally disconnect (token is still present)
+    if (_token != null) {
+      _handleReconnect();
+    }
   }
 
   /// Handle reconnection logic
@@ -158,7 +161,9 @@ destination:/user/$userId/queue/updates
 
       _reconnectTimer?.cancel();
       _reconnectTimer = Timer(_reconnectDelay, () {
-        connect(_token!, _userId!);
+        if (_token != null && _userId != null) {
+          connect(_token!, _userId!);
+        }
       });
     } else if (_reconnectAttempts >= _maxReconnectAttempts) {
       print('Max reconnection attempts reached');
@@ -170,19 +175,25 @@ destination:/user/$userId/queue/updates
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
 
-    if (_channel != null) {
-      // Send DISCONNECT frame
-      final disconnectFrame = 'DISCONNECT\n\n\x00';
-      _channel?.sink.add(disconnectFrame);
+    // Clear credentials immediately to prevent auto-reconnect
+    _token = null;
+    _userId = null;
 
-      // Close the channel
-      _channel?.sink.close(status.goingAway);
+    if (_channel != null) {
+      try {
+        // Send DISCONNECT frame
+        final disconnectFrame = 'DISCONNECT\n\n\x00';
+        _channel?.sink.add(disconnectFrame);
+
+        // Close the channel with normal closure code (1000)
+        _channel?.sink.close(status.normalClosure);
+      } catch (e) {
+        print('Error closing WebSocket: $e');
+      }
       _channel = null;
     }
 
     _isConnected = false;
-    _token = null;
-    _userId = null;
     _reconnectAttempts = 0;
 
     print('WebSocket disconnected');

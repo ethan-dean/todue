@@ -1,4 +1,5 @@
 import '../models/auth_response.dart';
+import '../models/registration_response.dart';
 import 'api_service.dart';
 
 class AuthApi {
@@ -9,7 +10,7 @@ class AuthApi {
   AuthApi(this._apiService);
 
   /// Register a new user
-  Future<AuthResponse> register({
+  Future<RegistrationResponse> register({
     required String email,
     required String password,
     String? timezone,
@@ -23,7 +24,7 @@ class AuthApi {
       },
     );
 
-    return AuthResponse.fromJson(response.data as Map<String, dynamic>);
+    return RegistrationResponse.fromJson(response.data as Map<String, dynamic>);
   }
 
   /// Login with email and password

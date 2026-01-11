@@ -62,8 +62,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
         timezone: _selectedTimezone,
       );
 
-      if (mounted && authProvider.isAuthenticated) {
-        Navigator.of(context).pushReplacementNamed('/todos');
+      // Registration successful (email verification required)
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Registration successful! Please check your email to verify your account.'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 5),
+          ),
+        );
+        // Navigate back to login
+        Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {

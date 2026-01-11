@@ -145,20 +145,6 @@ class TodoApi {
     );
   }
 
-  /// Reorder todos
-  Future<void> reorderTodos({
-    required String date,
-    required List<int> todoIds,
-  }) async {
-    await _apiService.post(
-      '/todos/reorder',
-      data: {
-        'date': date,
-        'todoIds': todoIds,
-      },
-    );
-  }
-
   // Virtual Todo Operations
 
   /// Complete a virtual todo
