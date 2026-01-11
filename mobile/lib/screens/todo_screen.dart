@@ -380,16 +380,7 @@ class _TodoScreenState extends State<TodoScreen> {
           todoProvider.selectedDate.toString().split(' ')[0],
           oldIndex,
           newIndex,
-        ).catchError((e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Failed to reorder: $e'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        });
+        );
       },
       children: todos.map((todo) {
         return _buildTodoItem(todo, todoProvider, isReorderable: true);

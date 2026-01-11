@@ -579,12 +579,14 @@ class TodoProvider extends ChangeNotifier {
   }
 
   // Reorder todos
-  Future<void> reorderTodos(String date, int oldIndex, int newIndex) async {
+  void reorderTodos(String date, int oldIndex, int newIndex) {
     _lastMutationTime = DateTime.now(); // Track local mutation
 
-    await _checkOnlineStatus();
+    // Check cached online status immediately
     if (!_isOnline) {
-      throw Exception('Cannot reorder todos while offline');
+      _setError('Cannot reorder todos while offline');
+      notifyListeners(); // Force UI to snap back
+      return;
     }
 
     if (!_todos.containsKey(date)) return;
@@ -593,18 +595,19 @@ class TodoProvider extends ChangeNotifier {
     final originalList = List<Todo>.from(_todos[date]!);
     
     // Adjust newIndex if moving down (Flutter ReorderableListView quirk)
+    int adjustedNewIndex = newIndex;
     if (oldIndex < newIndex) {
-      newIndex -= 1;
+      adjustedNewIndex -= 1;
     }
     
-    if (oldIndex == newIndex) return;
+    if (oldIndex == adjustedNewIndex) return;
 
     final movedTodo = originalList[oldIndex];
 
-    // Optimistic Update
+    // Optimistic Update (Synchronous)
     final newList = List<Todo>.from(originalList);
     newList.removeAt(oldIndex);
-    newList.insert(newIndex, movedTodo);
+    newList.insert(adjustedNewIndex, movedTodo);
     
     // Update position numbers locally (1-based)
     for (int i = 0; i < newList.length; i++) {
@@ -612,11 +615,21 @@ class TodoProvider extends ChangeNotifier {
     }
 
     _todos[date] = newList;
-    notifyListeners();
+    notifyListeners(); // Immediate UI update
 
+    // Asynchronous Sync
+    _syncReorder(date, movedTodo, adjustedNewIndex, newList, originalList);
+  }
+
+  Future<void> _syncReorder(String date, Todo movedTodo, int newIndex, List<Todo> newList, List<Todo> originalList) async {
     try {
+      await _checkOnlineStatus();
+      if (!_isOnline) {
+        throw Exception('Cannot reorder todos while offline');
+      }
+
       // Call API for the single moved item
-      // Backend expects 0-based list index for insertion
+      // Position is 1-based index
       final position = newIndex;
       
       if (movedTodo.isVirtual && movedTodo.recurringTodoId != null) {
@@ -639,7 +652,6 @@ class TodoProvider extends ChangeNotifier {
       _todos[date] = originalList;
       notifyListeners();
       _setError('Failed to reorder todos: $e');
-      rethrow;
     }
   }
 
