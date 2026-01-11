@@ -227,40 +227,6 @@ class _TodoScreenState extends State<TodoScreen> {
       ),
       body: Consumer<TodoProvider>(
         builder: (context, todoProvider, child) {
-          if (todoProvider.isLoading && todoProvider.selectedDateTodos.isEmpty) {
-            return const Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
-              ),
-            );
-          }
-
-          if (todoProvider.error != null) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.error_outline,
-                    size: 60,
-                    color: Colors.red,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Error: ${todoProvider.error}',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.red),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () => todoProvider.refresh(),
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
-            );
-          }
-
           return Column(
             children: [
               // Date Timeline
@@ -291,25 +257,63 @@ class _TodoScreenState extends State<TodoScreen> {
                   ),
                 ),
 
-              // Todo List
+              // Main Content Area (Loading / Error / List)
               Expanded(
-                child: GestureDetector(
-                  onHorizontalDragEnd: (details) {
-                    if (details.primaryVelocity != null) {
-                      if (details.primaryVelocity! < 0) {
-                        // Swiped left - go to next day
-                        _goToNextDay();
-                      } else if (details.primaryVelocity! > 0) {
-                        // Swiped right - go to previous day
-                        _goToPreviousDay();
-                      }
+                child: Builder(
+                  builder: (context) {
+                    if (todoProvider.isLoading && todoProvider.selectedDateTodos.isEmpty) {
+                      return const Center(
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+                        ),
+                      );
                     }
+
+                    if (todoProvider.error != null) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.error_outline,
+                              size: 60,
+                              color: Colors.red,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Error: ${todoProvider.error}',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: Colors.red),
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: () => todoProvider.refresh(),
+                              child: const Text('Retry'),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    return GestureDetector(
+                      onHorizontalDragEnd: (details) {
+                        if (details.primaryVelocity != null) {
+                          if (details.primaryVelocity! < 0) {
+                            // Swiped left - go to next day
+                            _goToNextDay();
+                          } else if (details.primaryVelocity! > 0) {
+                            // Swiped right - go to previous day
+                            _goToPreviousDay();
+                          }
+                        }
+                      },
+                      child: RefreshIndicator(
+                        onRefresh: () => todoProvider.refresh(),
+                        color: Colors.green,
+                        child: _buildTodoList(todoProvider),
+                      ),
+                    );
                   },
-                  child: RefreshIndicator(
-                    onRefresh: () => todoProvider.refresh(),
-                    color: Colors.green,
-                    child: _buildTodoList(todoProvider),
-                  ),
                 ),
               ),
             ],
