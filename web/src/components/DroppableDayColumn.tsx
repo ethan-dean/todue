@@ -56,7 +56,7 @@ const DroppableDayColumn: React.FC<DroppableDayColumnProps> = ({ date, todos, ac
         enableDragContext={false}
         activeId={activeId}
         overId={overId}
-        suppressPlaceholders={activeTodoIsFromDifferentDay}
+        suppressPlaceholders={!!activeTodoIsFromDifferentDay}
       />
     </div>
   );

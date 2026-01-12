@@ -8,6 +8,7 @@ import {
   DragOverlay,
   type DragEndEvent,
   type DragStartEvent,
+  type DragOverEvent,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -178,8 +179,8 @@ const TodoList: React.FC<TodoListProps> = ({ todos: initialTodos, date, enableDr
     setLocalActiveId(event.active.id as string);
   };
 
-  const handleDragOver = (event: { over: { id: string } | null }) => {
-    setLocalOverId(event.over?.id || null);
+  const handleDragOver = (event: DragOverEvent) => {
+    setLocalOverId(event.over?.id ? String(event.over.id) : null);
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {

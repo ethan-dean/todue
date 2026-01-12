@@ -10,8 +10,8 @@ import {
   DragOverlay,
   type DragEndEvent,
   type DragStartEvent,
+  type DragOverEvent,
 } from '@dnd-kit/core';
-import { useAuth } from '../context/AuthContext';
 import { useTodos } from '../context/TodoContext';
 import DateNavigator from '../components/DateNavigator';
 import MobileDateCarousel from '../components/MobileDateCarousel';
@@ -21,7 +21,6 @@ import { formatDateForAPI, formatDate, getDateRange } from '../utils/dateUtils';
 import type { Todo } from '../types';
 
 const TodosPage: React.FC = () => {
-  const { user } = useAuth();
   const { todos, selectedDate, viewMode, setViewMode, isLoading, error, moveTodo, updateTodoPosition } = useTodos();
   const navigate = useNavigate();
 
@@ -78,8 +77,8 @@ const TodosPage: React.FC = () => {
     setActiveId(event.active.id as string);
   };
 
-  const handleCrossDayDragOver = (event: { over: { id: string } | null }) => {
-    setOverId(event.over?.id || null);
+  const handleCrossDayDragOver = (event: DragOverEvent) => {
+    setOverId(event.over?.id ? String(event.over.id) : null);
   };
 
   const handleCrossDayDragEnd = (event: DragEndEvent) => {

@@ -466,9 +466,9 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
 
   const uncompleteTodo = async (
     id: number,
-    isVirtual: boolean,
-    recurringTodoId: number | null,
-    instanceDate: string,
+    _isVirtual: boolean,
+    _recurringTodoId: number | null,
+    _instanceDate: string,
     assignedDate: string
   ): Promise<void> => {
     // Record mutation timestamp
@@ -758,20 +758,6 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
         return t;
       });
       newTodos.set(dateKey, updatedList);
-      return newTodos;
-    });
-  };
-
-  const removeTodoFromState = (todoId: number, dateStr: string): void => {
-    setTodos((prevTodos) => {
-      const newTodos = new Map(prevTodos);
-      const dateList = newTodos.get(dateStr) || [];
-      const filteredList = dateList.filter((t) => t.id !== todoId);
-      if (filteredList.length === 0) {
-        newTodos.delete(dateStr);
-      } else {
-        newTodos.set(dateStr, filteredList);
-      }
       return newTodos;
     });
   };

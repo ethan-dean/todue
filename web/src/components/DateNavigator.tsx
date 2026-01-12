@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { ChevronLeft, ChevronsLeft, ChevronRight, ChevronsRight, CalendarDays } from 'lucide-react';
 import { useTodos } from '../context/TodoContext';
-import { addDays, isToday, formatDate } from '../utils/dateUtils';
+import { addDays, isToday } from '../utils/dateUtils';
 
 const DateNavigator: React.FC = () => {
   const { selectedDate, viewMode, setViewMode, changeDate } = useTodos();

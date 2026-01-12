@@ -1,10 +1,9 @@
 import React, { useState, type FormEvent } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import PasswordRequirements, { validatePassword } from '../components/PasswordRequirements';
 
 const RegisterPage: React.FC = () => {
-  const navigate = useNavigate();
   const { register, error, isLoading, clearError } = useAuth();
 
   const [email, setEmail] = useState('');
