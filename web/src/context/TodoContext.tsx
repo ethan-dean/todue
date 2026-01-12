@@ -23,7 +23,7 @@ interface TodoContextType {
   updateTodoPosition: (id: number, position: number, isVirtual: boolean, recurringTodoId: number | null, instanceDate: string, assignedDate: string) => Promise<void>;
   completeTodo: (id: number, isVirtual: boolean, recurringTodoId: number | null, instanceDate: string, assignedDate: string) => Promise<void>;
   uncompleteTodo: (id: number, isVirtual: boolean, recurringTodoId: number | null, instanceDate: string, assignedDate: string) => Promise<void>;
-  deleteTodo: (id: number, isVirtual: boolean, recurringTodoId: number | null, instanceDate: string, deleteAllFuture?: boolean) => Promise<void>;
+  deleteTodo: (id: number | null, isVirtual: boolean, recurringTodoId: number | null, instanceDate: string, deleteAllFuture?: boolean) => Promise<void>;
   moveTodo: (todo: Todo, toDate: Date) => Promise<void>;
   setTodoInMoveMode: (todo: Todo | null) => void;
   setViewMode: (mode: ViewMode) => void;
@@ -537,7 +537,7 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
   };
 
   const deleteTodo = async (
-    id: number,
+    id: number | null,
     isVirtual: boolean,
     recurringTodoId: number | null,
     instanceDate: string,
@@ -579,7 +579,7 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
             newTodos.set(instanceDate, filteredList);
           }
         }
-      } else {
+      } else if (id != null) {
         // Real todo - find and remove by ID
         let todoDateStr: string | null = null;
         prevTodos.forEach((todoList, dateKey) => {
@@ -607,7 +607,7 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     try {
       if (isVirtual && recurringTodoId) {
         await todoApi.deleteVirtualTodo(recurringTodoId, instanceDate, deleteAllFuture);
-      } else {
+      } else if (id != null) {
         await todoApi.deleteTodo(id, deleteAllFuture);
       }
 

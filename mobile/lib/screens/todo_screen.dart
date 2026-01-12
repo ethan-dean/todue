@@ -555,9 +555,12 @@ class _TodoScreenState extends State<TodoScreen> {
         if (direction == DismissDirection.startToEnd) {
           // Swipe right - complete/uncomplete
           await todoProvider.completeTodo(
-            todo.id!,
+            todo.id,
             todo.assignedDate,
             !todo.isCompleted,
+            isVirtual: todo.isVirtual,
+            recurringTodoId: todo.recurringTodoId,
+            instanceDate: todo.instanceDate,
           );
           return false;
         } else {
@@ -574,9 +577,12 @@ class _TodoScreenState extends State<TodoScreen> {
             onChanged: (value) {
               if (value != null) {
                 todoProvider.completeTodo(
-                  todo.id!,
+                  todo.id,
                   todo.assignedDate,
                   value,
+                  isVirtual: todo.isVirtual,
+                  recurringTodoId: todo.recurringTodoId,
+                  instanceDate: todo.instanceDate,
                 );
               }
             },
@@ -632,10 +638,7 @@ class _TodoScreenState extends State<TodoScreen> {
               if (value == 'edit') {
                 _showEditTodoDialog(todo, todoProvider);
               } else if (value == 'delete') {
-                final confirmed = await _confirmDelete(todo);
-                if (confirmed) {
-                  todoProvider.deleteTodo(todo.id!, todo.assignedDate);
-                }
+                await _confirmDelete(todo);
               }
             },
             itemBuilder: (context) => [
@@ -697,12 +700,22 @@ class _TodoScreenState extends State<TodoScreen> {
       );
 
       if (result == 'this') {
-        await context.read<TodoProvider>().deleteTodo(todo.id!, todo.assignedDate);
-        return false; // Don't dismiss, we already handled it
+        await context.read<TodoProvider>().deleteTodo(
+              todo.id,
+              todo.assignedDate,
+              isVirtual: todo.isVirtual,
+              recurringTodoId: todo.recurringTodoId,
+              instanceDate: todo.instanceDate,
+            );
       } else if (result == 'all') {
-        // TODO: Implement delete all future
-        await context.read<TodoProvider>().deleteTodo(todo.id!, todo.assignedDate);
-        return false;
+        await context.read<TodoProvider>().deleteTodo(
+              todo.id,
+              todo.assignedDate,
+              isVirtual: todo.isVirtual,
+              recurringTodoId: todo.recurringTodoId,
+              instanceDate: todo.instanceDate,
+              deleteAllFuture: true,
+            );
       }
       return false;
     } else {
@@ -725,7 +738,10 @@ class _TodoScreenState extends State<TodoScreen> {
           ],
         ),
       );
-      return result ?? false;
+      if (result ?? false) {
+        await context.read<TodoProvider>().deleteTodo(todo.id, todo.assignedDate);
+      }
+      return false;
     }
   }
 

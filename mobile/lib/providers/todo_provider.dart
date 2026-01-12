@@ -432,7 +432,14 @@ class TodoProvider extends ChangeNotifier {
   }
 
   // Delete a todo
-  Future<void> deleteTodo(int todoId, String assignedDate) async {
+  Future<void> deleteTodo(
+    int? todoId,
+    String assignedDate, {
+    bool isVirtual = false,
+    int? recurringTodoId,
+    String? instanceDate,
+    bool deleteAllFuture = false,
+  }) async {
     _lastMutationTime = DateTime.now(); // Track local mutation
 
     await _checkOnlineStatus();
@@ -442,25 +449,53 @@ class TodoProvider extends ChangeNotifier {
 
     if (!_todos.containsKey(assignedDate)) return;
 
-    final index = _todos[assignedDate]!.indexWhere((t) => t.id == todoId);
+    final index = _todos[assignedDate]!.indexWhere((t) =>
+        (t.id != null && t.id == todoId) ||
+        (isVirtual &&
+            t.recurringTodoId == recurringTodoId &&
+            t.instanceDate == instanceDate));
+
     if (index == -1) return;
 
     // Snapshot for rollback
     final originalTodo = _todos[assignedDate]![index];
 
     // Optimistic Update
-    _todos[assignedDate]!.removeAt(index);
+    // If deleting all future, we need to remove from all future dates
+    if (deleteAllFuture && recurringTodoId != null && instanceDate != null) {
+      _todos.forEach((dateKey, list) {
+        if (dateKey.compareTo(instanceDate) >= 0) {
+          list.removeWhere((t) => t.recurringTodoId == recurringTodoId);
+        }
+      });
+    } else {
+      _todos[assignedDate]!.removeAt(index);
+    }
     notifyListeners();
 
     try {
-      // Call API
-      await _todoApi.deleteTodo(id: todoId);
-
-      // Delete from Cache
-      await _databaseService.deleteTodo(todoId);
+      if (isVirtual && recurringTodoId != null && instanceDate != null) {
+        await _todoApi.deleteVirtualTodo(
+          recurringTodoId: recurringTodoId,
+          instanceDate: instanceDate,
+          deleteAllFuture: deleteAllFuture,
+        );
+      } else if (todoId != null) {
+        await _todoApi.deleteTodo(
+          id: todoId,
+          deleteAllFuture: deleteAllFuture,
+        );
+        // Delete from Cache (only for real todos)
+        await _databaseService.deleteTodo(todoId);
+      }
     } catch (e) {
-      // Rollback
-      _todos[assignedDate]!.insert(index, originalTodo);
+      // Rollback (simplified - just putting back the single item for now)
+      // A full rollback for "delete all future" is complex, might be better to just reload
+      if (deleteAllFuture) {
+        await loadTodos(force: true);
+      } else {
+        _todos[assignedDate]!.insert(index, originalTodo);
+      }
       notifyListeners();
       _setError('Failed to delete todo: $e');
       rethrow;
@@ -468,7 +503,14 @@ class TodoProvider extends ChangeNotifier {
   }
 
   // Complete/uncomplete a todo
-  Future<void> completeTodo(int todoId, String assignedDate, bool isCompleted) async {
+  Future<void> completeTodo(
+    int? todoId,
+    String assignedDate,
+    bool isCompleted, {
+    bool isVirtual = false,
+    int? recurringTodoId,
+    String? instanceDate,
+  }) async {
     _lastMutationTime = DateTime.now(); // Track local mutation
 
     await _checkOnlineStatus();
@@ -478,20 +520,25 @@ class TodoProvider extends ChangeNotifier {
 
     if (!_todos.containsKey(assignedDate)) return;
 
-    final index = _todos[assignedDate]!.indexWhere((t) => t.id == todoId);
+    final index = _todos[assignedDate]!.indexWhere((t) =>
+        (t.id != null && t.id == todoId) ||
+        (isVirtual &&
+            t.recurringTodoId == recurringTodoId &&
+            t.instanceDate == instanceDate));
+
     if (index == -1) return;
 
     // Snapshot for rollback
     final originalList = List<Todo>.from(_todos[assignedDate]!);
     final originalTodo = _todos[assignedDate]![index];
-    
+
     // Optimistic Update
     final optimisticTodo = originalTodo.copyWith(isCompleted: isCompleted);
-    
+
     // Remove from old position
     final newList = List<Todo>.from(originalList);
     newList.removeAt(index);
-    
+
     // Calculate new insertion index
     int newIndex = 0;
     if (isCompleted) {
@@ -513,26 +560,46 @@ class TodoProvider extends ChangeNotifier {
         newIndex = firstCompleted; // Insert before first completed (end of active)
       }
     }
-    
+
     newList.insert(newIndex, optimisticTodo);
-    
+
     // Renumber positions (1-based) locally for UI consistency
     // Note: Backend handles authoritative renumbering
     // We update local position state just for UI logic consistency if needed
     // But since we use ReorderableListView with a list, order in list matters most.
-    
+
     _todos[assignedDate] = newList;
     notifyListeners();
 
     try {
       // Call API
-      final serverTodo = await _todoApi.completeTodo(
-        id: todoId,
-        isCompleted: isCompleted,
-      );
+      Todo serverTodo;
+      if (isVirtual && recurringTodoId != null && instanceDate != null && isCompleted) {
+        // Completing a virtual todo
+        serverTodo = await _todoApi.completeVirtualTodo(
+          recurringTodoId: recurringTodoId,
+          instanceDate: instanceDate,
+        );
+      } else if (todoId != null) {
+        // Completing/Uncompleting a real todo
+        serverTodo = await _todoApi.completeTodo(
+          id: todoId,
+          isCompleted: isCompleted,
+        );
+      } else {
+        throw Exception('Invalid state for completeTodo');
+      }
 
-      // Update with server data
-      final idx = _todos[assignedDate]!.indexWhere((t) => t.id == todoId);
+      // Replace the optimistic todo with the confirmed server state.
+      // For virtual items, we match using recurring properties as the server generates the ID.
+      final currentList = _todos[assignedDate]!;
+      int idx = -1;
+      if (todoId != null) {
+        idx = currentList.indexWhere((t) => t.id == todoId);
+      } else {
+        idx = currentList.indexWhere((t) => t.recurringTodoId == recurringTodoId && t.instanceDate == instanceDate);
+      }
+
       if (idx != -1) {
         _todos[assignedDate]![idx] = serverTodo;
       }

@@ -752,14 +752,9 @@ public class TodoService {
         }
 
         // 3. Remove from old date and renumber
-        // We do this before updating the todo's date so it's not included in the renumbering logic for fromDate
-        // if we were using a list-based approach for removal.
-        // But here we rely on the DB state.
-        // Let's update the todo first so it "leaves" the old date.
-        
         todo.setAssignedDate(toDate);
         todo.setIsRolledOver(false); // Clear rollover flag when manually moved
-        // Don't save yet, we want to slot it in correctly.
+        todoRepository.saveAndFlush(todo); // Save immediately to remove from old date's query results
         
         // Renumber source date (remove gap)
         renumberPositionsAfterRemoval(fromDate, user.getId());

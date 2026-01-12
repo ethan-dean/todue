@@ -62,7 +62,7 @@ const SortableTodoItem: React.FC<SortableTodoItemProps> = ({
     setIsDeleting(true);
     try {
       await deleteTodo(
-        todo.id!,
+        todo.id,
         todo.isVirtual,
         todo.recurringTodoId,
         todo.instanceDate,
