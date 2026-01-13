@@ -22,6 +22,9 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.Arrays;
 import java.util.List;
 
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
@@ -31,6 +34,17 @@ public class SecurityConfig {
 
     @Autowired
     private UserDetailsService userDetailsService;
+
+    @Bean
+    public WebSecurityCustomizer webSecurityCustomizer() {
+        return (web) -> web.ignoring()
+            .requestMatchers(new AntPathRequestMatcher("/assets/**"))
+            .requestMatchers(new AntPathRequestMatcher("/vite.svg"))
+            .requestMatchers(new AntPathRequestMatcher("/index.html"))
+            .requestMatchers(new AntPathRequestMatcher("/favicon.png"))
+            .requestMatchers(new AntPathRequestMatcher("/manifest.json"))
+            .requestMatchers(new AntPathRequestMatcher("/"));
+    }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -59,8 +73,10 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/ws/**").permitAll()
-                .requestMatchers("/error").permitAll()  // Allow error endpoint for proper error responses
-                .anyRequest().authenticated()
+                .requestMatchers("/error").permitAll()
+                .requestMatchers("/", "/index.html", "/assets/**", "/vite.svg").permitAll() // Explicitly permit static resources
+                .requestMatchers("/api/**").authenticated() // Secure all other API endpoints
+                .anyRequest().permitAll() // Allow static resources and frontend routes
             )
             .authenticationProvider(authenticationProvider())
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
@@ -71,7 +87,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:3000"));
+        configuration.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:3000", "https://todue.ethandean.dev", "https://www.todue.ethandean.dev"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
