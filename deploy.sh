@@ -8,6 +8,7 @@ VPS_USER="root"
 VPS_HOST="todue.ethandean.dev"
 VPS_DEST_DIR="~/deployments/td"        # Directory on VPS where the jar lives
 JAR_NAME="todue-0.1.0.jar"             # Name of the jar on the server (referenced by pm2)
+SERVICE_NAME="todue"                   # Systemd service name
 # ---------------------
 
 echo "=========================================="
@@ -53,8 +54,8 @@ echo "bw Uploading JAR to VPS ($VPS_HOST)..."
 scp "backend/todue/$BUILT_JAR" "$VPS_USER@$VPS_HOST:$VPS_DEST_DIR/$JAR_NAME"
 
 # 5. Restart Service
-echo "qc Restarting Application on VPS..."
-ssh "$VPS_USER@$VPS_HOST" "pm2 restart td_prod"
+echo "qc Restarting Service on VPS..."
+ssh "$VPS_USER@$VPS_HOST" "systemctl restart $SERVICE_NAME"
 
 echo "=========================================="
 echo "✨ Deployment Complete!"

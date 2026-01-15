@@ -1,0 +1,40 @@
+[Unit]
+Description=Todue Spring Boot Application (Low Memory Configuration)
+After=syslog.target network.target
+
+[Service]
+# Matches VPS_USER in deploy.sh
+User=root
+# Assumes .env exists in the deployment directory
+EnvironmentFile=/root/deployments/td/.env
+# Matches VPS_DEST_DIR in deploy.sh (resolved from ~)
+WorkingDirectory=/root/deployments/td
+
+# Low memory JVM configuration
+ExecStart=/usr/bin/java \
+  -Xms64m \
+  -Xmx256m \
+  -XX:MetaspaceSize=64m \
+  -XX:MaxMetaspaceSize=128m \
+  -XX:+UseSerialGC \
+  -Xss256k \
+  -XX:MaxRAM=350m \
+  -Dspring.profiles.active=prod \
+  -jar /root/deployments/td/todue-0.1.0.jar
+
+# Restart configuration
+SuccessExitStatus=143
+Restart=on-failure
+RestartSec=10
+
+# Resource limits
+MemoryMax=350M
+MemoryHigh=300M
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=todue
+
+[Install]
+WantedBy=multi-user.target
