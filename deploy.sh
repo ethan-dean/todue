@@ -50,12 +50,13 @@ echo "✅ Backend built: $BUILT_JAR"
 cd ../..
 
 # 4. Transfer to VPS
-echo "bw Uploading JAR to VPS ($VPS_HOST)..."
+echo "bw Uploading JAR and Service File to VPS ($VPS_HOST)..."
 scp "backend/todue/$BUILT_JAR" "$VPS_USER@$VPS_HOST:$VPS_DEST_DIR/$JAR_NAME"
+scp "todue.service" "$VPS_USER@$VPS_HOST:/etc/systemd/system/todue.service"
 
 # 5. Restart Service
-echo "qc Restarting Service on VPS..."
-ssh "$VPS_USER@$VPS_HOST" "systemctl restart $SERVICE_NAME"
+echo "qc Reloading Daemon, Enabling and Restarting Service..."
+ssh "$VPS_USER@$VPS_HOST" "systemctl daemon-reload && systemctl enable $SERVICE_NAME && systemctl restart $SERVICE_NAME"
 
 echo "=========================================="
 echo "✨ Deployment Complete!"
