@@ -12,10 +12,10 @@ WorkingDirectory=/root/deployments/td
 
 # Low memory JVM configuration
 ExecStart=/usr/bin/java \
-  -Xms64m \
-  -Xmx256m \
-  -XX:MetaspaceSize=64m \
-  -XX:MaxMetaspaceSize=128m \
+  -Xms75m \
+  -Xmx225m \
+  -XX:MetaspaceSize=50m \
+  -XX:MaxMetaspaceSize=100m \
   -XX:+UseSerialGC \
   -Xss256k \
   -XX:MaxRAM=350m \
@@ -28,8 +28,8 @@ Restart=on-failure
 RestartSec=10
 
 # Resource limits
-MemoryMax=350M
-MemoryHigh=300M
+MemoryMax=400M
+MemoryHigh=350M
 
 # Logging
 StandardOutput=append:/var/log/todue/application.log
