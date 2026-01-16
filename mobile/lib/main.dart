@@ -11,8 +11,10 @@ import 'screens/todo_screen.dart';
 import 'services/todo_api.dart';
 import 'services/database_service.dart';
 import 'services/websocket_service.dart';
+import 'config/environment.dart';
 
 void main() {
+  Environment.printEnvironment();
   runApp(const TodoApp());
 }
 
