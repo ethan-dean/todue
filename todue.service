@@ -32,9 +32,8 @@ MemoryMax=350M
 MemoryHigh=300M
 
 # Logging
-StandardOutput=journal
-StandardError=journal
-SyslogIdentifier=todue
+StandardOutput=append:/var/log/todue/application.log
+StandardError=append:/var/log/todue/application.log
 
 [Install]
 WantedBy=multi-user.target
