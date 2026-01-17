@@ -12,10 +12,10 @@ WorkingDirectory=/root/deployments/td
 
 # Low memory JVM configuration
 ExecStart=/usr/bin/java \
-  -Xms75m \
-  -Xmx225m \
-  -XX:MetaspaceSize=50m \
-  -XX:MaxMetaspaceSize=100m \
+  -Xms70m \
+  -Xmx200m \
+  -XX:MetaspaceSize=45m \
+  -XX:MaxMetaspaceSize=90m \
   -XX:+UseSerialGC \
   -Xss256k \
   -XX:MaxRAM=350m \
