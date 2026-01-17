@@ -343,9 +343,12 @@ class TodoProvider extends ChangeNotifier {
 
   // Update a todo
   Future<void> updateTodo({
-    required int todoId,
+    required int? todoId,
     String? text,
     String? assignedDate,
+    bool isVirtual = false,
+    int? recurringTodoId,
+    String? instanceDate,
   }) async {
     _lastMutationTime = DateTime.now(); // Track local mutation
 
@@ -356,17 +359,16 @@ class TodoProvider extends ChangeNotifier {
 
     // Identify the date key - if assignedDate is provided, it might move, which is complex.
     // Assuming assignedDate is not changing for this simple refactor or is the same.
-    // If we support moving dates, we need to know the *old* date to remove it from there.
-    // For now, we search all lists (inefficient but safe) or rely on current implementation assumption.
-    // Current implementation assumes we know the dateStr from `updatedTodo.assignedDate` AFTER API.
-    // To be optimistic, we need to know where it is NOW.
     
     String? foundDateStr;
     int? foundIndex;
     Todo? originalTodo;
 
     _todos.forEach((key, list) {
-      final idx = list.indexWhere((t) => t.id == todoId);
+      final idx = list.indexWhere((t) => 
+        (t.id != null && t.id == todoId) || 
+        (isVirtual && t.recurringTodoId == recurringTodoId && t.instanceDate == instanceDate)
+      );
       if (idx != -1) {
         foundDateStr = key;
         foundIndex = idx;
@@ -388,17 +390,34 @@ class TodoProvider extends ChangeNotifier {
 
     try {
       // Call API
-      final serverTodo = await _todoApi.updateTodo(
-        id: todoId,
-        text: text,
-        assignedDate: assignedDate,
-      );
+      Todo serverTodo;
+      if (isVirtual && recurringTodoId != null && instanceDate != null && text != null) {
+        // Updating virtual todo text (orphans it)
+        serverTodo = await _todoApi.updateVirtualTodoText(
+          recurringTodoId: recurringTodoId,
+          instanceDate: instanceDate,
+          text: text,
+        );
+      } else if (todoId != null) {
+        // Regular update
+        serverTodo = await _todoApi.updateTodo(
+          id: todoId,
+          text: text,
+          assignedDate: assignedDate,
+        );
+      } else {
+         throw Exception("Invalid update parameters");
+      }
 
       // Update with server data
       // Check if it moved dates (server response vs local)
       if (serverTodo.assignedDate != foundDateStr) {
         // It moved! Remove from old, add to new.
-        _todos[foundDateStr]!.removeWhere((t) => t.id == todoId);
+        // We need to remove based on the original criteria (virtual or real)
+        _todos[foundDateStr]!.removeWhere((t) => 
+            (t.id != null && t.id == todoId) || 
+            (isVirtual && t.recurringTodoId == recurringTodoId && t.instanceDate == instanceDate)
+        );
         
         if (!_todos.containsKey(serverTodo.assignedDate)) {
           _todos[serverTodo.assignedDate] = [];
@@ -406,7 +425,14 @@ class TodoProvider extends ChangeNotifier {
         _todos[serverTodo.assignedDate]!.add(serverTodo);
       } else {
         // Just update in place
-        final idx = _todos[foundDateStr]!.indexWhere((t) => t.id == todoId);
+        // We find it again because the array might have shifted if we support concurrent edits? 
+        // But safe to use optimistic index if we assume single user flow.
+        // Better to re-find to be robust.
+        final idx = _todos[foundDateStr]!.indexWhere((t) => 
+            (t.id != null && t.id == todoId) || 
+            (isVirtual && t.recurringTodoId == recurringTodoId && t.instanceDate == instanceDate)
+        );
+        
         if (idx != -1) {
           _todos[foundDateStr]![idx] = serverTodo;
         }

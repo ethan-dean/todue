@@ -211,7 +211,7 @@ class DateTimelineState extends State<DateTimeline> {
     final today = DateTime(now.year, now.month, now.day);
 
     return Container(
-      height: 85,
+      height: 100,
       color: Theme.of(context).scaffoldBackgroundColor,
       child: ListView.builder(
         controller: _scrollController,
@@ -228,7 +228,7 @@ class DateTimelineState extends State<DateTimeline> {
                     onTap: () => widget.onDateSelected(date),
                     child: Container(
                       width: _itemWidth,
-                      margin: EdgeInsets.symmetric(vertical: 10, horizontal: _itemMargin),
+                      margin: EdgeInsets.only(top: 10, bottom: 25, left: _itemMargin, right: _itemMargin),
                       decoration: BoxDecoration(
                         color: isSelected
                             ? Colors.green

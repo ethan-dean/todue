@@ -178,23 +178,7 @@ class _TodoScreenState extends State<TodoScreen> {
     }
   }
 
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final yesterday = today.subtract(const Duration(days: 1));
-    final tomorrow = today.add(const Duration(days: 1));
-    final targetDate = DateTime(date.year, date.month, date.day);
 
-    if (targetDate == today) {
-      return 'Today, ${DateFormat('MMM d').format(date)}';
-    } else if (targetDate == yesterday) {
-      return 'Yesterday, ${DateFormat('MMM d').format(date)}';
-    } else if (targetDate == tomorrow) {
-      return 'Tomorrow, ${DateFormat('MMM d').format(date)}';
-    } else {
-      return DateFormat('EEEE, MMM d, y').format(date);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -433,12 +417,7 @@ class _TodoScreenState extends State<TodoScreen> {
     );
   }
 
-  bool _isToday(DateTime date) {
-    final now = DateTime.now();
-    return date.year == now.year &&
-        date.month == now.month &&
-        date.day == now.day;
-  }
+
 
   Widget _buildTodoList(TodoProvider todoProvider) {
     final todos = todoProvider.selectedDateTodos;
@@ -480,7 +459,7 @@ class _TodoScreenState extends State<TodoScreen> {
     }
 
     return ReorderableListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.fromLTRB(0, 0, 0, 8),
       onReorderStart: (index) {
         setState(() {
           _draggedTodo = todos[index];
@@ -505,7 +484,6 @@ class _TodoScreenState extends State<TodoScreen> {
             }
             
             final double animValue = Curves.easeInOut.transform(animation.value);
-            final double elevation = lerpDouble(0, 6, animValue)!;
             
             // Normal drag appearance - No shadow/elevation
             return Material(
@@ -540,10 +518,10 @@ class _TodoScreenState extends State<TodoScreen> {
     final widget = Dismissible(
       key: Key('todo_${todo.id ?? 'v'}_${todo.recurringTodoId ?? 'n'}_${todo.instanceDate}'),
       background: Container(
-        color: Colors.green,
+        color: Colors.blue,
         alignment: Alignment.centerLeft,
         padding: const EdgeInsets.only(left: 20),
-        child: const Icon(Icons.check, color: Colors.white),
+        child: const Icon(Icons.arrow_forward, color: Colors.white),
       ),
       secondaryBackground: Container(
         color: Colors.red,
@@ -553,16 +531,12 @@ class _TodoScreenState extends State<TodoScreen> {
       ),
       confirmDismiss: (direction) async {
         if (direction == DismissDirection.startToEnd) {
-          // Swipe right - complete/uncomplete
-          await todoProvider.completeTodo(
-            todo.id,
-            todo.assignedDate,
-            !todo.isCompleted,
-            isVirtual: todo.isVirtual,
-            recurringTodoId: todo.recurringTodoId,
-            instanceDate: todo.instanceDate,
-          );
-          return false;
+          // Swipe right - move to next day
+          final currentDate = DateTime.parse(todo.assignedDate);
+          final nextDay = currentDate.add(const Duration(days: 1));
+          
+          await todoProvider.moveTodo(todo, nextDay);
+          return false; // Don't dismiss immediately, let provider handle list update
         } else {
           // Swipe left - delete
           return await _confirmDelete(todo);
@@ -572,6 +546,7 @@ class _TodoScreenState extends State<TodoScreen> {
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         elevation: 1,
         child: ListTile(
+          onTap: () => _showEditTodoDialog(todo, todoProvider),
           leading: Checkbox(
             value: todo.isCompleted,
             onChanged: (value) {
@@ -633,37 +608,6 @@ class _TodoScreenState extends State<TodoScreen> {
             ],
           ),
           subtitle: null,
-          trailing: PopupMenuButton<String>(
-            onSelected: (value) async {
-              if (value == 'edit') {
-                _showEditTodoDialog(todo, todoProvider);
-              } else if (value == 'delete') {
-                await _confirmDelete(todo);
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'edit',
-                child: Row(
-                  children: [
-                    Icon(Icons.edit, size: 20),
-                    SizedBox(width: 8),
-                    Text('Edit'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'delete',
-                child: Row(
-                  children: [
-                    Icon(Icons.delete, size: 20, color: Colors.red),
-                    SizedBox(width: 8),
-                    Text('Delete', style: TextStyle(color: Colors.red)),
-                  ],
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -857,8 +801,11 @@ class _TodoScreenState extends State<TodoScreen> {
                   if (text.isNotEmpty && text != todo.text) {
                     Navigator.of(context).pop();
                     todoProvider.updateTodo(
-                      todoId: todo.id!,
+                      todoId: todo.id,
                       text: text,
+                      isVirtual: todo.isVirtual,
+                      recurringTodoId: todo.recurringTodoId,
+                      instanceDate: todo.instanceDate,
                     );
                   }
                 },
