@@ -1,7 +1,6 @@
-import 'dart:ui';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import '../widgets/date_timeline.dart';
 import '../providers/todo_provider.dart';
 import '../providers/auth_provider.dart';
@@ -366,13 +365,7 @@ class _TodoScreenState extends State<TodoScreen> {
                                 }
                               }
                             },
-                            child: RefreshIndicator(
-                              onRefresh: () async {
-                                await _showAddTodoDialog(position: 1);
-                              },
-                              color: Colors.green,
-                              child: _buildTodoList(todoProvider),
-                            ),
+                            child: _buildTodoList(todoProvider),
                           );
                         },
                       ),
@@ -424,11 +417,35 @@ class _TodoScreenState extends State<TodoScreen> {
   Widget _buildTodoList(TodoProvider todoProvider) {
     final todos = todoProvider.selectedDateTodos;
 
-    if (todos.isEmpty) {
-      return ListView(
-        children: [
-          const SizedBox(height: 100),
-          Center(
+    return CustomScrollView(
+      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+      slivers: [
+        CupertinoSliverRefreshControl(
+          onRefresh: () async {
+            await _showAddTodoDialog(position: 1);
+          },
+          builder: (
+            BuildContext context,
+            RefreshIndicatorMode refreshState,
+            double pulledExtent,
+            double refreshTriggerPullDistance,
+            double refreshIndicatorExtent,
+          ) {
+            final double percentage = (pulledExtent / refreshTriggerPullDistance).clamp(0.0, 1.0);
+            return Center(
+              child: Opacity(
+                opacity: percentage,
+                child: const Icon(
+                  Icons.add_circle,
+                  color: Colors.green,
+                  size: 32,
+                ),
+              ),
+            );
+          },
+        ),
+        if (todos.isEmpty)
+          SliverFillRemaining(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -447,7 +464,7 @@ class _TodoScreenState extends State<TodoScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Tap + to add a new todo',
+                  'Tap + (or pull down) to add a new todo',
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey.shade500,
@@ -455,64 +472,61 @@ class _TodoScreenState extends State<TodoScreen> {
                 ),
               ],
             ),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(0, 0, 0, 8),
+            sliver: SliverReorderableList(
+              onReorderStart: (index) {
+                setState(() {
+                  _draggedTodo = todos[index];
+                });
+              },
+              onReorderEnd: (index) {
+                if (_draggedTodo != null && !_isHoveringTimeline) {
+                  setState(() {
+                    _draggedTodo = null;
+                  });
+                }
+              },
+              proxyDecorator: (child, index, animation) {
+                return AnimatedBuilder(
+                  animation: animation,
+                  builder: (context, child) {
+                    if (_isHoveringTimeline) {
+                      return const SizedBox.shrink();
+                    }
+                    return Material(
+                      elevation: 0,
+                      color: Colors.transparent,
+                      child: child,
+                    );
+                  },
+                  child: child,
+                );
+              },
+              onReorder: (oldIndex, newIndex) {
+                if (_isHoveringTimeline) return;
+                
+                todoProvider.reorderTodos(
+                  todoProvider.selectedDate.toString().split(' ')[0],
+                  oldIndex,
+                  newIndex,
+                );
+              },
+              itemCount: todos.length,
+              itemBuilder: (context, index) {
+                final todo = todos[index];
+                final item = _buildTodoItem(todo, todoProvider, isReorderable: true);
+                return ReorderableDelayedDragStartListener(
+                  key: Key('todo_${todo.id ?? 'v'}_${todo.recurringTodoId ?? 'n'}_${todo.instanceDate}'),
+                  index: index,
+                  child: item,
+                );
+              },
+            ),
           ),
-        ],
-      );
-    }
-
-    return ReorderableListView.builder(
-      padding: const EdgeInsets.fromLTRB(0, 0, 0, 8),
-      onReorderStart: (index) {
-        setState(() {
-          _draggedTodo = todos[index];
-        });
-      },
-      onReorderEnd: (index) {
-        // Will be cleared in onPointerUp, but safety clear here if canceled
-        if (_draggedTodo != null && !_isHoveringTimeline) {
-          setState(() {
-            _draggedTodo = null;
-          });
-        }
-      },
-      proxyDecorator: (child, index, animation) {
-        return AnimatedBuilder(
-          animation: animation,
-          builder: (context, child) {
-            // If hovering timeline, hide the list's native drag avatar
-            // (We render a custom one in the Stack instead)
-            if (_isHoveringTimeline) {
-              return const SizedBox.shrink();
-            }
-            
-            final double animValue = Curves.easeInOut.transform(animation.value);
-            
-            // Normal drag appearance - No shadow/elevation
-            return Material(
-              elevation: 0,
-              color: Colors.transparent,
-              child: child,
-            );
-          },
-          child: child,
-        );
-      },
-      onReorder: (oldIndex, newIndex) {
-        // If we dropped on the timeline (detected in onPointerUp), do nothing here
-        if (_isHoveringTimeline) return;
-
-        // Call the provider to update on backend
-        todoProvider.reorderTodos(
-          todoProvider.selectedDate.toString().split(' ')[0],
-          oldIndex,
-          newIndex,
-        );
-      },
-      itemCount: todos.length,
-      itemBuilder: (context, index) {
-        final todo = todos[index];
-        return _buildTodoItem(todo, todoProvider, isReorderable: true);
-      },
+      ],
     );
   }
 
