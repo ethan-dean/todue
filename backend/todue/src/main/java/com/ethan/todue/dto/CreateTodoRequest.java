@@ -14,4 +14,6 @@ public class CreateTodoRequest {
 
     @NotNull(message = "Assigned date is required")
     private LocalDate assignedDate;
+
+    private Integer position;
 }

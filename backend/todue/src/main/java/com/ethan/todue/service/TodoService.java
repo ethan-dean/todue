@@ -45,7 +45,7 @@ public class TodoService {
     private com.ethan.todue.websocket.WebSocketService webSocketService;
 
     @Transactional
-    public TodoResponse createTodo(String text, LocalDate assignedDate) {
+    public TodoResponse createTodo(String text, LocalDate assignedDate, Integer position) {
         User user = userService.getCurrentUser();
 
         // Check if text contains recurrence pattern
@@ -64,13 +64,36 @@ public class TodoService {
             // Check if we're creating this on the current date
             LocalDate currentDate = userService.getCurrentDateForUser();
             if (assignedDate.equals(currentDate)) {
+                // If specific position requested
+                if (position != null) {
+                    int virtualCount = getVirtualCount(user.getId(), assignedDate);
+                    
+                    if (position <= virtualCount) {
+                        // Inserting into the virtual zone - materialize everything to establish order
+                        materializeAllVirtuals(user.getId(), assignedDate);
+                        // virtuals are now real, so position is used as-is against the real list
+                    } else {
+                        // Inserting after virtuals - adjust position to be relative to real list
+                        position = position - virtualCount;
+                    }
+                    
+                    // Shift existing real items
+                    todoRepository.incrementPositions(user.getId(), assignedDate, position);
+                }
+
                 // Auto-materialize for current day
                 Todo firstInstance = new Todo();
                 firstInstance.setUser(user);
                 firstInstance.setText(recurrenceInfo.getStrippedText());
                 firstInstance.setAssignedDate(assignedDate);
                 firstInstance.setInstanceDate(assignedDate);
-                firstInstance.setPosition(getNextPosition(user.getId(), assignedDate));
+                
+                if (position != null) {
+                    firstInstance.setPosition(position);
+                } else {
+                    firstInstance.setPosition(getNextPosition(user.getId(), assignedDate));
+                }
+                
                 firstInstance.setRecurringTodo(recurringTodo);
                 firstInstance.setIsCompleted(false);
                 firstInstance.setIsRolledOver(false);
@@ -78,24 +101,24 @@ public class TodoService {
                 firstInstance = todoRepository.save(firstInstance);
                 TodoResponse response = toTodoResponse(firstInstance);
 
-                // Send both notifications - recurring pattern created AND current day changed
+                // Send both notifications
                 webSocketService.notifyRecurringChanged(user.getId());
                 webSocketService.notifyTodosChanged(user.getId(), assignedDate);
 
                 return response;
             } else {
-                // Creating for future date - return virtual todo response
+                // Virtual response (future)
                 TodoResponse virtualResponse = new TodoResponse(
-                        null, // id
-                        recurrenceInfo.getStrippedText(), // text
-                        assignedDate, // assignedDate
-                        assignedDate, // instanceDate
-                        0, // position - virtuals at 0
-                        recurringTodo.getId(), // recurringTodoId
-                        false, // isCompleted
-                        null, // completedAt
-                        false, // isRolledOver
-                        true // isVirtual
+                        null, 
+                        recurrenceInfo.getStrippedText(), 
+                        assignedDate, 
+                        assignedDate, 
+                        0, 
+                        recurringTodo.getId(), 
+                        false, 
+                        null, 
+                        false, 
+                        true 
                 );
 
                 // Send notification - recurring pattern affects all future dates
@@ -104,24 +127,64 @@ public class TodoService {
                 return virtualResponse;
             }
         } else {
+            // If specific position requested
+            if (position != null) {
+                int virtualCount = getVirtualCount(user.getId(), assignedDate);
+                
+                if (position <= virtualCount) {
+                    // Inserting into the virtual zone - materialize everything to establish order
+                    materializeAllVirtuals(user.getId(), assignedDate);
+                    // virtuals are now real, so position is used as-is against the real list
+                } else {
+                    // Inserting after virtuals - adjust position to be relative to real list
+                    position = position - virtualCount;
+                }
+                
+                // Shift existing real items
+                todoRepository.incrementPositions(user.getId(), assignedDate, position);
+            }
+
             // Create regular todo
             Todo todo = new Todo();
             todo.setUser(user);
             todo.setText(text);
             todo.setAssignedDate(assignedDate);
             todo.setInstanceDate(assignedDate);
-            todo.setPosition(getNextPosition(user.getId(), assignedDate));
+            
+            if (position != null) {
+                todo.setPosition(position);
+            } else {
+                todo.setPosition(getNextPosition(user.getId(), assignedDate));
+            }
+            
             todo.setIsCompleted(false);
             todo.setIsRolledOver(false);
 
             todo = todoRepository.save(todo);
             TodoResponse response = toTodoResponse(todo);
 
-            // Send WebSocket notification - regular todo affects only this date
             webSocketService.notifyTodosChanged(user.getId(), assignedDate);
 
             return response;
         }
+    }
+
+    private int getVirtualCount(Long userId, LocalDate date) {
+        int count = 0;
+        List<RecurringTodo> allRecurring = recurringTodoRepository.findActiveByUserIdAndDate(userId, date);
+        
+        for (RecurringTodo rec : allRecurring) {
+            if (RecurrenceCalculator.shouldInstanceExist(rec.getRecurrenceType(), rec.getStartDate(), date)) {
+                // Check if not already materialized
+                if (todoRepository.findFirstByRecurringTodoIdAndInstanceDate(rec.getId(), date).isEmpty()) {
+                    // Check if not skipped
+                    if (!skipRecurringRepository.existsByRecurringTodoIdAndSkipDate(rec.getId(), date)) {
+                        count++;
+                    }
+                }
+            }
+        }
+        return count;
     }
 
     @Transactional
@@ -214,6 +277,53 @@ public class TodoService {
         return virtuals;
     }
 
+    private void materializeAllVirtuals(Long userId, LocalDate date) {
+        List<RecurringTodo> allRecurring = recurringTodoRepository.findActiveByUserIdAndDate(userId, date);
+        allRecurring.sort(Comparator.comparing(RecurringTodo::getId));
+
+        int pos = 1;
+        boolean anyMaterialized = false;
+
+        for (RecurringTodo rec : allRecurring) {
+            if (!RecurrenceCalculator.shouldInstanceExist(rec.getRecurrenceType(), rec.getStartDate(), date)) {
+                continue;
+            }
+
+            if (todoRepository.findFirstByRecurringTodoIdAndInstanceDate(rec.getId(), date).isEmpty()) {
+                if (!skipRecurringRepository.existsByRecurringTodoIdAndSkipDate(rec.getId(), date)) {
+                    Todo materialized = new Todo();
+                    materialized.setUser(userService.getCurrentUser());
+                    materialized.setText(rec.getText());
+                    materialized.setAssignedDate(date);
+                    materialized.setInstanceDate(date);
+                    materialized.setPosition(pos++);
+                    materialized.setRecurringTodo(rec);
+                    materialized.setIsCompleted(false);
+                    materialized.setIsRolledOver(false);
+
+                    todoRepository.save(materialized);
+                    anyMaterialized = true;
+                }
+            } else {
+                pos++; 
+            }
+        }
+
+        if (anyMaterialized) {
+            // Renumber normal todos to continue after materialized virtuals
+            List<Todo> normalTodos = todoRepository.findByUserIdAndAssignedDate(userId, date)
+                    .stream()
+                    .filter(t -> t.getRecurringTodo() == null) 
+                    .sorted(Comparator.comparing(Todo::getPosition))
+                    .collect(Collectors.toList());
+
+            for (Todo normalTodo : normalTodos) {
+                normalTodo.setPosition(pos++);
+            }
+            todoRepository.saveAll(normalTodos);
+        }
+    }
+
     @Transactional
     public TodoResponse materializeVirtual(Long recurringTodoId, LocalDate instanceDate) {
         User user = userService.getCurrentUser();
@@ -274,26 +384,11 @@ public class TodoService {
         LocalDate currentDate = userService.getCurrentDateForUser();
 
         // Check if we need to materialize virtuals
-        // This happens when moving a normal todo into the position where virtuals exist
         boolean needsMaterialization = false;
 
         // Only check for current/future dates (past dates don't have virtuals)
         if (!assignedDate.isBefore(currentDate)) {
-            // Count how many recurring todos should exist on this date
-            List<RecurringTodo> allRecurring = recurringTodoRepository.findActiveByUserIdAndDate(userId, assignedDate);
-            int virtualCount = 0;
-
-            for (RecurringTodo rec : allRecurring) {
-                if (RecurrenceCalculator.shouldInstanceExist(rec.getRecurrenceType(), rec.getStartDate(), assignedDate)) {
-                    // Check if not already materialized
-                    if (todoRepository.findFirstByRecurringTodoIdAndInstanceDate(rec.getId(), assignedDate).isEmpty()) {
-                        // Check if not skipped
-                        if (!skipRecurringRepository.existsByRecurringTodoIdAndSkipDate(rec.getId(), assignedDate)) {
-                            virtualCount++;
-                        }
-                    }
-                }
-            }
+            int virtualCount = getVirtualCount(user.getId(), assignedDate);
 
             // If moving a normal todo to a position that would overlap with virtuals, materialize them
             if (virtualCount > 0 && newPosition < virtualCount) {
@@ -302,49 +397,7 @@ public class TodoService {
         }
 
         if (needsMaterialization) {
-            // Materialize all virtuals for this date
-            List<RecurringTodo> allRecurring = recurringTodoRepository.findActiveByUserIdAndDate(userId, assignedDate);
-            allRecurring.sort(Comparator.comparing(RecurringTodo::getId));
-
-            int pos = 1;
-            for (RecurringTodo rec : allRecurring) {
-                // Check if should exist on this date
-                if (!RecurrenceCalculator.shouldInstanceExist(rec.getRecurrenceType(), rec.getStartDate(), assignedDate)) {
-                    continue;
-                }
-
-                // Check if not already materialized
-                if (todoRepository.findFirstByRecurringTodoIdAndInstanceDate(rec.getId(), assignedDate).isEmpty()) {
-                    // Check if not skipped
-                    if (!skipRecurringRepository.existsByRecurringTodoIdAndSkipDate(rec.getId(), assignedDate)) {
-                        Todo materialized = new Todo();
-                        materialized.setUser(userService.getCurrentUser());
-                        materialized.setText(rec.getText());
-                        materialized.setAssignedDate(assignedDate);
-                        materialized.setInstanceDate(assignedDate);
-                        materialized.setPosition(pos++);
-                        materialized.setRecurringTodo(rec);
-                        materialized.setIsCompleted(false);
-                        materialized.setIsRolledOver(false);
-
-                        todoRepository.save(materialized);
-                    }
-                } else {
-                    pos++; // Already materialized - increment counter
-                }
-            }
-
-            // Renumber normal todos to continue after materialized virtuals
-            List<Todo> normalTodos = todoRepository.findByUserIdAndAssignedDate(userId, assignedDate)
-                    .stream()
-                    .filter(t -> t.getRecurringTodo() == null) // Only normal todos
-                    .sorted(Comparator.comparing(Todo::getPosition))
-                    .collect(Collectors.toList());
-
-            for (Todo normalTodo : normalTodos) {
-                normalTodo.setPosition(pos++);
-            }
-            todoRepository.saveAll(normalTodos);
+            materializeAllVirtuals(userId, assignedDate);
         }
 
         // Now perform the actual reordering

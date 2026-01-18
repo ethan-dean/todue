@@ -26,7 +26,7 @@ public class TodoController {
 
     @PostMapping
     public ResponseEntity<TodoResponse> createTodo(@Valid @RequestBody CreateTodoRequest request) {
-        TodoResponse response = todoService.createTodo(request.getText(), request.getAssignedDate());
+        TodoResponse response = todoService.createTodo(request.getText(), request.getAssignedDate(), request.getPosition());
         return ResponseEntity.ok(response);
     }
 

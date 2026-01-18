@@ -40,4 +40,12 @@ public interface TodoRepository extends JpaRepository<Todo, Long> {
         @Param("recurringTodoId") Long recurringTodoId,
         @Param("afterDate") LocalDate afterDate
     );
+
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("UPDATE Todo t SET t.position = t.position + 1 WHERE t.user.id = :userId AND t.assignedDate = :date AND t.position >= :position")
+    void incrementPositions(
+        @Param("userId") Long userId,
+        @Param("date") LocalDate date,
+        @Param("position") Integer position
+    );
 }

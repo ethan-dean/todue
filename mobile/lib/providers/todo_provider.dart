@@ -279,8 +279,9 @@ class TodoProvider extends ChangeNotifier {
     required String text,
     DateTime? date,
     int? recurringTodoId,
+    int? position,
   }) async {
-    _lastMutationTime = DateTime.now(); // Track local mutation
+    _lastMutationTime = DateTime.now();
     
     await _checkOnlineStatus();
     if (!_isOnline) {
@@ -291,49 +292,57 @@ class TodoProvider extends ChangeNotifier {
     final dateStr = _formatDate(targetDate);
 
     // Optimistic Update
-    final tempId = -1 * DateTime.now().millisecondsSinceEpoch; // Temporary negative ID
+    final tempId = -1 * DateTime.now().millisecondsSinceEpoch; // Temporary ID
+    
+    // Calculate optimistic position
+    // If explicit position is requested, use it; otherwise use a high number to append
+    int optimisticPos = position ?? 999999;
+
     final optimisticTodo = Todo(
       id: tempId,
       text: text,
       assignedDate: dateStr,
       instanceDate: dateStr,
-      position: 999999, // Place at bottom temporarily
+      position: optimisticPos, 
       recurringTodoId: recurringTodoId,
       isCompleted: false,
       isRolledOver: false,
       isVirtual: false,
     );
 
-    // Apply optimistic update
     if (!_todos.containsKey(dateStr)) {
       _todos[dateStr] = [];
     }
-    _todos[dateStr]!.add(optimisticTodo);
+    
+    // Apply optimistic insert
+    if (position != null && position == 1) {
+       // Optimistic: Insert at top. Full renumbering happens on server sync to avoid UI jank.
+       _todos[dateStr]!.insert(0, optimisticTodo);
+    } else {
+       _todos[dateStr]!.add(optimisticTodo);
+    }
+    
     notifyListeners();
 
     try {
-      // Call API
       final serverTodo = await _todoApi.createTodo(
         text: text,
         assignedDate: dateStr,
         recurringTodoId: recurringTodoId,
+        position: position,
       );
 
       // Replace optimistic todo with real one
       final index = _todos[dateStr]!.indexWhere((t) => t.id == tempId);
       if (index != -1) {
         _todos[dateStr]![index] = serverTodo;
-        _todos[dateStr]!.sort((a, b) => a.position.compareTo(b.position));
       } else {
-        // Fallback if list changed (unlikely)
         _todos[dateStr]!.add(serverTodo);
       }
 
-      // Update Cache
       await _databaseService.saveTodo(serverTodo);
       notifyListeners();
     } catch (e) {
-      // Rollback
       _todos[dateStr]!.removeWhere((t) => t.id == tempId);
       notifyListeners();
       _setError('Failed to create todo: $e');
@@ -350,20 +359,18 @@ class TodoProvider extends ChangeNotifier {
     int? recurringTodoId,
     String? instanceDate,
   }) async {
-    _lastMutationTime = DateTime.now(); // Track local mutation
+    _lastMutationTime = DateTime.now();
 
     await _checkOnlineStatus();
     if (!_isOnline) {
       throw Exception('Cannot update todo while offline');
     }
 
-    // Identify the date key - if assignedDate is provided, it might move, which is complex.
-    // Assuming assignedDate is not changing for this simple refactor or is the same.
-    
     String? foundDateStr;
     int? foundIndex;
     Todo? originalTodo;
 
+    // Find the todo in our local state
     _todos.forEach((key, list) {
       final idx = list.indexWhere((t) => 
         (t.id != null && t.id == todoId) || 
@@ -381,15 +388,13 @@ class TodoProvider extends ChangeNotifier {
     // Optimistic Update
     final optimisticTodo = originalTodo!.copyWith(
       text: text ?? originalTodo!.text,
-      // Note: Changing date optimistically requires moving lists. 
-      // We will skip optimistic date change for simplicity unless strictly needed.
+      // Note: Optimistic date change skipped for simplicity; handled after server response.
     );
 
     _todos[foundDateStr]![foundIndex!] = optimisticTodo;
     notifyListeners();
 
     try {
-      // Call API
       Todo serverTodo;
       if (isVirtual && recurringTodoId != null && instanceDate != null && text != null) {
         // Updating virtual todo text (orphans it)
@@ -409,11 +414,8 @@ class TodoProvider extends ChangeNotifier {
          throw Exception("Invalid update parameters");
       }
 
-      // Update with server data
-      // Check if it moved dates (server response vs local)
+      // Handle response - check if it moved dates
       if (serverTodo.assignedDate != foundDateStr) {
-        // It moved! Remove from old, add to new.
-        // We need to remove based on the original criteria (virtual or real)
         _todos[foundDateStr]!.removeWhere((t) => 
             (t.id != null && t.id == todoId) || 
             (isVirtual && t.recurringTodoId == recurringTodoId && t.instanceDate == instanceDate)
@@ -424,10 +426,7 @@ class TodoProvider extends ChangeNotifier {
         }
         _todos[serverTodo.assignedDate]!.add(serverTodo);
       } else {
-        // Just update in place
-        // We find it again because the array might have shifted if we support concurrent edits? 
-        // But safe to use optimistic index if we assume single user flow.
-        // Better to re-find to be robust.
+        // Update in place
         final idx = _todos[foundDateStr]!.indexWhere((t) => 
             (t.id != null && t.id == todoId) || 
             (isVirtual && t.recurringTodoId == recurringTodoId && t.instanceDate == instanceDate)
@@ -441,14 +440,11 @@ class TodoProvider extends ChangeNotifier {
       // Sort the target list
       _todos[serverTodo.assignedDate]?.sort((a, b) => a.position.compareTo(b.position));
 
-      // Update Cache
       await _databaseService.saveTodo(serverTodo);
       notifyListeners();
     } catch (e) {
       // Rollback
       if (foundDateStr != null && foundIndex != null) {
-        // Put it back exactly as it was
-        // If we moved lists in optimistic (we didn't here), we'd need to revert that too.
         _todos[foundDateStr!]![foundIndex!] = originalTodo!;
         notifyListeners();
       }

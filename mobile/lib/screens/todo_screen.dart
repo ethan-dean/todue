@@ -75,7 +75,7 @@ class _TodoScreenState extends State<TodoScreen> {
     return null;
   }
 
-  Future<void> _showAddTodoDialog() async {
+  Future<void> _showAddTodoDialog({int? position}) async {
     final textController = TextEditingController();
     final todoProvider = context.read<TodoProvider>();
 
@@ -113,7 +113,7 @@ class _TodoScreenState extends State<TodoScreen> {
                   onSubmitted: (value) {
                     if (value.trim().isNotEmpty) {
                       Navigator.of(context).pop();
-                      todoProvider.createTodo(text: value.trim());
+                      todoProvider.createTodo(text: value.trim(), position: position);
                     }
                   },
                 ),
@@ -154,7 +154,7 @@ class _TodoScreenState extends State<TodoScreen> {
                   final text = textController.text.trim();
                   if (text.isNotEmpty) {
                     Navigator.of(context).pop();
-                    todoProvider.createTodo(text: text);
+                    todoProvider.createTodo(text: text, position: position);
                   }
                 },
                 style: ElevatedButton.styleFrom(
@@ -367,7 +367,9 @@ class _TodoScreenState extends State<TodoScreen> {
                               }
                             },
                             child: RefreshIndicator(
-                              onRefresh: () => todoProvider.refresh(),
+                              onRefresh: () async {
+                                await _showAddTodoDialog(position: 1);
+                              },
                               color: Colors.green,
                               child: _buildTodoList(todoProvider),
                             ),

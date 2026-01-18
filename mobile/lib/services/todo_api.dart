@@ -46,6 +46,7 @@ class TodoApi {
     required String text,
     required String assignedDate,
     int? recurringTodoId,
+    int? position,
   }) async {
     final Map<String, dynamic> data = {
       'text': text,
@@ -53,6 +54,9 @@ class TodoApi {
     };
     if (recurringTodoId != null) {
       data['recurringTodoId'] = recurringTodoId;
+    }
+    if (position != null) {
+      data['position'] = position;
     }
 
     final response = await _apiService.post(
