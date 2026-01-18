@@ -388,7 +388,7 @@ public class TodoService {
 
         // Only check for current/future dates (past dates don't have virtuals)
         if (!assignedDate.isBefore(currentDate)) {
-            int virtualCount = getVirtualCount(user.getId(), assignedDate);
+            int virtualCount = getVirtualCount(userId, assignedDate);
 
             // If moving a normal todo to a position that would overlap with virtuals, materialize them
             if (virtualCount > 0 && newPosition < virtualCount) {
