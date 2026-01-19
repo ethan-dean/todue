@@ -232,62 +232,6 @@ class _TodoScreenState extends State<TodoScreen> {
               children: [
                 Column(
                   children: [
-                    // Manual AppBar (Replacement for Scaffold.appBar)
-                    Container(
-                      padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
-                      color: Colors.green,
-                      child: SizedBox(
-                        height: 56,
-                        child: Row(
-                          children: [
-                            const SizedBox(width: 16),
-                            const Text(
-                              'Todue',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const Spacer(),
-                            Consumer<ThemeProvider>(
-                              builder: (context, themeProvider, _) {
-                                final isDark = Theme.of(context).brightness == Brightness.dark;
-                                return IconButton(
-                                  icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
-                                  onPressed: () {
-                                    themeProvider.toggleTheme();
-                                  },
-                                  color: Colors.white,
-                                  tooltip: isDark ? 'Light Mode' : 'Dark Mode',
-                                );
-                              },
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.calendar_today),
-                              onPressed: _goToToday,
-                              color: Colors.white,
-                              tooltip: 'Today',
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.refresh),
-                              onPressed: () {
-                                context.read<TodoProvider>().refresh();
-                              },
-                              color: Colors.white,
-                              tooltip: 'Refresh',
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.logout),
-                              onPressed: _handleLogout,
-                              color: Colors.white,
-                              tooltip: 'Logout',
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    
                     // Date Timeline
                     DateTimeline(
                       key: _timelineKey,

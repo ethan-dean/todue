@@ -5,8 +5,9 @@ import 'package:web_socket_channel/status.dart' as status;
 import '../config/environment.dart';
 
 enum WebSocketMessageType {
-  TODOS_CHANGED,      // Single date changed - refetch that date
-  RECURRING_CHANGED,  // Recurring pattern changed - refetch all visible dates
+  TODOS_CHANGED,        // Single date changed - refetch that date
+  RECURRING_CHANGED,    // Recurring pattern changed - refetch all visible dates
+  LATER_LIST_CHANGED,   // Later list changed - refetch that list
 }
 
 class WebSocketMessage {

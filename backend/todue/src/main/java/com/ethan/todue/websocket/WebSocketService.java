@@ -55,4 +55,26 @@ public class WebSocketService {
         );
         sendToUser(userId, message);
     }
+
+    /**
+     * Notify user that a later list changed.
+     * Client should refetch that list's data.
+     *
+     * @param userId The user ID
+     * @param listId The list ID that changed (null for list-level changes like create/delete)
+     * @param action The type of change: LIST_UPDATED, TODOS_UPDATED, LIST_DELETED, LIST_CREATED
+     */
+    public void notifyLaterListChanged(Long userId, Long listId, String action) {
+        Map<String, Object> data = new HashMap<>();
+        if (listId != null) {
+            data.put("listId", listId);
+        }
+        data.put("action", action);
+
+        WebSocketMessage<Map<String, Object>> message = new WebSocketMessage<>(
+                WebSocketMessageType.LATER_LIST_CHANGED,
+                data
+        );
+        sendToUser(userId, message);
+    }
 }

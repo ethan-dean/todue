@@ -52,8 +52,9 @@ export interface RecurringTodo {
 
 // WebSocket types
 export const WebSocketMessageType = {
-  TODOS_CHANGED: 'TODOS_CHANGED',      // Single date changed - refetch that date
-  RECURRING_CHANGED: 'RECURRING_CHANGED', // Recurring pattern changed - refetch all visible dates
+  TODOS_CHANGED: 'TODOS_CHANGED',           // Single date changed - refetch that date
+  RECURRING_CHANGED: 'RECURRING_CHANGED',   // Recurring pattern changed - refetch all visible dates
+  LATER_LIST_CHANGED: 'LATER_LIST_CHANGED', // Later list changed - refetch that list
 } as const;
 
 export type WebSocketMessageType = typeof WebSocketMessageType[keyof typeof WebSocketMessageType];
@@ -101,6 +102,41 @@ export interface VirtualTodoRequest {
 export interface ResetPasswordRequest {
   token: string;
   newPassword: string;
+}
+
+// Later Lists types
+export interface LaterList {
+  id: number;
+  listName: string;
+}
+
+export interface LaterListTodo {
+  id: number;
+  text: string;
+  isCompleted: boolean;
+  completedAt: string | null; // ISO datetime string
+  position: number;
+}
+
+export interface CreateLaterListRequest {
+  listName: string;
+}
+
+export interface CreateLaterListTodoRequest {
+  text: string;
+  position?: number;
+}
+
+export interface UpdateLaterListNameRequest {
+  listName: string;
+}
+
+export interface UpdateLaterListTodoTextRequest {
+  text: string;
+}
+
+export interface UpdateLaterListTodoPositionRequest {
+  position: number;
 }
 
 // Utility types

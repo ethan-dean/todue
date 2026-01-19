@@ -243,6 +243,15 @@ const TodosPage: React.FC = () => {
           <h1>Todue</h1>
           <div className="header-right">
             {!isMobile && <DateNavigator />}
+            <div className="header-tabs">
+              <button className="header-tab active">Now</button>
+              <button
+                className="header-tab"
+                onClick={() => navigate('/later')}
+              >
+                Later
+              </button>
+            </div>
             <div className="user-info">
               <button
                 onClick={handleSettingsClick}
