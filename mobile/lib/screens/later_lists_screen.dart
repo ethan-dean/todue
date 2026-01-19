@@ -42,7 +42,7 @@ class _LaterListsScreenState extends State<LaterListsScreen> {
               Navigator.of(context).pop();
               final newList = await provider.createList(value.trim());
               if (newList != null && mounted) {
-                _navigateToListDetail(newList);
+                provider.setCurrentListId(newList.id);
               }
             }
           },
@@ -59,7 +59,7 @@ class _LaterListsScreenState extends State<LaterListsScreen> {
                 Navigator.of(context).pop();
                 final newList = await provider.createList(text);
                 if (newList != null && mounted) {
-                  _navigateToListDetail(newList);
+                  provider.setCurrentListId(newList.id);
                 }
               }
             },
@@ -70,14 +70,6 @@ class _LaterListsScreenState extends State<LaterListsScreen> {
             child: const Text('Create'),
           ),
         ],
-      ),
-    );
-  }
-
-  void _navigateToListDetail(LaterList list) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => LaterListDetailScreen(list: list),
       ),
     );
   }
@@ -165,114 +157,166 @@ class _LaterListsScreenState extends State<LaterListsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Consumer<LaterListProvider>(
-        builder: (context, provider, child) {
-          return Column(
-            children: [
-              // Error banner
-              if (provider.error != null)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  color: Colors.red.shade100,
-                  child: Row(
-                    children: [
-                      Icon(Icons.error, color: Colors.red.shade700),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          provider.error!,
-                          style: TextStyle(color: Colors.red.shade700),
+    return Consumer<LaterListProvider>(
+      builder: (context, provider, child) {
+        Widget content;
+        
+        // If a list is selected, show the detail view
+        if (provider.currentListId != null) {
+          final selectedList = provider.lists.where((l) => l.id == provider.currentListId).firstOrNull;
+          
+          if (selectedList != null) {
+            content = PopScope(
+              key: ValueKey('detail_${selectedList.id}'),
+              canPop: false,
+              onPopInvoked: (didPop) {
+                if (didPop) return;
+                provider.setCurrentListId(null);
+              },
+              child: LaterListDetailScreen(list: selectedList),
+            );
+          } else {
+            // List might have been deleted
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              provider.setCurrentListId(null);
+            });
+            content = const SizedBox.shrink(key: ValueKey('empty'));
+          }
+        } else {
+          // Otherwise show the list of lists
+          content = Scaffold(
+            key: const ValueKey('list'),
+            body: Column(
+              children: [
+                // Error banner
+                if (provider.error != null)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    color: Colors.red.shade100,
+                    child: Row(
+                      children: [
+                        Icon(Icons.error, color: Colors.red.shade700),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            provider.error!,
+                            style: TextStyle(color: Colors.red.shade700),
+                          ),
                         ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: provider.clearError,
-                        color: Colors.red.shade700,
-                      ),
-                    ],
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: provider.clearError,
+                          color: Colors.red.shade700,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                // Main content
+                Expanded(
+                  child: Builder(
+                    builder: (context) {
+                      if (provider.isLoading && provider.lists.isEmpty) {
+                        return const Center(
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+                          ),
+                        );
+                      }
+
+                      if (provider.lists.isEmpty) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.list_alt,
+                                size: 80,
+                                color: Colors.grey.shade400,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No lists yet',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Tap + to create a new list',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey.shade500,
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+                              ElevatedButton.icon(
+                                onPressed: _showCreateListDialog,
+                                icon: const Icon(Icons.add),
+                                label: const Text('Create Your First List'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green,
+                                  foregroundColor: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      return RefreshIndicator(
+                        onRefresh: () => provider.loadLists(),
+                        color: Colors.green,
+                        child: ListView.builder(
+                          padding: const EdgeInsets.all(8),
+                          itemCount: provider.lists.length,
+                          itemBuilder: (context, index) {
+                            final list = provider.lists[index];
+                            return _buildListItem(list);
+                          },
+                        ),
+                      );
+                    },
                   ),
                 ),
-
-              // Main content
-              Expanded(
-                child: Builder(
-                  builder: (context) {
-                    if (provider.isLoading && provider.lists.isEmpty) {
-                      return const Center(
-                        child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
-                        ),
-                      );
-                    }
-
-                    if (provider.lists.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.list_alt,
-                              size: 80,
-                              color: Colors.grey.shade400,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No lists yet',
-                              style: TextStyle(
-                                fontSize: 18,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Tap + to create a new list',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey.shade500,
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            ElevatedButton.icon(
-                              onPressed: _showCreateListDialog,
-                              icon: const Icon(Icons.add),
-                              label: const Text('Create Your First List'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green,
-                                foregroundColor: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    return RefreshIndicator(
-                      onRefresh: () => provider.loadLists(),
-                      color: Colors.green,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(8),
-                        itemCount: provider.lists.length,
-                        itemBuilder: (context, index) {
-                          final list = provider.lists[index];
-                          return _buildListItem(list);
-                        },
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
+              ],
+            ),
+            floatingActionButton: FloatingActionButton(
+              heroTag: 'fab_later_lists',
+              onPressed: _showCreateListDialog,
+              backgroundColor: Colors.green,
+              child: const Icon(Icons.add, color: Colors.white),
+              tooltip: 'Create List',
+            ),
           );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showCreateListDialog,
-        backgroundColor: Colors.green,
-        child: const Icon(Icons.add, color: Colors.white),
-        tooltip: 'Create List',
-      ),
+        }
+
+        return AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          switchInCurve: Curves.easeOut,
+          switchOutCurve: Curves.easeIn,
+          transitionBuilder: (Widget child, Animation<double> animation) {
+            final key = child.key;
+            bool isDetail = false;
+            if (key is ValueKey<String>) {
+              isDetail = key.value.startsWith('detail');
+            }
+            
+            final offset = isDetail ? const Offset(1, 0) : const Offset(-1, 0);
+            
+            return SlideTransition(
+              position: Tween<Offset>(
+                begin: offset,
+                end: Offset.zero,
+              ).animate(animation),
+              child: child,
+            );
+          },
+          child: content,
+        );
+      },
     );
   }
 
@@ -280,18 +324,7 @@ class _LaterListsScreenState extends State<LaterListsScreen> {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: ListTile(
-        onTap: () => _navigateToListDetail(list),
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.green.shade100,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(
-            Icons.list,
-            color: Colors.green.shade700,
-          ),
-        ),
+        onTap: () => context.read<LaterListProvider>().setCurrentListId(list.id),
         title: Text(
           list.listName,
           style: const TextStyle(

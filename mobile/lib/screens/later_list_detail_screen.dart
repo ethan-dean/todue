@@ -14,24 +14,6 @@ class LaterListDetailScreen extends StatefulWidget {
 }
 
 class _LaterListDetailScreenState extends State<LaterListDetailScreen> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<LaterListProvider>().setCurrentListId(widget.list.id);
-    });
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        context.read<LaterListProvider>().setCurrentListId(null);
-      }
-    });
-    super.dispose();
-  }
-
   Future<void> _showAddTodoDialog() async {
     final textController = TextEditingController();
     final provider = context.read<LaterListProvider>();
@@ -164,11 +146,7 @@ class _LaterListDetailScreenState extends State<LaterListDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.list.listName),
-        backgroundColor: Colors.green,
-        foregroundColor: Colors.white,
-      ),
+      // AppBar removed to allow MainNavigation AppBar to take precedence
       body: Consumer<LaterListProvider>(
         builder: (context, provider, child) {
           final todos = provider.getTodosForList(widget.list.id);
@@ -270,6 +248,7 @@ class _LaterListDetailScreenState extends State<LaterListDetailScreen> {
         },
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'fab_later_detail',
         onPressed: _showAddTodoDialog,
         backgroundColor: Colors.green,
         child: const Icon(Icons.add, color: Colors.white),
@@ -315,10 +294,6 @@ class _LaterListDetailScreenState extends State<LaterListDetailScreen> {
               decoration: todo.isCompleted ? TextDecoration.lineThrough : TextDecoration.none,
               color: todo.isCompleted ? Colors.grey : null,
             ),
-          ),
-          trailing: ReorderableDragStartListener(
-            index: 0, // Will be overridden by ReorderableListView
-            child: const Icon(Icons.drag_handle, color: Colors.grey),
           ),
         ),
       ),

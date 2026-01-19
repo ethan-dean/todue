@@ -186,6 +186,10 @@ class TodoProvider extends ChangeNotifier {
         });
         break;
 
+      case WebSocketMessageType.LATER_LIST_CHANGED:
+        // Handled by LaterListProvider
+        break;
+
       default:
         print('Unknown WebSocket message type: ${message.type}');
     }
