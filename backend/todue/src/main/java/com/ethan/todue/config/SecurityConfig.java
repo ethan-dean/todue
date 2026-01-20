@@ -23,7 +23,6 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 @Configuration
 @EnableWebSecurity
@@ -38,12 +37,14 @@ public class SecurityConfig {
     @Bean
     public WebSecurityCustomizer webSecurityCustomizer() {
         return (web) -> web.ignoring()
-            .requestMatchers(new AntPathRequestMatcher("/assets/**"))
-            .requestMatchers(new AntPathRequestMatcher("/vite.svg"))
-            .requestMatchers(new AntPathRequestMatcher("/index.html"))
-            .requestMatchers(new AntPathRequestMatcher("/favicon.png"))
-            .requestMatchers(new AntPathRequestMatcher("/manifest.json"))
-            .requestMatchers(new AntPathRequestMatcher("/"));
+            .requestMatchers(
+                "/assets/**",
+                "/vite.svg",
+                "/index.html",
+                "/favicon.png",
+                "/manifest.json",
+                "/"
+            );
     }
 
     @Bean
