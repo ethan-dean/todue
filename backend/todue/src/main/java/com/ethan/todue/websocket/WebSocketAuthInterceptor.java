@@ -3,10 +3,12 @@ package com.ethan.todue.websocket;
 import com.ethan.todue.model.User;
 import com.ethan.todue.repository.UserRepository;
 import com.ethan.todue.security.JwtUtil;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.http.server.ServletServerHttpRequest;
+import org.springframework.http.server.ServletServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.server.HandshakeInterceptor;
@@ -69,6 +71,9 @@ public class WebSocketAuthInterceptor implements HandshakeInterceptor {
         }
 
         // Reject connection if authentication failed
+        if (response instanceof ServletServerHttpResponse) {
+            ((ServletServerHttpResponse) response).getServletResponse().setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        }
         return false;
     }
 
