@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../models/later_list.dart';
 import '../models/later_list_todo.dart';
@@ -15,7 +14,7 @@ class LaterListProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
 
-  StreamSubscription? _websocketSubscription;
+  VoidCallback? _wsUnsubscribe;
 
   LaterListProvider({
     required LaterListApi laterListApi,
@@ -37,14 +36,18 @@ class LaterListProvider extends ChangeNotifier {
   }
 
   void _initWebSocketListener() {
-    _websocketSubscription = _websocketService.messageStream.listen((message) {
-      if (message.type == WebSocketMessageType.LATER_LIST_CHANGED) {
-        _handleWebSocketMessage(message.data);
-      }
-    });
+    // Subscribe only to later list message type
+    _wsUnsubscribe = _websocketService.subscribe(
+      [WebSocketMessageType.LATER_LIST_CHANGED],
+      _handleWebSocketMessage,
+    );
   }
 
-  void _handleWebSocketMessage(dynamic data) {
+  // Handle WebSocket messages - only receives LATER_LIST_CHANGED
+  void _handleWebSocketMessage(WebSocketMessage message) {
+    debugPrint('LaterListProvider WebSocket message: ${message.type}');
+
+    final data = message.data;
     if (data is! Map<String, dynamic>) return;
 
     final listId = data['listId'] as int?;
@@ -365,7 +368,7 @@ class LaterListProvider extends ChangeNotifier {
 
   @override
   void dispose() {
-    _websocketSubscription?.cancel();
+    _wsUnsubscribe?.call();
     super.dispose();
   }
 }

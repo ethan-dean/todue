@@ -18,7 +18,7 @@ class TodoProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   bool _isOnline = true;
-  StreamSubscription? _wsSubscription;
+  VoidCallback? _wsUnsubscribe;
   DateTime _lastMutationTime = DateTime.fromMillisecondsSinceEpoch(0);
 
   // Getters
@@ -48,15 +48,16 @@ class TodoProvider extends ChangeNotifier {
   }
 
   Future<void> _init() async {
-    // Set up WebSocket listener
-    _wsSubscription = _websocketService.messageStream.listen((message) {
-      _handleWebSocketMessage(message);
-    });
+    // Subscribe to todo-related WebSocket message types
+    _wsUnsubscribe = _websocketService.subscribe(
+      [WebSocketMessageType.TODOS_CHANGED, WebSocketMessageType.RECURRING_CHANGED],
+      _handleWebSocketMessage,
+    );
 
     // Check online status and load initial data
     await _checkOnlineStatus();
     await loadTodos(force: true);
-    
+
     // Background pre-fetch for offline availability (-7 to +14 days)
     _prefetchWindow();
   }
@@ -120,7 +121,7 @@ class TodoProvider extends ChangeNotifier {
 
   @override
   void dispose() {
-    _wsSubscription?.cancel();
+    _wsUnsubscribe?.call();
     super.dispose();
   }
 
@@ -148,50 +149,39 @@ class TodoProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Handle WebSocket messages
+  // Handle WebSocket messages - only receives TODOS_CHANGED and RECURRING_CHANGED
   void _handleWebSocketMessage(WebSocketMessage message) async {
+    print('TodoProvider WebSocket message: ${message.type}');
+
     // Delay to allow backend DB to settle
     await Future.delayed(const Duration(milliseconds: 300));
 
-    switch (message.type) {
-      case WebSocketMessageType.TODOS_CHANGED:
-        // Single date changed - refetch that specific date
-        if (message.data != null && message.data is Map) {
-          final dateStr = message.data['date'] as String?;
-          if (dateStr != null) {
-            try {
-              final date = DateTime.parse(dateStr);
-              // Only refetch if this date is currently loaded
-              if (_todos.containsKey(dateStr)) {
-                loadTodos(date: date, force: true);
-              }
-            } catch (e) {
-              print('Error parsing date from WebSocket message: $e');
-            }
-          }
-        }
-        break;
-
-      case WebSocketMessageType.RECURRING_CHANGED:
-        // Recurring pattern changed - refetch all loaded dates
-        // loadRecurringTodos(); // Removed
-        // Also refetch all currently loaded dates to update virtual todos
-        _todos.keys.toList().forEach((dateStr) {
+    if (message.type == WebSocketMessageType.TODOS_CHANGED) {
+      // Single date changed - refetch that specific date
+      if (message.data != null && message.data is Map) {
+        final dateStr = message.data['date'] as String?;
+        if (dateStr != null) {
           try {
             final date = DateTime.parse(dateStr);
-            loadTodos(date: date, force: true);
+            // Only refetch if this date is currently loaded
+            if (_todos.containsKey(dateStr)) {
+              loadTodos(date: date, force: true);
+            }
           } catch (e) {
-            print('Error reloading date $dateStr: $e');
+            print('Error parsing date from WebSocket message: $e');
           }
-        });
-        break;
-
-      case WebSocketMessageType.LATER_LIST_CHANGED:
-        // Handled by LaterListProvider
-        break;
-
-      default:
-        print('Unknown WebSocket message type: ${message.type}');
+        }
+      }
+    } else if (message.type == WebSocketMessageType.RECURRING_CHANGED) {
+      // Recurring pattern changed - refetch all loaded dates to update virtual todos
+      _todos.keys.toList().forEach((dateStr) {
+        try {
+          final date = DateTime.parse(dateStr);
+          loadTodos(date: date, force: true);
+        } catch (e) {
+          print('Error reloading date $dateStr: $e');
+        }
+      });
     }
   }
 

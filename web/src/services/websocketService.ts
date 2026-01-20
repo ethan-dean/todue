@@ -1,8 +1,16 @@
 import { Client, type StompSubscription } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
-import type { WebSocketMessage } from '../types';
+import type { WebSocketMessage, WebSocketMessageType } from '../types';
 
 const WS_URL = import.meta.env.VITE_WS_URL || 'http://localhost:8080/ws';
+
+type MessageHandler = (message: WebSocketMessage) => void;
+
+interface TypedSubscription {
+  id: string;
+  types: WebSocketMessageType[];
+  callback: MessageHandler;
+}
 
 class WebSocketService {
   private client: Client | null = null;
@@ -10,9 +18,10 @@ class WebSocketService {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectDelay = 3000;
-  private callbacks: Map<string, (message: WebSocketMessage) => void> = new Map();
+  private typedSubscriptions: Map<string, TypedSubscription> = new Map();
   private connectionListeners: Array<() => void> = [];
   private subscription: StompSubscription | null = null;
+  private subscriptionIdCounter = 0;
 
   /**
    * Connect to WebSocket with JWT token
@@ -95,42 +104,78 @@ class WebSocketService {
   }
 
   /**
-   * Subscribe to user's update channel
-   * Returns unsubscribe function
+   * Subscribe to specific message types
+   * @param types Array of message types to listen for
+   * @param callback Handler for matching messages
+   * @returns Unsubscribe function
    */
-  subscribe(callback: (message: WebSocketMessage) => void): () => void {
+  subscribe(types: WebSocketMessageType[], callback: MessageHandler): () => void {
     if (!this.client || !this.userId) {
       console.error('WebSocket not connected or userId not set');
       return () => {};
     }
 
-    // If already subscribed, unsubscribe first
-    if (this.subscription) {
-      console.log('Already subscribed, unsubscribing previous subscription');
-      this.subscription.unsubscribe();
+    // Generate unique subscription ID
+    const subscriptionId = `sub-${++this.subscriptionIdCounter}`;
+
+    // Store the typed subscription
+    this.typedSubscriptions.set(subscriptionId, {
+      id: subscriptionId,
+      types,
+      callback,
+    });
+
+    // Set up STOMP subscription if not already subscribed
+    if (!this.subscription) {
+      this.setupStompSubscription();
     }
+
+    // Return unsubscribe function for this specific handler
+    return () => {
+      this.typedSubscriptions.delete(subscriptionId);
+
+      // If no more subscriptions, unsubscribe from STOMP
+      if (this.typedSubscriptions.size === 0 && this.subscription) {
+        this.subscription.unsubscribe();
+        this.subscription = null;
+      }
+    };
+  }
+
+  /**
+   * Set up the STOMP subscription that routes messages to typed handlers
+   */
+  private setupStompSubscription(): void {
+    if (!this.client || !this.userId) return;
 
     const destination = `/user/${this.userId}/queue/updates`;
 
     this.subscription = this.client.subscribe(destination, (message) => {
       try {
         const wsMessage: WebSocketMessage = JSON.parse(message.body);
-        callback(wsMessage);
+        this.routeMessage(wsMessage);
       } catch (error) {
         console.error('Error parsing WebSocket message:', error);
       }
     });
+  }
 
-    // Store callback for potential resubscription
-    this.callbacks.set('updates', callback);
+  /**
+   * Route incoming message to appropriate handlers based on type
+   */
+  private routeMessage(message: WebSocketMessage): void {
+    let handled = false;
 
-    // Return unsubscribe function
-    return () => {
-      if (this.subscription) {
-        this.subscription.unsubscribe();
-        this.subscription = null;
+    this.typedSubscriptions.forEach((subscription) => {
+      if (subscription.types.includes(message.type)) {
+        subscription.callback(message);
+        handled = true;
       }
-    };
+    });
+
+    if (!handled) {
+      console.warn('WebSocket message received with no subscribers:', message.type);
+    }
   }
 
   /**
@@ -141,7 +186,7 @@ class WebSocketService {
       this.client.deactivate();
       this.client = null;
       this.userId = null;
-      this.callbacks.clear();
+      this.typedSubscriptions.clear();
       this.connectionListeners = [];
       this.subscription = null;
       console.log('WebSocket disconnected');

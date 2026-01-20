@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ui' show VoidCallback;
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/status.dart' as status;
 import '../config/environment.dart';
@@ -29,6 +30,20 @@ class WebSocketMessage {
   }
 }
 
+typedef MessageHandler = void Function(WebSocketMessage message);
+
+class _TypedSubscription {
+  final String id;
+  final List<WebSocketMessageType> types;
+  final MessageHandler callback;
+
+  _TypedSubscription({
+    required this.id,
+    required this.types,
+    required this.callback,
+  });
+}
+
 class WebSocketService {
   static final String wsUrl = Environment.wsUrl;
 
@@ -38,8 +53,8 @@ class WebSocketService {
   String? _token;
   int? _userId;
 
-  final _messageController = StreamController<WebSocketMessage>.broadcast();
-  Stream<WebSocketMessage> get messageStream => _messageController.stream;
+  final Map<String, _TypedSubscription> _typedSubscriptions = {};
+  int _subscriptionIdCounter = 0;
 
   bool _isConnected = false;
   bool get isConnected => _isConnected;
@@ -125,7 +140,7 @@ destination:/user/$userId/queue/updates
             final json = jsonDecode(body) as Map<String, dynamic>;
             final wsMessage = WebSocketMessage.fromJson(json);
 
-            _messageController.add(wsMessage);
+            _routeMessage(wsMessage);
           }
         }
       } else if (messageStr.startsWith('CONNECTED')) {
@@ -136,6 +151,42 @@ destination:/user/$userId/queue/updates
     } catch (e) {
       print('Error parsing WebSocket message: $e');
     }
+  }
+
+  /// Route incoming message to appropriate handlers based on type
+  void _routeMessage(WebSocketMessage message) {
+    bool handled = false;
+
+    for (final subscription in _typedSubscriptions.values) {
+      if (subscription.types.contains(message.type)) {
+        subscription.callback(message);
+        handled = true;
+      }
+    }
+
+    if (!handled) {
+      print('WebSocket message received with no subscribers: ${message.type}');
+    }
+  }
+
+  /// Subscribe to specific message types
+  /// Returns a function to unsubscribe
+  VoidCallback subscribe(
+    List<WebSocketMessageType> types,
+    MessageHandler callback,
+  ) {
+    final subscriptionId = 'sub-${++_subscriptionIdCounter}';
+
+    _typedSubscriptions[subscriptionId] = _TypedSubscription(
+      id: subscriptionId,
+      types: types,
+      callback: callback,
+    );
+
+    // Return unsubscribe function
+    return () {
+      _typedSubscriptions.remove(subscriptionId);
+    };
   }
 
   /// Handle WebSocket errors
@@ -180,6 +231,9 @@ destination:/user/$userId/queue/updates
     _token = null;
     _userId = null;
 
+    // Clear all typed subscriptions
+    _typedSubscriptions.clear();
+
     if (_channel != null) {
       try {
         // Send DISCONNECT frame
@@ -203,7 +257,6 @@ destination:/user/$userId/queue/updates
   /// Clean up resources
   void dispose() {
     disconnect();
-    _messageController.close();
   }
 }
 

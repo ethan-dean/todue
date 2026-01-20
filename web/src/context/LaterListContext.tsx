@@ -375,12 +375,10 @@ export const LaterListProvider: React.FC<LaterListProviderProps> = ({ children }
     setError(null);
   };
 
-  // WebSocket message handler
+  // WebSocket message handler - only receives LATER_LIST_CHANGED
   const handleWebSocketMessage = useCallback(
     (message: WebSocketMessage): void => {
-      if (message.type !== WebSocketMessageType.LATER_LIST_CHANGED) return;
-
-      console.log('WebSocket LATER_LIST_CHANGED:', message.data);
+      console.log('LaterListContext WebSocket message:', message.type, message.data);
 
       const { listId, action } = message.data as { listId?: number; action: string };
 
@@ -425,7 +423,11 @@ export const LaterListProvider: React.FC<LaterListProviderProps> = ({ children }
     let unsubscribe: (() => void) | null = null;
 
     websocketService.onConnectionEstablished(() => {
-      unsubscribe = websocketService.subscribe(handleWebSocketMessage);
+      // Subscribe only to later list message type
+      unsubscribe = websocketService.subscribe(
+        [WebSocketMessageType.LATER_LIST_CHANGED],
+        handleWebSocketMessage
+      );
     });
 
     return () => {

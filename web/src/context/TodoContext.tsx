@@ -762,60 +762,53 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     });
   };
 
-  // WebSocket message handler
+  // WebSocket message handler - only receives TODOS_CHANGED and RECURRING_CHANGED
   const handleWebSocketMessage = useCallback((message: WebSocketMessage): void => {
-    console.log('WebSocket message received:', message);
+    console.log('TodoContext WebSocket message:', message.type);
 
-    switch (message.type) {
-      case WebSocketMessageType.TODOS_CHANGED:
-        // Single date changed - refetch that specific date
-        if (message.data && typeof message.data === 'object') {
-          const { date } = message.data as { date: string };
+    if (message.type === WebSocketMessageType.TODOS_CHANGED) {
+      // Single date changed - refetch that specific date
+      if (message.data && typeof message.data === 'object') {
+        const { date } = message.data as { date: string };
 
-          if (date) {
-            // Small delay to allow database transaction to commit (prevents race condition)
-            setTimeout(() => {
-              // Always refetch - state comparison will prevent unnecessary updates
-              // Use refs to get current values instead of closure values
-              if (viewModeRef.current === 1) {
-                // Single day view - only refetch if it's the selected date
-                if (formatDateForAPI(selectedDateRef.current) === date) {
-                  // Silent refetch - comparison prevents flicker if data unchanged
-                  loadTodosForDate(parseDateString(date), true);
-                }
-              } else {
-                // Multi-day view - refetch if the date is in visible range
-                const dates = getDateRange(selectedDateRef.current, viewModeRef.current);
-                const isVisible = dates.some(d => formatDateForAPI(d) === date);
-                if (isVisible) {
-                  // Silent refetch - comparison prevents flicker if data unchanged
-                  loadTodosForDate(parseDateString(date), true);
-                }
+        if (date) {
+          // Small delay to allow database transaction to commit (prevents race condition)
+          setTimeout(() => {
+            // Always refetch - state comparison will prevent unnecessary updates
+            // Use refs to get current values instead of closure values
+            if (viewModeRef.current === 1) {
+              // Single day view - only refetch if it's the selected date
+              if (formatDateForAPI(selectedDateRef.current) === date) {
+                // Silent refetch - comparison prevents flicker if data unchanged
+                loadTodosForDate(parseDateString(date), true);
               }
-            }, 300); // 300ms delay to allow transaction commit
-          }
+            } else {
+              // Multi-day view - refetch if the date is in visible range
+              const dates = getDateRange(selectedDateRef.current, viewModeRef.current);
+              const isVisible = dates.some(d => formatDateForAPI(d) === date);
+              if (isVisible) {
+                // Silent refetch - comparison prevents flicker if data unchanged
+                loadTodosForDate(parseDateString(date), true);
+              }
+            }
+          }, 300); // 300ms delay to allow transaction commit
         }
-        break;
-
-      case WebSocketMessageType.RECURRING_CHANGED:
-        // Recurring pattern changed - refetch all currently visible dates
-        setTimeout(() => {
-          // Use refs to get current values instead of closure values
-          if (viewModeRef.current === 1) {
-            // Single day view
-            loadTodosForDate(selectedDateRef.current, true);
-          } else {
-            // Multi-day view
-            const dates = getDateRange(selectedDateRef.current, viewModeRef.current);
-            loadTodosForDateRange(dates[0], dates[dates.length - 1], true);
-          }
-        }, 300); // 300ms delay to allow transaction commit
-        break;
-
-      default:
-        console.warn('Unknown WebSocket message type:', message.type);
+      }
+    } else if (message.type === WebSocketMessageType.RECURRING_CHANGED) {
+      // Recurring pattern changed - refetch all currently visible dates
+      setTimeout(() => {
+        // Use refs to get current values instead of closure values
+        if (viewModeRef.current === 1) {
+          // Single day view
+          loadTodosForDate(selectedDateRef.current, true);
+        } else {
+          // Multi-day view
+          const dates = getDateRange(selectedDateRef.current, viewModeRef.current);
+          loadTodosForDateRange(dates[0], dates[dates.length - 1], true);
+        }
+      }, 300); // 300ms delay to allow transaction commit
     }
-  }, [parseDateString, loadTodosForDate, loadTodosForCurrentView]);
+  }, [parseDateString, loadTodosForDate, loadTodosForDateRange]);
 
   // Load todos when date or view mode changes
   useEffect(() => {
@@ -831,7 +824,11 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     let unsubscribe: (() => void) | null = null;
 
     websocketService.onConnectionEstablished(() => {
-      unsubscribe = websocketService.subscribe(handleWebSocketMessage);
+      // Subscribe only to todo-related message types
+      unsubscribe = websocketService.subscribe(
+        [WebSocketMessageType.TODOS_CHANGED, WebSocketMessageType.RECURRING_CHANGED],
+        handleWebSocketMessage
+      );
     });
 
     // Cleanup: unsubscribe when component unmounts or auth changes
@@ -840,8 +837,7 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
         unsubscribe();
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
+  }, [isAuthenticated, handleWebSocketMessage]);
 
   const value: TodoContextType = {
     todos,
