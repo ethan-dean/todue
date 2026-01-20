@@ -1,4 +1,4 @@
-import React, { useState, type KeyboardEvent } from 'react';
+import React, { useState } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -18,6 +18,7 @@ import { CSS } from '@dnd-kit/utilities';
 import type { LaterListTodo } from '../types';
 import { useLaterLists } from '../context/LaterListContext';
 import LaterListTodoItem from './LaterListTodoItem';
+import InlineAddLaterTodo from './InlineAddLaterTodo';
 
 interface SortableTodoItemProps {
   todo: LaterListTodo;
@@ -53,9 +54,7 @@ interface LaterListTodoListProps {
 }
 
 const LaterListTodoList: React.FC<LaterListTodoListProps> = ({ listId, todos }) => {
-  const { createTodo, updateTodoPosition } = useLaterLists();
-  const [newTodoText, setNewTodoText] = useState('');
-  const [isCreating, setIsCreating] = useState(false);
+  const { updateTodoPosition } = useLaterLists();
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const sensors = useSensors(
@@ -68,26 +67,6 @@ const LaterListTodoList: React.FC<LaterListTodoListProps> = ({ listId, todos }) 
 
   // Sort todos by position
   const sortedTodos = [...todos].sort((a, b) => a.position - b.position);
-
-  const handleCreateTodo = async () => {
-    if (newTodoText.trim() === '' || isCreating) return;
-
-    setIsCreating(true);
-    try {
-      await createTodo(listId, newTodoText.trim());
-      setNewTodoText('');
-    } catch (err) {
-      console.error('Failed to create todo:', err);
-    } finally {
-      setIsCreating(false);
-    }
-  };
-
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      handleCreateTodo();
-    }
-  };
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
@@ -114,62 +93,36 @@ const LaterListTodoList: React.FC<LaterListTodoListProps> = ({ listId, todos }) 
 
   return (
     <div className="later-list-todo-list">
-      {/* Add Todo Input */}
-      <div className="add-todo-input-container">
-        <div className="add-todo-input">
-          <input
-            type="text"
-            className="todo-input"
-            placeholder="Add a new item..."
-            value={newTodoText}
-            onChange={(e) => setNewTodoText(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={isCreating}
-          />
-          <button
-            className="btn-add"
-            onClick={handleCreateTodo}
-            disabled={isCreating || newTodoText.trim() === ''}
-          >
-            Add
-          </button>
-        </div>
-      </div>
-
-      {/* Todo List */}
-      {sortedTodos.length === 0 ? (
-        <div className="todo-list-empty">No items yet. Add one above!</div>
-      ) : (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={sortedTodos.map((t) => `todo-${t.id}`)}
+          strategy={verticalListSortingStrategy}
         >
-          <SortableContext
-            items={sortedTodos.map((t) => `todo-${t.id}`)}
-            strategy={verticalListSortingStrategy}
-          >
-            <div className="todo-list">
-              {sortedTodos.map((todo) => (
-                <SortableTodoItem key={todo.id} todo={todo} listId={listId} />
-              ))}
-            </div>
-          </SortableContext>
+          <div className="todo-list">
+            {sortedTodos.map((todo) => (
+              <SortableTodoItem key={todo.id} todo={todo} listId={listId} />
+            ))}
+            <InlineAddLaterTodo listId={listId} />
+          </div>
+        </SortableContext>
 
-          <DragOverlay>
-            {activeTodo ? (
-              <div className="todo-item drag-preview" style={{ cursor: 'grabbing' }}>
-                <div className="todo-checkbox">
-                  <input type="checkbox" checked={activeTodo.isCompleted} readOnly />
-                </div>
-                <div className="todo-text">{activeTodo.text}</div>
-                <div className="todo-actions"></div>
+        <DragOverlay>
+          {activeTodo ? (
+            <div className="todo-item drag-preview" style={{ cursor: 'grabbing' }}>
+              <div className="todo-checkbox">
+                <input type="checkbox" checked={activeTodo.isCompleted} readOnly />
               </div>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
-      )}
+              <div className="todo-text">{activeTodo.text}</div>
+              <div className="todo-actions"></div>
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
     </div>
   );
 };

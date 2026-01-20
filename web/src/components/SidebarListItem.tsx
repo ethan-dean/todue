@@ -3,12 +3,13 @@ import { Pencil, Trash2 } from 'lucide-react';
 import type { LaterList } from '../types';
 import { useLaterLists } from '../context/LaterListContext';
 
-interface LaterListItemProps {
+interface SidebarListItemProps {
   list: LaterList;
-  onClick: () => void;
+  isSelected: boolean;
+  onSelect: () => void;
 }
 
-const LaterListItem: React.FC<LaterListItemProps> = ({ list, onClick }) => {
+const SidebarListItem: React.FC<SidebarListItemProps> = ({ list, isSelected, onSelect }) => {
   const { updateListName, deleteList } = useLaterLists();
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(list.listName);
@@ -81,14 +82,14 @@ const LaterListItem: React.FC<LaterListItemProps> = ({ list, onClick }) => {
 
   return (
     <div
-      className={`later-list-item ${isLoading ? 'loading' : ''}`}
-      onClick={isEditing ? undefined : onClick}
+      className={`sidebar-list-item ${isSelected ? 'selected' : ''} ${isLoading ? 'loading' : ''}`}
+      onClick={isEditing ? undefined : onSelect}
     >
       {isEditing ? (
         <input
           ref={inputRef}
           type="text"
-          className="list-edit-input"
+          className="sidebar-list-edit-input"
           value={editName}
           onChange={(e) => setEditName(e.target.value)}
           onBlur={handleSaveEdit}
@@ -97,31 +98,31 @@ const LaterListItem: React.FC<LaterListItemProps> = ({ list, onClick }) => {
           disabled={isLoading}
         />
       ) : (
-        <div className="list-name">{list.listName}</div>
+        <span className="sidebar-list-name">{list.listName}</span>
       )}
 
-      <div className="list-actions">
+      <div className="sidebar-list-actions">
         {!isEditing && (
           <button
-            className="btn-edit"
+            className="btn-sidebar-action"
             onClick={handleEdit}
             disabled={isLoading}
             title="Rename"
           >
-            <Pencil size={16} />
+            <Pencil size={14} />
           </button>
         )}
         <button
-          className="btn-delete"
+          className="btn-sidebar-action btn-sidebar-delete"
           onClick={handleDelete}
           disabled={isLoading}
           title="Delete"
         >
-          <Trash2 size={16} />
+          <Trash2 size={14} />
         </button>
       </div>
     </div>
   );
 };
 
-export default LaterListItem;
+export default SidebarListItem;

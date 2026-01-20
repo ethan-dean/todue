@@ -12,7 +12,6 @@ import EmailVerificationPage from './pages/EmailVerificationPage';
 import TodosPage from './pages/TodosPage';
 import SettingsPage from './pages/SettingsPage';
 import LaterListsPage from './pages/LaterListsPage';
-import LaterListDetailPage from './pages/LaterListDetailPage';
 import './App.css';
 
 function App() {
@@ -51,7 +50,7 @@ function App() {
                   path="/later/:listId"
                   element={
                     <ProtectedRoute>
-                      <LaterListDetailPage />
+                      <LaterListsPage />
                     </ProtectedRoute>
                   }
                 />
