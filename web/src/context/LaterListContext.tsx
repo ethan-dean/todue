@@ -51,12 +51,21 @@ export const LaterListProvider: React.FC<LaterListProviderProps> = ({ children }
   }, [currentListId]);
 
   const loadLists = useCallback(async (silent: boolean = false): Promise<void> => {
+    const fetchStartTime = Date.now();
+
     if (!silent) {
       setIsLoading(true);
     }
     setError(null);
     try {
       const fetchedLists = await laterListApi.getAllLists();
+
+      // Check if a mutation happened after this fetch started
+      if (fetchStartTime < lastMutationTimeRef.current) {
+        console.log('Ignoring stale fetch for lists');
+        return;
+      }
+
       setLists(fetchedLists);
     } catch (err) {
       const errorMessage = handleApiError(err);

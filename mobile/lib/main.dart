@@ -40,6 +40,7 @@ class TodoApp extends StatelessWidget {
           create: (_) => LaterListProvider(
             laterListApi: LaterListApi.instance,
             websocketService: WebSocketService.instance,
+            databaseService: DatabaseService.instance,
           ),
         ),
       ],

@@ -1,12 +1,15 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import '../models/later_list.dart';
 import '../models/later_list_todo.dart';
 import '../services/later_list_api.dart';
+import '../services/database_service.dart';
 import '../services/websocket_service.dart';
 
 class LaterListProvider extends ChangeNotifier {
   final LaterListApi _laterListApi;
   final WebSocketService _websocketService;
+  final DatabaseService _databaseService;
 
   List<LaterList> _lists = [];
   final Map<int, List<LaterListTodo>> _todos = {};
@@ -14,13 +17,19 @@ class LaterListProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
 
+  // Mutation tracking to prevent stale API responses from overwriting optimistic updates
+  DateTime _lastMutationTime = DateTime.fromMillisecondsSinceEpoch(0);
+  bool _isOnline = true;
+
   VoidCallback? _wsUnsubscribe;
 
   LaterListProvider({
     required LaterListApi laterListApi,
     required WebSocketService websocketService,
+    required DatabaseService databaseService,
   })  : _laterListApi = laterListApi,
-        _websocketService = websocketService {
+        _websocketService = websocketService,
+        _databaseService = databaseService {
     _initWebSocketListener();
   }
 
@@ -29,6 +38,13 @@ class LaterListProvider extends ChangeNotifier {
   int? get currentListId => _currentListId;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  bool get isOnline => _isOnline;
+
+  /// Check connectivity status
+  Future<void> _checkOnlineStatus() async {
+    final result = await Connectivity().checkConnectivity();
+    _isOnline = !result.contains(ConnectivityResult.none);
+  }
 
   List<LaterListTodo> getTodosForList(int listId) {
     final todos = _todos[listId] ?? [];
@@ -72,6 +88,8 @@ class LaterListProvider extends ChangeNotifier {
   // ==================== List Operations ====================
 
   Future<void> loadLists({bool silent = false}) async {
+    final fetchStartTime = DateTime.now();
+
     if (!silent) {
       _isLoading = true;
       notifyListeners();
@@ -79,8 +97,29 @@ class LaterListProvider extends ChangeNotifier {
     _error = null;
 
     try {
-      _lists = await _laterListApi.getAllLists();
+      // 1. Load from cache immediately (skip if recent mutation to preserve optimistic updates)
+      if (DateTime.now().difference(_lastMutationTime) > const Duration(seconds: 2)) {
+        final cachedLists = await _databaseService.getLaterLists();
+        if (cachedLists.isNotEmpty) {
+          _lists = cachedLists;
+          notifyListeners();
+        }
+      }
+
+      // 2. Fetch from API
+      final fetchedLists = await _laterListApi.getAllLists();
+
+      // 3. Guard: discard if mutation occurred during fetch
+      if (_lastMutationTime.isAfter(fetchStartTime)) {
+        debugPrint('Discarding stale fetch for lists');
+        return;
+      }
+
+      _lists = fetchedLists;
       notifyListeners();
+
+      // 4. Save to cache
+      await _databaseService.saveLaterLists(fetchedLists);
     } catch (e) {
       _error = e.toString();
       debugPrint('Failed to load lists: $e');
@@ -94,11 +133,22 @@ class LaterListProvider extends ChangeNotifier {
   }
 
   Future<LaterList?> createList(String listName) async {
+    _lastMutationTime = DateTime.now();
+    await _checkOnlineStatus();
+    if (!_isOnline) {
+      _error = 'Cannot create list while offline';
+      notifyListeners();
+      return null;
+    }
+
     _error = null;
     try {
       final newList = await _laterListApi.createList(listName: listName);
       _lists = [..._lists, newList]..sort((a, b) => a.listName.compareTo(b.listName));
       notifyListeners();
+
+      // Save to cache
+      await _databaseService.saveLaterList(newList);
       return newList;
     } catch (e) {
       _error = e.toString();
@@ -109,6 +159,14 @@ class LaterListProvider extends ChangeNotifier {
   }
 
   Future<bool> updateListName(int listId, String newName) async {
+    _lastMutationTime = DateTime.now();
+    await _checkOnlineStatus();
+    if (!_isOnline) {
+      _error = 'Cannot update list while offline';
+      notifyListeners();
+      return false;
+    }
+
     // Optimistic update
     final oldLists = List<LaterList>.from(_lists);
     _lists = _lists.map((l) => l.id == listId ? l.copyWith(listName: newName) : l).toList()
@@ -117,6 +175,9 @@ class LaterListProvider extends ChangeNotifier {
 
     try {
       await _laterListApi.updateListName(listId: listId, listName: newName);
+
+      // Save to cache
+      await _databaseService.saveLaterLists(_lists);
       return true;
     } catch (e) {
       // Rollback
@@ -129,6 +190,14 @@ class LaterListProvider extends ChangeNotifier {
   }
 
   Future<bool> deleteList(int listId) async {
+    _lastMutationTime = DateTime.now();
+    await _checkOnlineStatus();
+    if (!_isOnline) {
+      _error = 'Cannot delete list while offline';
+      notifyListeners();
+      return false;
+    }
+
     // Optimistic update
     final oldLists = List<LaterList>.from(_lists);
     _lists = _lists.where((l) => l.id != listId).toList();
@@ -140,6 +209,10 @@ class LaterListProvider extends ChangeNotifier {
       if (_currentListId == listId) {
         _currentListId = null;
       }
+
+      // Delete from cache
+      await _databaseService.deleteLaterList(listId);
+      await _databaseService.clearLaterListTodos(listId);
       return true;
     } catch (e) {
       // Rollback
@@ -162,6 +235,8 @@ class LaterListProvider extends ChangeNotifier {
   }
 
   Future<void> loadTodosForList(int listId, {bool silent = false}) async {
+    final fetchStartTime = DateTime.now();
+
     if (!silent) {
       _isLoading = true;
       notifyListeners();
@@ -169,9 +244,29 @@ class LaterListProvider extends ChangeNotifier {
     _error = null;
 
     try {
+      // 1. Load from cache (skip if recent mutation to preserve optimistic updates)
+      if (DateTime.now().difference(_lastMutationTime) > const Duration(seconds: 2)) {
+        final cachedTodos = await _databaseService.getLaterListTodos(listId);
+        if (cachedTodos.isNotEmpty) {
+          _todos[listId] = cachedTodos;
+          notifyListeners();
+        }
+      }
+
+      // 2. Fetch from API
       final todos = await _laterListApi.getTodosForList(listId: listId);
+
+      // 3. Guard: discard if mutation occurred during fetch
+      if (_lastMutationTime.isAfter(fetchStartTime)) {
+        debugPrint('Discarding stale fetch for list $listId');
+        return;
+      }
+
       _todos[listId] = todos;
       notifyListeners();
+
+      // 4. Save to cache
+      await _databaseService.saveLaterListTodos(todos, listId);
     } catch (e) {
       _error = e.toString();
       debugPrint('Failed to load todos for list: $e');
@@ -185,12 +280,23 @@ class LaterListProvider extends ChangeNotifier {
   }
 
   Future<bool> createTodo(int listId, String text) async {
+    _lastMutationTime = DateTime.now();
+    await _checkOnlineStatus();
+    if (!_isOnline) {
+      _error = 'Cannot create todo while offline';
+      notifyListeners();
+      return false;
+    }
+
     _error = null;
     try {
       final newTodo = await _laterListApi.createTodo(listId: listId, text: text);
       final currentTodos = List<LaterListTodo>.from(_todos[listId] ?? []);
       _todos[listId] = [...currentTodos, newTodo];
       notifyListeners();
+
+      // Save to cache
+      await _databaseService.saveLaterListTodo(newTodo, listId);
       return true;
     } catch (e) {
       _error = e.toString();
@@ -201,6 +307,14 @@ class LaterListProvider extends ChangeNotifier {
   }
 
   Future<bool> updateTodoText(int listId, int todoId, String text) async {
+    _lastMutationTime = DateTime.now();
+    await _checkOnlineStatus();
+    if (!_isOnline) {
+      _error = 'Cannot update todo while offline';
+      notifyListeners();
+      return false;
+    }
+
     // Optimistic update
     final currentTodos = List<LaterListTodo>.from(_todos[listId] ?? []);
     _todos[listId] = currentTodos.map((t) => t.id == todoId ? t.copyWith(text: text) : t).toList();
@@ -208,6 +322,9 @@ class LaterListProvider extends ChangeNotifier {
 
     try {
       await _laterListApi.updateTodoText(listId: listId, todoId: todoId, text: text);
+
+      // Save to cache
+      await _databaseService.saveLaterListTodos(_todos[listId]!, listId);
       return true;
     } catch (e) {
       // Rollback
@@ -220,6 +337,14 @@ class LaterListProvider extends ChangeNotifier {
   }
 
   Future<bool> updateTodoPosition(int listId, int todoId, int newPosition) async {
+    _lastMutationTime = DateTime.now();
+    await _checkOnlineStatus();
+    if (!_isOnline) {
+      _error = 'Cannot update todo position while offline';
+      notifyListeners();
+      return false;
+    }
+
     // Optimistic update
     final currentTodos = List<LaterListTodo>.from(_todos[listId] ?? []);
     final sortedList = List<LaterListTodo>.from(currentTodos)..sort((a, b) => a.position.compareTo(b.position));
@@ -240,6 +365,9 @@ class LaterListProvider extends ChangeNotifier {
 
     try {
       await _laterListApi.updateTodoPosition(listId: listId, todoId: todoId, position: newPosition);
+
+      // Save to cache
+      await _databaseService.saveLaterListTodos(_todos[listId]!, listId);
       return true;
     } catch (e) {
       // Rollback
@@ -252,6 +380,14 @@ class LaterListProvider extends ChangeNotifier {
   }
 
   Future<bool> completeTodo(int listId, int todoId) async {
+    _lastMutationTime = DateTime.now();
+    await _checkOnlineStatus();
+    if (!_isOnline) {
+      _error = 'Cannot complete todo while offline';
+      notifyListeners();
+      return false;
+    }
+
     // Optimistic update
     final currentTodos = List<LaterListTodo>.from(_todos[listId] ?? []);
     final sortedList = List<LaterListTodo>.from(currentTodos)..sort((a, b) => a.position.compareTo(b.position));
@@ -286,6 +422,9 @@ class LaterListProvider extends ChangeNotifier {
 
     try {
       await _laterListApi.completeTodo(listId: listId, todoId: todoId);
+
+      // Save to cache
+      await _databaseService.saveLaterListTodos(_todos[listId]!, listId);
       return true;
     } catch (e) {
       // Rollback
@@ -298,6 +437,14 @@ class LaterListProvider extends ChangeNotifier {
   }
 
   Future<bool> uncompleteTodo(int listId, int todoId) async {
+    _lastMutationTime = DateTime.now();
+    await _checkOnlineStatus();
+    if (!_isOnline) {
+      _error = 'Cannot uncomplete todo while offline';
+      notifyListeners();
+      return false;
+    }
+
     // Optimistic update
     final currentTodos = List<LaterListTodo>.from(_todos[listId] ?? []);
     final sortedList = List<LaterListTodo>.from(currentTodos)..sort((a, b) => a.position.compareTo(b.position));
@@ -331,6 +478,9 @@ class LaterListProvider extends ChangeNotifier {
 
     try {
       await _laterListApi.uncompleteTodo(listId: listId, todoId: todoId);
+
+      // Save to cache
+      await _databaseService.saveLaterListTodos(_todos[listId]!, listId);
       return true;
     } catch (e) {
       // Rollback
@@ -343,6 +493,14 @@ class LaterListProvider extends ChangeNotifier {
   }
 
   Future<bool> deleteTodo(int listId, int todoId) async {
+    _lastMutationTime = DateTime.now();
+    await _checkOnlineStatus();
+    if (!_isOnline) {
+      _error = 'Cannot delete todo while offline';
+      notifyListeners();
+      return false;
+    }
+
     // Optimistic update
     final currentTodos = List<LaterListTodo>.from(_todos[listId] ?? []);
     _todos[listId] = currentTodos.where((t) => t.id != todoId).toList();
@@ -350,6 +508,9 @@ class LaterListProvider extends ChangeNotifier {
 
     try {
       await _laterListApi.deleteTodo(listId: listId, todoId: todoId);
+
+      // Delete from cache
+      await _databaseService.deleteLaterListTodo(todoId);
       return true;
     } catch (e) {
       // Rollback

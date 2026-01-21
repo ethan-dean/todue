@@ -217,6 +217,14 @@ public class TodoService {
 
     public List<TodoResponse> getTodosForDateRange(LocalDate startDate, LocalDate endDate) {
         User user = userService.getCurrentUser();
+        LocalDate currentDate = userService.getCurrentDateForUser();
+
+        // Check if rollover is needed (if current date is in requested range)
+        if (!currentDate.isBefore(startDate) && !currentDate.isAfter(endDate)) {
+            if (rolloverService.shouldTriggerRollover(user.getId(), currentDate, currentDate)) {
+                rolloverService.performRollover(user.getId(), currentDate);
+            }
+        }
 
         // Get real todos (already sorted by repository)
         List<Todo> realTodos = todoRepository.findByUserIdAndAssignedDateBetween(user.getId(), startDate, endDate);
@@ -225,7 +233,6 @@ public class TodoService {
                 .collect(Collectors.toList());
 
         // Generate virtual todos for each date in range
-        LocalDate currentDate = userService.getCurrentDateForUser();
         LocalDate date = startDate;
         while (!date.isAfter(endDate)) {
             if (!date.isBefore(currentDate)) {
