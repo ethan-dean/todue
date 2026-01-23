@@ -63,8 +63,14 @@ class RoutineProvider extends ChangeNotifier {
 
     final routineId = data['routineId'] as int?;
     final action = data['action'] as String?;
+    final messageTime = DateTime.now();
 
     Future.delayed(const Duration(milliseconds: 300), () {
+      // Skip if we recently made a mutation (this is our own change echoing back)
+      if (messageTime.isBefore(_lastMutationTime.add(const Duration(milliseconds: 500)))) {
+        return;
+      }
+
       switch (action) {
         case 'ROUTINE_CREATED':
         case 'ROUTINE_UPDATED':
@@ -353,8 +359,12 @@ class RoutineProvider extends ChangeNotifier {
   // ==================== Prompts ====================
 
   Future<void> loadPendingPrompts() async {
+    final fetchStartTime = DateTime.now();
     try {
-      _pendingPrompts = await _routineApi.getPendingPrompts();
+      final prompts = await _routineApi.getPendingPrompts();
+      // Skip if a mutation happened after this fetch started
+      if (fetchStartTime.isBefore(_lastMutationTime)) return;
+      _pendingPrompts = prompts;
       notifyListeners();
     } catch (e) {
       debugPrint('Failed to load pending prompts: $e');
@@ -367,6 +377,23 @@ class RoutineProvider extends ChangeNotifier {
     try {
       await _routineApi.dismissPrompt(routineId: routineId);
       _pendingPrompts = _pendingPrompts.where((p) => p.routineId != routineId).toList();
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> quickCompleteRoutine(int routineId, {List<int>? completedStepIds}) async {
+    _lastMutationTime = DateTime.now();
+    _error = null;
+
+    try {
+      await _routineApi.quickCompleteRoutine(routineId: routineId, completedStepIds: completedStepIds);
+      _pendingPrompts = _pendingPrompts.where((p) => p.routineId != routineId).toList();
+      _activeExecutions.remove(routineId);
       notifyListeners();
       return true;
     } catch (e) {
@@ -396,8 +423,11 @@ class RoutineProvider extends ChangeNotifier {
   }
 
   Future<void> loadActiveExecution(int routineId) async {
+    final fetchStartTime = DateTime.now();
     try {
       final execution = await _routineApi.getActiveExecution(routineId: routineId);
+      // Skip if a mutation happened after this fetch started
+      if (fetchStartTime.isBefore(_lastMutationTime)) return;
       if (execution != null) {
         _activeExecutions[routineId] = execution;
       } else {

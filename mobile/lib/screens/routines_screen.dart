@@ -13,6 +13,8 @@ class RoutinesScreen extends StatefulWidget {
 }
 
 class _RoutinesScreenState extends State<RoutinesScreen> {
+  bool _isStarting = false;
+
   @override
   void initState() {
     super.initState();
@@ -54,17 +56,9 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
       final provider = context.read<RoutineProvider>();
       final routine = await provider.createRoutine(result.trim());
       if (routine != null && mounted) {
-        _navigateToDetail(routine);
+        provider.setCurrentRoutineId(routine.id);
       }
     }
-  }
-
-  void _navigateToDetail(Routine routine) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => RoutineDetailScreen(routineId: routine.id),
-      ),
-    );
   }
 
   void _navigateToExecution(int routineId) {
@@ -76,10 +70,16 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
   }
 
   Future<void> _startRoutine(int routineId) async {
-    final provider = context.read<RoutineProvider>();
-    final completion = await provider.startRoutine(routineId);
-    if (completion != null && mounted) {
-      _navigateToExecution(routineId);
+    if (_isStarting) return;
+    setState(() => _isStarting = true);
+    try {
+      final provider = context.read<RoutineProvider>();
+      final completion = await provider.startRoutine(routineId);
+      if (completion != null && mounted) {
+        _navigateToExecution(routineId);
+      }
+    } finally {
+      if (mounted) setState(() => _isStarting = false);
     }
   }
 
@@ -112,6 +112,32 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
   Widget build(BuildContext context) {
     return Consumer<RoutineProvider>(
       builder: (context, provider, _) {
+        // If a routine is selected, show the detail view inline
+        if (provider.currentRoutineId != null) {
+          final selectedRoutine = provider.routines
+              .where((r) => r.id == provider.currentRoutineId)
+              .firstOrNull;
+
+          if (selectedRoutine != null) {
+            return PopScope(
+              key: ValueKey('detail_${selectedRoutine.id}'),
+              canPop: false,
+              onPopInvokedWithResult: (didPop, _) {
+                if (didPop) return;
+                provider.setCurrentRoutineId(null);
+              },
+              child: RoutineDetailScreen(routineId: selectedRoutine.id),
+            );
+          } else {
+            // Routine might have been deleted
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              provider.setCurrentRoutineId(null);
+            });
+            return const SizedBox.shrink();
+          }
+        }
+
+        // Show the list of routines
         if (provider.isLoading && provider.routines.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -224,7 +250,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
                           const Icon(Icons.chevron_right),
                         ],
                       ),
-                      onTap: () => _navigateToDetail(routine),
+                      onTap: () => provider.setCurrentRoutineId(routine.id),
                     ),
                   );
                 },

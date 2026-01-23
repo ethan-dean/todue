@@ -127,7 +127,7 @@ class _RoutineAnalyticsScreenState extends State<RoutineAnalyticsScreen> {
             Expanded(
               child: _buildStatCard(
                 'Completion Rate',
-                '${(analytics.completionRate * 100).round()}%',
+                '${analytics.completionRate.round()}%',
                 Icons.pie_chart,
                 Colors.green,
               ),

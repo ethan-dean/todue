@@ -52,6 +52,7 @@ const RoutinesPage: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
 
   // Detail editing state
   const [isEditingName, setIsEditingName] = useState(false);
@@ -205,9 +206,14 @@ const RoutinesPage: React.FC = () => {
   };
 
   const handleStartRoutine = async () => {
-    if (selectedRoutineId) {
-      await startRoutine(selectedRoutineId);
-      navigate(`/routines/${selectedRoutineId}/execute`);
+    if (selectedRoutineId && !isStarting) {
+      setIsStarting(true);
+      try {
+        await startRoutine(selectedRoutineId);
+        navigate(`/routines/${selectedRoutineId}/execute`);
+      } finally {
+        setIsStarting(false);
+      }
     }
   };
 
@@ -454,7 +460,7 @@ const RoutinesPage: React.FC = () => {
                     <button
                       className="btn-primary"
                       onClick={handleStartRoutine}
-                      disabled={sortedSteps.length === 0}
+                      disabled={sortedSteps.length === 0 || isStarting}
                     >
                       <Play size={18} />
                       Start

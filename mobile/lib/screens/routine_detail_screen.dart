@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../providers/routine_provider.dart';
 import '../models/routine.dart';
 import 'routine_execution_screen.dart';
-import 'routine_analytics_screen.dart';
 
 class RoutineDetailScreen extends StatefulWidget {
   final int routineId;
@@ -22,40 +21,6 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<RoutineProvider>().loadRoutineDetail(widget.routineId);
     });
-  }
-
-  Future<void> _editName(RoutineDetail detail) async {
-    final controller = TextEditingController(text: detail.name);
-    final result = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Name'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(
-            hintText: 'Routine name',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(controller.text),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-
-    if (result != null && result.trim().isNotEmpty && mounted) {
-      await context
-          .read<RoutineProvider>()
-          .updateRoutineName(widget.routineId, result.trim());
-    }
   }
 
   Future<void> _addStep() async {
@@ -208,170 +173,140 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
             provider.getActiveExecution(widget.routineId) != null;
 
         if (detail == null) {
-          return Scaffold(
-            appBar: AppBar(
-              title: const Text('Loading...'),
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-            ),
-            body: const Center(child: CircularProgressIndicator()),
-          );
+          return const Center(child: CircularProgressIndicator());
         }
 
         final sortedSteps = List<RoutineStep>.from(detail.steps)
           ..sort((a, b) => a.position.compareTo(b.position));
 
-        return Scaffold(
-          appBar: AppBar(
-            title: GestureDetector(
-              onTap: () => _editName(detail),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Flexible(child: Text(detail.name, overflow: TextOverflow.ellipsis)),
-                  const SizedBox(width: 4),
-                  const Icon(Icons.edit, size: 16),
-                ],
-              ),
-            ),
-            backgroundColor: Colors.green,
-            foregroundColor: Colors.white,
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.bar_chart),
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          RoutineAnalyticsScreen(routineId: widget.routineId),
-                    ),
-                  );
-                },
-                tooltip: 'Analytics',
-              ),
-            ],
-          ),
-          body: Column(
-            children: [
-              // Schedule section
-              Card(
-                margin: const EdgeInsets.all(16),
-                child: ListTile(
-                  leading: const Icon(Icons.schedule, color: Colors.green),
-                  title: const Text('Schedule'),
-                  subtitle: Text(_getScheduleSummary(detail.schedules)),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _editSchedule(detail),
+        return Stack(
+          children: [
+            Column(
+              children: [
+                // Schedule section
+                Card(
+                  margin: const EdgeInsets.all(16),
+                  child: ListTile(
+                    leading: const Icon(Icons.schedule, color: Colors.green),
+                    title: const Text('Schedule'),
+                    subtitle: Text(_getScheduleSummary(detail.schedules)),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => _editSchedule(detail),
+                  ),
                 ),
-              ),
 
-              // Steps header
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Steps (${sortedSteps.length})',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    TextButton.icon(
-                      onPressed: _addStep,
-                      icon: const Icon(Icons.add),
-                      label: const Text('Add'),
-                    ),
-                  ],
+                // Steps header
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Steps (${sortedSteps.length})',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      TextButton.icon(
+                        onPressed: _addStep,
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add'),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
 
-              // Steps list
-              Expanded(
-                child: sortedSteps.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.list, size: 48, color: Colors.grey[400]),
-                            const SizedBox(height: 8),
-                            Text(
-                              'No steps yet',
-                              style: TextStyle(color: Colors.grey[600]),
-                            ),
-                          ],
-                        ),
-                      )
-                    : ReorderableListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: sortedSteps.length,
-                        onReorder: (oldIndex, newIndex) {
-                          if (newIndex > oldIndex) newIndex--;
-                          final step = sortedSteps[oldIndex];
-                          provider.updateStepPosition(
-                            widget.routineId,
-                            step.id,
-                            newIndex,
-                          );
-                        },
-                        itemBuilder: (context, index) {
-                          final step = sortedSteps[index];
-                          return Card(
-                            key: ValueKey(step.id),
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: Colors.green[100],
-                                child: Text(
-                                  '${index + 1}',
-                                  style: TextStyle(color: Colors.green[800]),
+                // Steps list
+                Expanded(
+                  child: sortedSteps.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.list, size: 48, color: Colors.grey[400]),
+                              const SizedBox(height: 8),
+                              Text(
+                                'No steps yet',
+                                style: TextStyle(color: Colors.grey[600]),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ReorderableListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: sortedSteps.length,
+                          onReorder: (oldIndex, newIndex) {
+                            if (newIndex > oldIndex) newIndex--;
+                            final step = sortedSteps[oldIndex];
+                            provider.updateStepPosition(
+                              widget.routineId,
+                              step.id,
+                              newIndex,
+                            );
+                          },
+                          itemBuilder: (context, index) {
+                            final step = sortedSteps[index];
+                            return Card(
+                              key: ValueKey(step.id),
+                              child: ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: Colors.green[100],
+                                  child: Text(
+                                    '${index + 1}',
+                                    style: TextStyle(color: Colors.green[800]),
+                                  ),
+                                ),
+                                title: Text(step.text),
+                                subtitle:
+                                    step.notes != null ? Text(step.notes!) : null,
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.edit_outlined),
+                                      onPressed: () => _editStep(step),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete_outline),
+                                      onPressed: () => _deleteStep(step),
+                                    ),
+                                    const Icon(Icons.drag_handle),
+                                  ],
                                 ),
                               ),
-                              title: Text(step.text),
-                              subtitle:
-                                  step.notes != null ? Text(step.notes!) : null,
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.edit_outlined),
-                                    onPressed: () => _editStep(step),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete_outline),
-                                    onPressed: () => _deleteStep(step),
-                                  ),
-                                  const Icon(Icons.drag_handle),
-                                ],
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+            Positioned(
+              bottom: 16,
+              right: 16,
+              child: FloatingActionButton.extended(
+                onPressed: sortedSteps.isEmpty
+                    ? null
+                    : hasActiveExecution
+                        ? () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => RoutineExecutionScreen(
+                                    routineId: widget.routineId),
                               ),
-                            ),
-                          );
-                        },
-                      ),
+                            );
+                          }
+                        : _startRoutine,
+                backgroundColor:
+                    sortedSteps.isEmpty ? Colors.grey : Colors.green,
+                icon: Icon(
+                  hasActiveExecution ? Icons.play_arrow : Icons.play_circle_outline,
+                  color: Colors.white,
+                ),
+                label: Text(
+                  hasActiveExecution ? 'Continue' : 'Start',
+                  style: const TextStyle(color: Colors.white),
+                ),
               ),
-            ],
-          ),
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: sortedSteps.isEmpty
-                ? null
-                : hasActiveExecution
-                    ? () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => RoutineExecutionScreen(
-                                routineId: widget.routineId),
-                          ),
-                        );
-                      }
-                    : _startRoutine,
-            backgroundColor:
-                sortedSteps.isEmpty ? Colors.grey : Colors.green,
-            icon: Icon(
-              hasActiveExecution ? Icons.play_arrow : Icons.play_circle_outline,
-              color: Colors.white,
             ),
-            label: Text(
-              hasActiveExecution ? 'Continue' : 'Start',
-              style: const TextStyle(color: Colors.white),
-            ),
-          ),
+          ],
         );
       },
     );

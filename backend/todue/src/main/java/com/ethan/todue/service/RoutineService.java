@@ -509,9 +509,23 @@ public class RoutineService {
         long totalAbandoned = routineCompletionRepository.countByRoutineIdAndStatusAndDateRange(
                 routineId, RoutineCompletionStatus.ABANDONED, startDate, endDate);
 
-        // Calculate completion rate
-        long totalDays = java.time.temporal.ChronoUnit.DAYS.between(startDate, endDate) + 1;
-        double completionRate = totalDays > 0 ? (totalCompletions * 100.0 / totalDays) : 0;
+        // Calculate completion rate based on scheduled days in range
+        List<RoutineSchedule> schedules = routineScheduleRepository.findByRoutineIdOrderByDayOfWeek(routineId);
+        long scheduledDays;
+        if (schedules.isEmpty()) {
+            scheduledDays = java.time.temporal.ChronoUnit.DAYS.between(startDate, endDate) + 1;
+        } else {
+            Set<DayOfWeek> scheduledDaysOfWeek = schedules.stream()
+                    .map(s -> DayOfWeek.of(s.getDayOfWeek() == 0 ? 7 : s.getDayOfWeek()))
+                    .collect(Collectors.toSet());
+            scheduledDays = 0;
+            for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
+                if (scheduledDaysOfWeek.contains(date.getDayOfWeek())) {
+                    scheduledDays++;
+                }
+            }
+        }
+        double completionRate = scheduledDays > 0 ? (totalCompletions * 100.0 / scheduledDays) : 0;
 
         // Calculate streaks
         int currentStreak = calculateCurrentStreak(routineId);

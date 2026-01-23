@@ -132,6 +132,12 @@ class RoutineApi {
     await _apiService.post('/routines/prompts/$routineId/dismiss');
   }
 
+  Future<RoutineCompletion> quickCompleteRoutine({required int routineId, List<int>? completedStepIds}) async {
+    final Map<String, dynamic>? data = completedStepIds != null ? {'completedStepIds': completedStepIds} : null;
+    final response = await _apiService.post('/routines/$routineId/quick-complete', data: data);
+    return RoutineCompletion.fromJson(response.data as Map<String, dynamic>);
+  }
+
   // ==================== Execution ====================
 
   Future<RoutineCompletion> startRoutine({required int routineId}) async {
