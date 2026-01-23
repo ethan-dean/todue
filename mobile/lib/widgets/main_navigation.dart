@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../screens/todo_screen.dart';
 import '../screens/later_lists_screen.dart';
+import '../screens/routines_screen.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/later_list_provider.dart';
 import '../providers/todo_provider.dart';
+import '../providers/routine_provider.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({Key? key}) : super(key: key);
@@ -24,8 +26,11 @@ class _MainNavigationState extends State<MainNavigation> {
     } else if (index == 0 && _selectedIndex == 0) {
       // User tapped "Now" while on "Now" - go back to today
       context.read<TodoProvider>().selectDate(DateTime.now());
+    } else if (index == 2 && _selectedIndex == 2) {
+      // User tapped "Routines" while on "Routines" - go back to list view
+      context.read<RoutineProvider>().setCurrentRoutineId(null);
     }
-    
+
     setState(() {
       _selectedIndex = index;
     });
@@ -41,12 +46,12 @@ class _MainNavigationState extends State<MainNavigation> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<LaterListProvider>(
-      builder: (context, laterListProvider, _) {
+    return Consumer2<LaterListProvider, RoutineProvider>(
+      builder: (context, laterListProvider, routineProvider, _) {
         String title;
         if (_selectedIndex == 0) {
           title = 'Now';
-        } else {
+        } else if (_selectedIndex == 1) {
           // Check if we are viewing a specific list
           if (laterListProvider.currentListId != null) {
             final list = laterListProvider.lists
@@ -55,6 +60,16 @@ class _MainNavigationState extends State<MainNavigation> {
             title = list?.listName ?? 'Later';
           } else {
             title = 'Later';
+          }
+        } else {
+          // Routines tab
+          if (routineProvider.currentRoutineId != null) {
+            final routine = routineProvider.routines
+                .where((r) => r.id == routineProvider.currentRoutineId)
+                .firstOrNull;
+            title = routine?.name ?? 'Routines';
+          } else {
+            title = 'Routines';
           }
         }
 
@@ -88,6 +103,7 @@ class _MainNavigationState extends State<MainNavigation> {
             children: const [
               TodoScreen(),
               LaterListsScreen(),
+              RoutinesScreen(),
             ],
           ),
           bottomNavigationBar: BottomNavigationBar(
@@ -102,6 +118,10 @@ class _MainNavigationState extends State<MainNavigation> {
               BottomNavigationBarItem(
                 icon: Icon(Icons.list_alt),
                 label: 'Later',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.repeat),
+                label: 'Routines',
               ),
             ],
           ),

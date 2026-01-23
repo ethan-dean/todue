@@ -77,4 +77,27 @@ public class WebSocketService {
         );
         sendToUser(userId, message);
     }
+
+    /**
+     * Notify user that a routine changed.
+     * Client should refetch routines or specific routine data.
+     *
+     * @param userId The user ID
+     * @param routineId The routine ID that changed
+     * @param action The type of change: ROUTINE_CREATED, ROUTINE_UPDATED, ROUTINE_DELETED,
+     *               EXECUTION_STARTED, EXECUTION_COMPLETED, EXECUTION_ABANDONED, STEP_COMPLETED
+     */
+    public void notifyRoutineChanged(Long userId, Long routineId, String action) {
+        Map<String, Object> data = new HashMap<>();
+        if (routineId != null) {
+            data.put("routineId", routineId);
+        }
+        data.put("action", action);
+
+        WebSocketMessage<Map<String, Object>> message = new WebSocketMessage<>(
+                WebSocketMessageType.ROUTINE_CHANGED,
+                data
+        );
+        sendToUser(userId, message);
+    }
 }

@@ -9,6 +9,7 @@ enum WebSocketMessageType {
   TODOS_CHANGED,        // Single date changed - refetch that date
   RECURRING_CHANGED,    // Recurring pattern changed - refetch all visible dates
   LATER_LIST_CHANGED,   // Later list changed - refetch that list
+  ROUTINE_CHANGED,      // Routine changed - refetch routine(s)
 }
 
 class WebSocketMessage {

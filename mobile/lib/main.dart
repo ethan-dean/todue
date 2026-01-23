@@ -4,6 +4,7 @@ import 'providers/auth_provider.dart';
 import 'providers/todo_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/later_list_provider.dart';
+import 'providers/routine_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/forgot_password_screen.dart';
@@ -11,6 +12,7 @@ import 'screens/reset_password_screen.dart';
 import 'widgets/main_navigation.dart';
 import 'services/todo_api.dart';
 import 'services/later_list_api.dart';
+import 'services/routine_api.dart';
 import 'services/database_service.dart';
 import 'services/websocket_service.dart';
 import 'config/environment.dart';
@@ -41,6 +43,12 @@ class TodoApp extends StatelessWidget {
             laterListApi: LaterListApi.instance,
             websocketService: WebSocketService.instance,
             databaseService: DatabaseService.instance,
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => RoutineProvider(
+            routineApi: RoutineApi.instance,
+            websocketService: WebSocketService.instance,
           ),
         ),
       ],

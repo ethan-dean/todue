@@ -251,6 +251,12 @@ const TodosPage: React.FC = () => {
               >
                 Later
               </button>
+              <button
+                className="header-tab"
+                onClick={() => navigate('/routines')}
+              >
+                Routines
+              </button>
             </div>
             <div className="user-info">
               <button
