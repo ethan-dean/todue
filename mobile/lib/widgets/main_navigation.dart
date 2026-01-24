@@ -4,7 +4,6 @@ import '../screens/todo_screen.dart';
 import '../screens/later_lists_screen.dart';
 import '../screens/routines_screen.dart';
 import '../screens/routine_execution_screen.dart';
-import '../screens/routine_analytics_screen.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/later_list_provider.dart';
@@ -242,17 +241,13 @@ class _MainNavigationState extends State<MainNavigation> {
             actions: [
               if (isRoutineDetail)
                 IconButton(
-                  icon: const Icon(Icons.bar_chart),
+                  icon: Icon(
+                    routineProvider.showAnalytics ? Icons.list_alt : Icons.bar_chart,
+                  ),
                   onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => RoutineAnalyticsScreen(
-                          routineId: routineProvider.currentRoutineId!,
-                        ),
-                      ),
-                    );
+                    routineProvider.toggleShowAnalytics();
                   },
-                  tooltip: 'Analytics',
+                  tooltip: routineProvider.showAnalytics ? 'Steps' : 'Analytics',
                 ),
               Consumer<ThemeProvider>(
                 builder: (context, themeProvider, _) {

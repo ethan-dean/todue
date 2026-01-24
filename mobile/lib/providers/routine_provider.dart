@@ -13,6 +13,7 @@ class RoutineProvider extends ChangeNotifier {
   List<PendingRoutinePrompt> _pendingPrompts = [];
   final Map<int, RoutineAnalytics> _analytics = {};
   int? _currentRoutineId;
+  bool _showAnalytics = false;
   bool _isLoading = false;
   String? _error;
 
@@ -30,6 +31,7 @@ class RoutineProvider extends ChangeNotifier {
   // Getters
   List<Routine> get routines => _routines;
   int? get currentRoutineId => _currentRoutineId;
+  bool get showAnalytics => _showAnalytics;
   bool get isLoading => _isLoading;
   String? get error => _error;
   List<PendingRoutinePrompt> get pendingPrompts => _pendingPrompts;
@@ -40,6 +42,12 @@ class RoutineProvider extends ChangeNotifier {
 
   void setCurrentRoutineId(int? routineId) {
     _currentRoutineId = routineId;
+    _showAnalytics = false;
+    notifyListeners();
+  }
+
+  void toggleShowAnalytics() {
+    _showAnalytics = !_showAnalytics;
     notifyListeners();
   }
 
