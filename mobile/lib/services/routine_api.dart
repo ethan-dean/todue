@@ -155,14 +155,10 @@ class RoutineApi {
     required int completionId,
     required int stepId,
     required String action,  // 'complete' or 'skip'
-    String? notes,
   }) async {
-    final Map<String, dynamic> data = {'action': action};
-    if (notes != null) data['notes'] = notes;
-
     final response = await _apiService.post(
       '/routines/executions/$completionId/steps/$stepId',
-      data: data,
+      data: {'action': action},
     );
     return RoutineStepCompletion.fromJson(response.data as Map<String, dynamic>);
   }

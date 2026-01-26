@@ -55,18 +55,35 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
   }
 
   Future<void> _addStep() async {
-    final controller = TextEditingController();
-    final result = await showDialog<String>(
+    final textController = TextEditingController();
+    final notesController = TextEditingController();
+
+    final result = await showDialog<Map<String, String>>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Add Step'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(
-            hintText: 'Step text',
-            border: OutlineInputBorder(),
-          ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: textController,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Step text',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: notesController,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Notes (optional)',
+                hintText: 'Add helpful details or reminders...',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -74,33 +91,56 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () => Navigator.of(context).pop(controller.text),
+            onPressed: () => Navigator.of(context).pop({
+              'text': textController.text,
+              'notes': notesController.text,
+            }),
             child: const Text('Add'),
           ),
         ],
       ),
     );
 
-    if (result != null && result.trim().isNotEmpty && mounted) {
-      await context
-          .read<RoutineProvider>()
-          .createStep(widget.routineId, result.trim());
+    if (result != null && result['text']!.trim().isNotEmpty && mounted) {
+      final notes = result['notes']!.trim();
+      await context.read<RoutineProvider>().createStep(
+            widget.routineId,
+            result['text']!.trim(),
+            notes: notes.isEmpty ? null : notes,
+          );
     }
   }
 
   Future<void> _editStep(RoutineStep step) async {
-    final controller = TextEditingController(text: step.text);
-    final result = await showDialog<String>(
+    final textController = TextEditingController(text: step.text);
+    final notesController = TextEditingController(text: step.notes ?? '');
+
+    final result = await showDialog<Map<String, String>>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Edit Step'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(
-            hintText: 'Step text',
-            border: OutlineInputBorder(),
-          ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: textController,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Step text',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: notesController,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Notes (optional)',
+                hintText: 'Add helpful details or reminders...',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -108,17 +148,35 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () => Navigator.of(context).pop(controller.text),
+            onPressed: () => Navigator.of(context).pop({
+              'text': textController.text,
+              'notes': notesController.text,
+            }),
             child: const Text('Save'),
           ),
         ],
       ),
     );
 
-    if (result != null && result.trim().isNotEmpty && mounted) {
-      await context
-          .read<RoutineProvider>()
-          .updateStepText(widget.routineId, step.id, result.trim());
+    if (result != null && result['text']!.trim().isNotEmpty && mounted) {
+      final provider = context.read<RoutineProvider>();
+      final newText = result['text']!.trim();
+      final newNotes = result['notes']!.trim();
+
+      // Update text if changed
+      if (newText != step.text) {
+        await provider.updateStepText(widget.routineId, step.id, newText);
+      }
+
+      // Update notes if changed
+      final oldNotes = step.notes ?? '';
+      if (newNotes != oldNotes) {
+        await provider.updateStepNotes(
+          widget.routineId,
+          step.id,
+          newNotes.isEmpty ? null : newNotes,
+        );
+      }
     }
   }
 

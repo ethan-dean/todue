@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Check, SkipForward, MoreVertical, Flag } from 'lucide-react';
+import { ArrowLeft, Check, SkipForward, MoreVertical, Flag, Edit2 } from 'lucide-react';
 import { useRoutines } from '../context/RoutineContext';
 
 const RoutineExecutionPage: React.FC = () => {
@@ -8,26 +8,37 @@ const RoutineExecutionPage: React.FC = () => {
   const navigate = useNavigate();
   const {
     activeExecutions,
+    routineDetails,
     loadActiveExecution,
+    loadRoutineDetail,
     completeStep,
     finishExecution,
     abandonExecution,
+    updateStepNotes,
     error,
   } = useRoutines();
 
   const [showMenu, setShowMenu] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [editingStepId, setEditingStepId] = useState<number | null>(null);
+  const [notesValue, setNotesValue] = useState('');
 
   const numericRoutineId = routineId ? parseInt(routineId, 10) : null;
   const execution = numericRoutineId ? activeExecutions.get(numericRoutineId) : null;
+  const routineDetail = numericRoutineId ? routineDetails.get(numericRoutineId) : null;
 
   useEffect(() => {
-    // Only load if we don't already have this execution in state
-    // (e.g., from startRoutine which already sets it)
-    if (numericRoutineId && !activeExecutions.has(numericRoutineId)) {
-      loadActiveExecution(numericRoutineId);
+    if (numericRoutineId) {
+      // Load execution if not already present
+      if (!activeExecutions.has(numericRoutineId)) {
+        loadActiveExecution(numericRoutineId);
+      }
+      // Load detail for step notes
+      if (!routineDetails.has(numericRoutineId)) {
+        loadRoutineDetail(numericRoutineId);
+      }
     }
-  }, [numericRoutineId, activeExecutions, loadActiveExecution]);
+  }, [numericRoutineId, activeExecutions, routineDetails, loadActiveExecution, loadRoutineDetail]);
 
   // Check if all steps are done
   const allStepsDone = execution
@@ -40,8 +51,17 @@ const RoutineExecutionPage: React.FC = () => {
     : -1;
   const currentStep = currentStepIndex >= 0 ? execution?.stepCompletions[currentStepIndex] : null;
 
+  // Get step notes from routineDetail (the source of truth for step definition notes)
+  const getCurrentStepNotes = (): string | null => {
+    if (!currentStep || !routineDetail) return currentStep?.stepNotes ?? null;
+    const step = routineDetail.steps.find((s) => s.id === currentStep.stepId);
+    return step?.notes ?? null;
+  };
+
+  const currentStepNotes = getCurrentStepNotes();
+
   const handleCompleteStep = async () => {
-    if (!execution || !currentStep || isProcessing) return;
+    if (!execution || !currentStep || isProcessing || editingStepId !== null) return;
     setIsProcessing(true);
     try {
       await completeStep(execution.id, currentStep.stepId, 'complete');
@@ -51,7 +71,7 @@ const RoutineExecutionPage: React.FC = () => {
   };
 
   const handleSkipStep = async () => {
-    if (!execution || !currentStep || isProcessing) return;
+    if (!execution || !currentStep || isProcessing || editingStepId !== null) return;
     setIsProcessing(true);
     try {
       await completeStep(execution.id, currentStep.stepId, 'skip');
@@ -82,6 +102,27 @@ const RoutineExecutionPage: React.FC = () => {
     }
   };
 
+  const handleStartEditNotes = () => {
+    if (!currentStep) return;
+    setEditingStepId(currentStep.stepId);
+    setNotesValue(currentStepNotes ?? '');
+  };
+
+  const handleSaveNotes = async () => {
+    if (!numericRoutineId || editingStepId === null) return;
+    setIsProcessing(true);
+    try {
+      await updateStepNotes(numericRoutineId, editingStepId, notesValue.trim() || null);
+      setEditingStepId(null);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleCancelEditNotes = () => {
+    setEditingStepId(null);
+  };
+
   if (!execution) {
     return (
       <div className="routine-execution-page">
@@ -102,6 +143,7 @@ const RoutineExecutionPage: React.FC = () => {
 
   const completedCount = execution.completedSteps + execution.skippedSteps;
   const progress = (completedCount / execution.totalSteps) * 100;
+  const isEditing = editingStepId !== null;
 
   return (
     <div className="routine-execution-page">
@@ -180,15 +222,47 @@ const RoutineExecutionPage: React.FC = () => {
             </div>
             <div className="current-step">
               <h2 className="current-step-text">{currentStep.stepText}</h2>
-              {currentStep.stepNotes && (
-                <p className="current-step-notes">{currentStep.stepNotes}</p>
+
+              {/* Notes Section */}
+              {isEditing ? (
+                <div className="notes-edit-section">
+                  <textarea
+                    className="notes-textarea"
+                    value={notesValue}
+                    onChange={(e) => setNotesValue(e.target.value)}
+                    placeholder="Add notes for this step..."
+                    rows={3}
+                    autoFocus
+                  />
+                  <div className="notes-edit-actions">
+                    <button className="btn-secondary" onClick={handleCancelEditNotes}>
+                      Cancel
+                    </button>
+                    <button
+                      className="btn-primary"
+                      onClick={handleSaveNotes}
+                      disabled={isProcessing}
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="notes-display-section" onClick={handleStartEditNotes}>
+                  {currentStepNotes ? (
+                    <p className="current-step-notes">{currentStepNotes}</p>
+                  ) : (
+                    <p className="current-step-notes placeholder">Add notes...</p>
+                  )}
+                  <Edit2 size={16} className="notes-edit-icon" />
+                </div>
               )}
             </div>
             <div className="current-step-actions">
               <button
                 className="btn-complete"
                 onClick={handleCompleteStep}
-                disabled={isProcessing}
+                disabled={isProcessing || isEditing}
               >
                 <Check size={24} />
                 Complete
@@ -196,7 +270,7 @@ const RoutineExecutionPage: React.FC = () => {
               <button
                 className="btn-skip"
                 onClick={handleSkipStep}
-                disabled={isProcessing}
+                disabled={isProcessing || isEditing}
               >
                 <SkipForward size={24} />
                 Skip

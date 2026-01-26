@@ -1920,7 +1920,7 @@ body {
 
 .routine-step-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.75rem;
   padding: 0.75rem;
   background: var(--bg-container);
@@ -1928,6 +1928,19 @@ body {
   border-radius: 6px;
   cursor: grab;
   transition: background 0.2s;
+}
+
+.routine-step-item .step-drag-handle,
+.routine-step-item .step-number {
+  margin-top: 0.25rem;
+}
+
+.step-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
 }
 
 .routine-step-item:hover {
@@ -1975,6 +1988,71 @@ body {
   border-radius: 4px;
   background: var(--bg-input);
   color: var(--text-primary);
+}
+
+.step-notes-display {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  margin-left: -0.5rem;
+  border-radius: 4px;
+  transition: background 0.2s, border-color 0.2s;
+  border: 1px solid transparent;
+}
+
+.step-notes-display:hover {
+  background: rgba(128, 128, 128, 0.15);
+}
+
+.step-notes {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.step-notes.placeholder {
+  color: var(--text-disabled);
+  font-style: italic;
+}
+
+.step-notes-display .notes-edit-icon {
+  color: var(--text-disabled);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.step-notes-display:hover .notes-edit-icon {
+  opacity: 1;
+}
+
+.step-notes-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.step-notes-edit textarea {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--border-focus);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.9rem;
+  resize: vertical;
+}
+
+.step-notes-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.btn-sm {
+  padding: 0.25rem 0.75rem;
+  font-size: 0.85rem;
 }
 
 .btn-delete-step {
@@ -2155,8 +2233,69 @@ body {
 
 .current-step-notes {
   color: var(--text-secondary);
-  margin: 0 0 1.5rem;
+  margin: 0;
   font-size: 0.9rem;
+}
+
+.current-step-notes.placeholder {
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.notes-display-section {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  cursor: pointer;
+  margin-bottom: 1.5rem;
+  transition: background 0.15s ease;
+}
+
+.notes-display-section:hover {
+  background: var(--bg-tertiary);
+}
+
+.notes-display-section .current-step-notes {
+  flex: 1;
+}
+
+.notes-edit-icon {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.notes-edit-section {
+  margin-bottom: 1.5rem;
+}
+
+.notes-textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  resize: vertical;
+  min-height: 80px;
+}
+
+.notes-textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
+}
+
+.notes-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
 }
 
 .current-step-actions {
@@ -2989,9 +3128,15 @@ body {
   opacity: 1;
 }
 
-.sidebar-routine-actions .btn-sidebar-action.confirm {
+.sidebar-routine-actions .btn-sidebar-action.confirm,
+.sidebar-routine-actions .btn-sidebar-delete.confirm {
   color: var(--color-error);
   background: var(--color-error-bg);
+}
+
+.sidebar-routine-actions .btn-sidebar-delete.confirm:hover {
+  color: #fff;
+  background: var(--color-error);
 }
 
 /* Main Content for Routines with Sidebar */

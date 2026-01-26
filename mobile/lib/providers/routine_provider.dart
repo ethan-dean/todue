@@ -282,6 +282,30 @@ class RoutineProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> updateStepNotes(int routineId, int stepId, String? notes) async {
+    _lastMutationTime = DateTime.now();
+    _error = null;
+
+    // Optimistic update
+    if (_routineDetails.containsKey(routineId)) {
+      final detail = _routineDetails[routineId]!;
+      _routineDetails[routineId] = detail.copyWith(
+        steps: detail.steps.map((s) => s.id == stepId ? s.copyWith(notes: notes) : s).toList(),
+      );
+      notifyListeners();
+    }
+
+    try {
+      await _routineApi.updateStepNotes(routineId: routineId, stepId: stepId, notes: notes);
+      return true;
+    } catch (e) {
+      await loadRoutineDetail(routineId, silent: true);
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<bool> updateStepPosition(int routineId, int stepId, int newPosition) async {
     _lastMutationTime = DateTime.now();
     _error = null;
@@ -447,7 +471,7 @@ class RoutineProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> completeStep(int completionId, int stepId, String action, {String? notes}) async {
+  Future<bool> completeStep(int completionId, int stepId, String action) async {
     _lastMutationTime = DateTime.now();
     _error = null;
 
@@ -467,7 +491,6 @@ class RoutineProvider extends ChangeNotifier {
                 ? RoutineStepCompletionStatus.completed
                 : RoutineStepCompletionStatus.skipped,
             completedAt: DateTime.now(),
-            notes: notes ?? sc.notes,
           );
         }
         return sc;
@@ -493,7 +516,6 @@ class RoutineProvider extends ChangeNotifier {
         completionId: completionId,
         stepId: stepId,
         action: action,
-        notes: notes,
       );
       return true;
     } catch (e) {

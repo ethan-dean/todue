@@ -175,7 +175,6 @@ export interface RoutineStepCompletion {
   stepPosition: number;
   status: 'PENDING' | 'COMPLETED' | 'SKIPPED';
   completedAt: string | null;
-  notes: string | null;
 }
 
 export interface RoutineCompletion {
@@ -267,7 +266,6 @@ export interface SetRoutineSchedulesRequest {
 
 export interface CompleteRoutineStepRequest {
   action: 'complete' | 'skip';
-  notes?: string;
 }
 
 // Utility types

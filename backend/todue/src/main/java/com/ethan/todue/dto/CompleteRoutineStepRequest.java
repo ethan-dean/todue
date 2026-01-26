@@ -11,6 +11,4 @@ import lombok.NoArgsConstructor;
 public class CompleteRoutineStepRequest {
     @NotNull(message = "Action is required")
     private String action;  // "complete" or "skip"
-
-    private String notes;  // Optional notes to save
 }

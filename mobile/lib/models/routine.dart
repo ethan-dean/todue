@@ -221,7 +221,6 @@ class RoutineStepCompletion {
   final int stepPosition;
   final RoutineStepCompletionStatus status;
   final DateTime? completedAt;
-  final String? notes;
 
   RoutineStepCompletion({
     required this.id,
@@ -231,7 +230,6 @@ class RoutineStepCompletion {
     required this.stepPosition,
     required this.status,
     this.completedAt,
-    this.notes,
   });
 
   factory RoutineStepCompletion.fromJson(Map<String, dynamic> json) {
@@ -245,7 +243,6 @@ class RoutineStepCompletion {
       completedAt: json['completedAt'] != null
           ? DateTime.parse(json['completedAt'] as String)
           : null,
-      notes: json['notes'] as String?,
     );
   }
 
@@ -257,7 +254,6 @@ class RoutineStepCompletion {
     int? stepPosition,
     RoutineStepCompletionStatus? status,
     DateTime? completedAt,
-    String? notes,
   }) {
     return RoutineStepCompletion(
       id: id ?? this.id,
@@ -267,7 +263,6 @@ class RoutineStepCompletion {
       stepPosition: stepPosition ?? this.stepPosition,
       status: status ?? this.status,
       completedAt: completedAt ?? this.completedAt,
-      notes: notes ?? this.notes,
     );
   }
 }

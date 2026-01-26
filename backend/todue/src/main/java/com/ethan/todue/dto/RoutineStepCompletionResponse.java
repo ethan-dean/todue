@@ -13,9 +13,8 @@ public class RoutineStepCompletionResponse {
     private Long id;
     private Long stepId;
     private String stepText;
-    private String stepNotes;  // Original notes from step definition
+    private String stepNotes;  // Notes from step definition
     private Integer stepPosition;
     private String status;  // PENDING, COMPLETED, SKIPPED
     private Instant completedAt;
-    private String notes;  // Editable notes during execution
 }

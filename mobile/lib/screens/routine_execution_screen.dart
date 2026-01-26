@@ -14,7 +14,8 @@ class RoutineExecutionScreen extends StatefulWidget {
 }
 
 class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
-  final Map<int, TextEditingController> _notesControllers = {};
+  int? _editingStepId;
+  final TextEditingController _notesController = TextEditingController();
 
   @override
   void initState() {
@@ -28,36 +29,48 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
 
   @override
   void dispose() {
-    for (final controller in _notesControllers.values) {
-      controller.dispose();
-    }
+    _notesController.dispose();
     super.dispose();
   }
 
-  TextEditingController _getNotesController(RoutineStepCompletion sc) {
-    if (!_notesControllers.containsKey(sc.stepId)) {
-      _notesControllers[sc.stepId] = TextEditingController(text: sc.notes ?? '');
-    }
-    return _notesControllers[sc.stepId]!;
+  void _startEditingNotes(RoutineStep step) {
+    setState(() {
+      _editingStepId = step.id;
+      _notesController.text = step.notes ?? '';
+    });
+  }
+
+  Future<void> _saveNotes(int stepId) async {
+    final notes = _notesController.text.trim();
+    await context.read<RoutineProvider>().updateStepNotes(
+          widget.routineId,
+          stepId,
+          notes.isEmpty ? null : notes,
+        );
+    setState(() {
+      _editingStepId = null;
+    });
+  }
+
+  void _cancelEditingNotes() {
+    setState(() {
+      _editingStepId = null;
+    });
   }
 
   Future<void> _completeStep(int completionId, int stepId) async {
-    final notes = _notesControllers[stepId]?.text;
     await context.read<RoutineProvider>().completeStep(
           completionId,
           stepId,
           'complete',
-          notes: notes?.isNotEmpty == true ? notes : null,
         );
   }
 
   Future<void> _skipStep(int completionId, int stepId) async {
-    final notes = _notesControllers[stepId]?.text;
     await context.read<RoutineProvider>().completeStep(
           completionId,
           stepId,
           'skip',
-          notes: notes?.isNotEmpty == true ? notes : null,
         );
   }
 
@@ -226,6 +239,7 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
                         status == RoutineStepCompletionStatus.completed;
                     final isSkipped =
                         status == RoutineStepCompletionStatus.skipped;
+                    final isEditing = _editingStepId == step.id;
 
                     return Card(
                       elevation: isCurrent ? 4 : 1,
@@ -286,28 +300,94 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
                               ],
                             ),
 
-                            // Show notes field for current step
-                            if (isCurrent && sc != null) ...[
-                              const SizedBox(height: 16),
-                              TextField(
-                                controller: _getNotesController(sc),
-                                decoration: const InputDecoration(
-                                  hintText: 'Add notes (optional)',
-                                  border: OutlineInputBorder(),
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 8,
+                            // Notes section - show for current step
+                            if (isCurrent) ...[
+                              const SizedBox(height: 12),
+                              if (isEditing) ...[
+                                // Editing mode
+                                TextField(
+                                  controller: _notesController,
+                                  autofocus: true,
+                                  decoration: const InputDecoration(
+                                    hintText: 'Add notes for this step...',
+                                    border: OutlineInputBorder(),
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
+                                  ),
+                                  maxLines: 3,
+                                  minLines: 1,
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    TextButton(
+                                      onPressed: _cancelEditingNotes,
+                                      child: const Text('Cancel'),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    ElevatedButton(
+                                      onPressed: () => _saveNotes(step.id),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.green,
+                                        foregroundColor: Colors.white,
+                                      ),
+                                      child: const Text('Save'),
+                                    ),
+                                  ],
+                                ),
+                              ] else ...[
+                                // Display mode
+                                InkWell(
+                                  onTap: () => _startEditingNotes(step),
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[100],
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: step.notes != null &&
+                                                  step.notes!.isNotEmpty
+                                              ? Text(
+                                                  step.notes!,
+                                                  style: TextStyle(
+                                                    color: Colors.grey[700],
+                                                  ),
+                                                )
+                                              : Text(
+                                                  'Add notes...',
+                                                  style: TextStyle(
+                                                    color: Colors.grey[500],
+                                                    fontStyle: FontStyle.italic,
+                                                  ),
+                                                ),
+                                        ),
+                                        Icon(
+                                          Icons.edit,
+                                          size: 18,
+                                          color: Colors.grey[500],
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
-                                maxLines: 2,
-                              ),
+                              ],
                               const SizedBox(height: 16),
                               Row(
                                 children: [
                                   Expanded(
                                     child: ElevatedButton.icon(
-                                      onPressed: () =>
-                                          _completeStep(execution.id, step.id),
+                                      onPressed: isEditing
+                                          ? null
+                                          : () => _completeStep(
+                                              execution.id, step.id),
                                       icon: const Icon(Icons.check),
                                       label: const Text('Complete'),
                                       style: ElevatedButton.styleFrom(
@@ -321,8 +401,10 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: OutlinedButton.icon(
-                                      onPressed: () =>
-                                          _skipStep(execution.id, step.id),
+                                      onPressed: isEditing
+                                          ? null
+                                          : () =>
+                                              _skipStep(execution.id, step.id),
                                       icon: const Icon(Icons.skip_next),
                                       label: const Text('Skip'),
                                       style: OutlinedButton.styleFrom(
@@ -336,13 +418,13 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
                               ),
                             ],
 
-                            // Show completed notes if any
+                            // Show notes for completed/skipped steps
                             if ((isCompleted || isSkipped) &&
-                                sc?.notes != null &&
-                                sc!.notes!.isNotEmpty) ...[
+                                step.notes != null &&
+                                step.notes!.isNotEmpty) ...[
                               const SizedBox(height: 8),
                               Text(
-                                sc.notes!,
+                                step.notes!,
                                 style: TextStyle(
                                   color: Colors.grey[600],
                                   fontStyle: FontStyle.italic,

@@ -345,7 +345,6 @@ public class RoutineService {
             stepCompletion.setCompletion(completion);
             stepCompletion.setStep(step);
             stepCompletion.setStatus(RoutineStepCompletionStatus.PENDING);
-            stepCompletion.setNotes(step.getNotes());  // Copy notes from step definition
             routineStepCompletionRepository.save(stepCompletion);
         }
 
@@ -363,7 +362,7 @@ public class RoutineService {
     }
 
     @Transactional
-    public RoutineStepCompletionResponse completeStep(Long completionId, Long stepId, String action, String notes) {
+    public RoutineStepCompletionResponse completeStep(Long completionId, Long stepId, String action) {
         RoutineCompletion completion = getCompletionAndVerifyOwnership(completionId);
         User user = userService.getCurrentUser();
 
@@ -383,10 +382,6 @@ public class RoutineService {
             stepCompletion.setCompletedAt(Instant.now());
         } else {
             throw new RuntimeException("Invalid action. Use 'complete' or 'skip'");
-        }
-
-        if (notes != null) {
-            stepCompletion.setNotes(notes);
         }
 
         stepCompletion = routineStepCompletionRepository.save(stepCompletion);
@@ -471,7 +466,6 @@ public class RoutineService {
             RoutineStepCompletion stepCompletion = new RoutineStepCompletion();
             stepCompletion.setCompletion(completion);
             stepCompletion.setStep(step);
-            stepCompletion.setNotes(step.getNotes());
             stepCompletion.setCompletedAt(Instant.now());
 
             if (allSteps || completedStepIds.contains(step.getId())) {
@@ -792,8 +786,7 @@ public class RoutineService {
                 step.getNotes(),
                 step.getPosition(),
                 stepCompletion.getStatus().name(),
-                stepCompletion.getCompletedAt(),
-                stepCompletion.getNotes()
+                stepCompletion.getCompletedAt()
         );
     }
 

@@ -122,10 +122,9 @@ export const routineApi = {
   async completeStep(
     completionId: number,
     stepId: number,
-    action: 'complete' | 'skip',
-    notes?: string
+    action: 'complete' | 'skip'
   ): Promise<RoutineStepCompletion> {
-    const request: CompleteRoutineStepRequest = { action, notes };
+    const request: CompleteRoutineStepRequest = { action };
     const response = await api.post<RoutineStepCompletion>(
       `/routines/executions/${completionId}/steps/${stepId}`,
       request

@@ -43,6 +43,7 @@ const RoutinesPage: React.FC = () => {
     updateRoutineName,
     createStep,
     updateStepText,
+    updateStepNotes,
     updateStepPosition,
     deleteStep,
     setSchedules,
@@ -60,6 +61,8 @@ const RoutinesPage: React.FC = () => {
   const [newStepText, setNewStepText] = useState('');
   const [editingStepId, setEditingStepId] = useState<number | null>(null);
   const [editedStepText, setEditedStepText] = useState('');
+  const [editingNotesStepId, setEditingNotesStepId] = useState<number | null>(null);
+  const [editedStepNotes, setEditedStepNotes] = useState('');
   const [deletingStepId, setDeletingStepId] = useState<number | null>(null);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [draggedStepId, setDraggedStepId] = useState<number | null>(null);
@@ -244,6 +247,14 @@ const RoutinesPage: React.FC = () => {
       await updateStepText(selectedRoutineId, stepId, editedStepText.trim());
     }
     setEditingStepId(null);
+  };
+
+  const handleSaveStepNotes = async (stepId: number) => {
+    if (selectedRoutineId) {
+      const notes = editedStepNotes.trim() || null;
+      await updateStepNotes(selectedRoutineId, stepId, notes);
+    }
+    setEditingNotesStepId(null);
   };
 
   const handleDeleteStep = async (stepId: number) => {
@@ -624,36 +635,75 @@ const RoutinesPage: React.FC = () => {
                         <GripVertical size={16} />
                       </div>
                       <span className="step-number">{index + 1}</span>
-                      {editingStepId === step.id ? (
-                        <div className="step-edit">
-                          <input
-                            type="text"
-                            value={editedStepText}
-                            onChange={(e) => setEditedStepText(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleSaveStepText(step.id);
-                              if (e.key === 'Escape') setEditingStepId(null);
+                      <div className="step-content">
+                        {editingStepId === step.id ? (
+                          <div className="step-edit">
+                            <input
+                              type="text"
+                              value={editedStepText}
+                              onChange={(e) => setEditedStepText(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSaveStepText(step.id);
+                                if (e.key === 'Escape') setEditingStepId(null);
+                              }}
+                              autoFocus
+                            />
+                            <button className="btn-icon" onClick={() => handleSaveStepText(step.id)}>
+                              <Check size={16} />
+                            </button>
+                            <button className="btn-icon" onClick={() => setEditingStepId(null)}>
+                              <X size={16} />
+                            </button>
+                          </div>
+                        ) : (
+                          <span
+                            className="step-text"
+                            onClick={() => {
+                              setEditingStepId(step.id);
+                              setEditedStepText(step.text);
                             }}
-                            autoFocus
-                          />
-                          <button className="btn-icon" onClick={() => handleSaveStepText(step.id)}>
-                            <Check size={16} />
-                          </button>
-                          <button className="btn-icon" onClick={() => setEditingStepId(null)}>
-                            <X size={16} />
-                          </button>
-                        </div>
-                      ) : (
-                        <span
-                          className="step-text"
-                          onClick={() => {
-                            setEditingStepId(step.id);
-                            setEditedStepText(step.text);
-                          }}
-                        >
-                          {step.text}
-                        </span>
-                      )}
+                          >
+                            {step.text}
+                          </span>
+                        )}
+                        {editingNotesStepId === step.id ? (
+                          <div className="step-notes-edit">
+                            <textarea
+                              value={editedStepNotes}
+                              onChange={(e) => setEditedStepNotes(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Escape') setEditingNotesStepId(null);
+                              }}
+                              placeholder="Add notes..."
+                              rows={2}
+                              autoFocus
+                            />
+                            <div className="step-notes-actions">
+                              <button className="btn-secondary btn-sm" onClick={() => setEditingNotesStepId(null)}>
+                                Cancel
+                              </button>
+                              <button className="btn-primary btn-sm" onClick={() => handleSaveStepNotes(step.id)}>
+                                Save
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div
+                            className="step-notes-display"
+                            onClick={() => {
+                              setEditingNotesStepId(step.id);
+                              setEditedStepNotes(step.notes ?? '');
+                            }}
+                          >
+                            {step.notes ? (
+                              <span className="step-notes">{step.notes}</span>
+                            ) : (
+                              <span className="step-notes placeholder">Add notes...</span>
+                            )}
+                            <Edit2 size={14} className="notes-edit-icon" />
+                          </div>
+                        )}
+                      </div>
                       <button
                         className={`btn-icon btn-delete-step ${deletingStepId === step.id ? 'confirm' : ''}`}
                         onClick={() => handleDeleteStep(step.id)}

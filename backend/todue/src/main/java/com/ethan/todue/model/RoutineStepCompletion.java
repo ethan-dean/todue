@@ -48,9 +48,6 @@ public class RoutineStepCompletion {
     @Column(columnDefinition = "DATETIME(6)")
     private Instant completedAt;
 
-    @Column(columnDefinition = "TEXT")
-    private String notes;  // Can be edited during execution
-
     @CreationTimestamp
     @Column(nullable = false, updatable = false, columnDefinition = "DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6)")
     private Instant createdAt;

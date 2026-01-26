@@ -53,7 +53,7 @@ interface RoutineContextType {
   quickCompleteRoutine: (routineId: number, completedStepIds?: number[]) => Promise<void>;
   startRoutine: (routineId: number) => Promise<RoutineCompletion>;
   loadActiveExecution: (routineId: number) => Promise<void>;
-  completeStep: (completionId: number, stepId: number, action: 'complete' | 'skip', notes?: string) => Promise<void>;
+  completeStep: (completionId: number, stepId: number, action: 'complete' | 'skip') => Promise<void>;
   finishExecution: (completionId: number) => Promise<void>;
   abandonExecution: (completionId: number) => Promise<void>;
 
@@ -464,8 +464,7 @@ export const RoutineProvider: React.FC<RoutineProviderProps> = ({ children }) =>
   const completeStep = async (
     completionId: number,
     stepId: number,
-    action: 'complete' | 'skip',
-    notes?: string
+    action: 'complete' | 'skip'
   ): Promise<void> => {
     lastMutationTimeRef.current = Date.now();
 
@@ -490,7 +489,6 @@ export const RoutineProvider: React.FC<RoutineProviderProps> = ({ children }) =>
                 ...sc,
                 status: action === 'complete' ? 'COMPLETED' : 'SKIPPED',
                 completedAt: new Date().toISOString(),
-                notes: notes ?? sc.notes,
               }
             : sc
         ) as RoutineStepCompletion[];
@@ -510,7 +508,7 @@ export const RoutineProvider: React.FC<RoutineProviderProps> = ({ children }) =>
 
     setError(null);
     try {
-      await routineApi.completeStep(completionId, stepId, action, notes);
+      await routineApi.completeStep(completionId, stepId, action);
     } catch (err) {
       if (routineId !== null) {
         await loadActiveExecution(routineId);

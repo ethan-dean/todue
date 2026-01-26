@@ -170,8 +170,7 @@ public class RoutineController {
         RoutineStepCompletionResponse response = routineService.completeStep(
                 completionId,
                 stepId,
-                request.getAction(),
-                request.getNotes()
+                request.getAction()
         );
         return ResponseEntity.ok(response);
     }
