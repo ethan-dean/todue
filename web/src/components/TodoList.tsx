@@ -183,6 +183,26 @@ const TodoList: React.FC<TodoListProps> = ({ todos: initialTodos, date, enableDr
     setLocalOverId(event.over?.id ? String(event.over.id) : null);
   };
 
+  // Find the boundary index between incomplete and completed todos
+  // Returns the index of the first completed todo, or sortedTodos.length if none
+  const findCompletedBoundaryIndex = (): number => {
+    const firstCompletedIndex = sortedTodos.findIndex(t => t.isCompleted);
+    return firstCompletedIndex === -1 ? sortedTodos.length : firstCompletedIndex;
+  };
+
+  // Check if a reorder operation is valid (doesn't cross completion boundary)
+  const isValidReorder = (todo: Todo, newIndex: number): boolean => {
+    const boundaryIndex = findCompletedBoundaryIndex();
+
+    if (todo.isCompleted) {
+      // Completed todos must stay at or after the boundary
+      return newIndex >= boundaryIndex;
+    } else {
+      // Incomplete todos must stay before the boundary
+      return newIndex < boundaryIndex;
+    }
+  };
+
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
 
@@ -202,6 +222,12 @@ const TodoList: React.FC<TodoListProps> = ({ todos: initialTodos, date, enableDr
     }
 
     const todo = sortedTodos[oldIndex];
+
+    // Validate that the reorder doesn't cross the completion boundary
+    if (!isValidReorder(todo, newIndex)) {
+      // Invalid reorder - item will fly back to original position
+      return;
+    }
 
     try {
       await updateTodoPosition(
@@ -262,13 +288,20 @@ const TodoList: React.FC<TodoListProps> = ({ todos: initialTodos, date, enableDr
 
     // Find the current index of the todo being moved
     const currentIndex = sortedTodos.findIndex(t => isSameTodo(t, todoInMoveMode));
-    
+
     if (currentIndex === -1) return;
+
+    // Validate that the reorder doesn't cross the completion boundary
+    if (!isValidReorder(todoInMoveMode, newIndex)) {
+      // Invalid reorder - just exit move mode without moving
+      setTodoInMoveMode(null);
+      return;
+    }
 
     try {
       // Exit move mode immediately for better UX
       setTodoInMoveMode(null);
-      
+
       await updateTodoPosition(
         todoInMoveMode.id!,
         newIndex,
@@ -293,12 +326,12 @@ const TodoList: React.FC<TodoListProps> = ({ todos: initialTodos, date, enableDr
         <div className={`todo-list ${isReorderMode ? 'reorder-mode' : ''}`}>
           
           {/* Render ReorderTarget at the very top (index 0) */}
-          {isReorderMode && (
-            <ReorderTarget 
-              index={0} 
+          {isReorderMode && todoInMoveMode && (
+            <ReorderTarget
+              index={0}
               onSelect={handleReorder}
-              // Hide if selected todo is at index 0
-              isHidden={isSameTodo(sortedTodos[0], todoInMoveMode)}
+              // Hide if selected todo is at index 0, or if moving here would cross boundary
+              isHidden={isSameTodo(sortedTodos[0], todoInMoveMode) || !isValidReorder(todoInMoveMode, 0)}
             />
           )}
 
@@ -318,8 +351,11 @@ const TodoList: React.FC<TodoListProps> = ({ todos: initialTodos, date, enableDr
               // Hidden if:
               // 1. This todo is the selected one (moving below self is no-op)
               // 2. Next todo is the selected one (moving above self is no-op)
+              // 3. Moving to this position would cross the completion boundary
               const nextTodo = sortedTodos[index + 1];
-              const isNextHidden = isInMoveMode || (nextTodo && isSameTodo(nextTodo, todoInMoveMode));
+              const isNextHidden = isInMoveMode ||
+                (nextTodo && isSameTodo(nextTodo, todoInMoveMode)) ||
+                (todoInMoveMode && !isValidReorder(todoInMoveMode, index + 1));
 
               return (
                 <React.Fragment key={todoId}>

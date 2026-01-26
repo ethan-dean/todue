@@ -452,7 +452,31 @@ class _TodoScreenState extends State<TodoScreen> {
               },
               onReorder: (oldIndex, newIndex) {
                 if (_isHoveringTimeline) return;
-                
+
+                // Find the boundary between incomplete and completed todos
+                final boundaryIndex = todos.indexWhere((t) => t.isCompleted);
+                final effectiveBoundary = boundaryIndex == -1 ? todos.length : boundaryIndex;
+
+                // Get the todo being moved
+                final movingTodo = todos[oldIndex];
+
+                // Adjust newIndex for Flutter's ReorderableListView quirk
+                // (when moving down, newIndex is +1 from actual target position)
+                final adjustedNewIndex = newIndex > oldIndex ? newIndex - 1 : newIndex;
+
+                // Validate the move doesn't cross the completion boundary
+                if (movingTodo.isCompleted) {
+                  // Completed todos must stay at or after the boundary
+                  if (adjustedNewIndex < effectiveBoundary) {
+                    return; // Invalid move - item will fly back
+                  }
+                } else {
+                  // Incomplete todos must stay before the boundary
+                  if (adjustedNewIndex >= effectiveBoundary) {
+                    return; // Invalid move - item will fly back
+                  }
+                }
+
                 todoProvider.reorderTodos(
                   todoProvider.selectedDate.toString().split(' ')[0],
                   oldIndex,
