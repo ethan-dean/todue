@@ -22,6 +22,7 @@ const RoutineExecutionPage: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [editingStepId, setEditingStepId] = useState<number | null>(null);
   const [notesValue, setNotesValue] = useState('');
+  const [selectedStepIndex, setSelectedStepIndex] = useState<number | null>(null);
 
   const numericRoutineId = routineId ? parseInt(routineId, 10) : null;
   const execution = numericRoutineId ? activeExecutions.get(numericRoutineId) : null;
@@ -45,10 +46,13 @@ const RoutineExecutionPage: React.FC = () => {
     ? execution.stepCompletions.every((sc) => sc.status !== 'PENDING')
     : false;
 
-  // Get current step (first PENDING step)
-  const currentStepIndex = execution
+  // Get first pending step index (for auto-selection after completing a step)
+  const firstPendingStepIndex = execution
     ? execution.stepCompletions.findIndex((sc) => sc.status === 'PENDING')
     : -1;
+
+  // Use selected step if set, otherwise default to first pending
+  const currentStepIndex = selectedStepIndex !== null ? selectedStepIndex : firstPendingStepIndex;
   const currentStep = currentStepIndex >= 0 ? execution?.stepCompletions[currentStepIndex] : null;
 
   // Get step notes from routineDetail (the source of truth for step definition notes)
@@ -65,6 +69,8 @@ const RoutineExecutionPage: React.FC = () => {
     setIsProcessing(true);
     try {
       await completeStep(execution.id, currentStep.stepId, 'complete');
+      // Reset selection to auto-select first pending step
+      setSelectedStepIndex(null);
     } finally {
       setIsProcessing(false);
     }
@@ -75,9 +81,16 @@ const RoutineExecutionPage: React.FC = () => {
     setIsProcessing(true);
     try {
       await completeStep(execution.id, currentStep.stepId, 'skip');
+      // Reset selection to auto-select first pending step
+      setSelectedStepIndex(null);
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const handleSelectStep = (index: number) => {
+    if (isProcessing || editingStepId !== null) return;
+    setSelectedStepIndex(index);
   };
 
   const handleFinish = async () => {
@@ -193,27 +206,6 @@ const RoutineExecutionPage: React.FC = () => {
       </div>
 
       <main className="execution-content">
-        {/* Completed Steps */}
-        {currentStepIndex > 0 && (
-          <div className="completed-steps">
-            {execution.stepCompletions.slice(0, currentStepIndex).map((step) => (
-              <div
-                key={step.id}
-                className={`completed-step ${step.status === 'SKIPPED' ? 'skipped' : ''}`}
-              >
-                <span className="step-status-icon">
-                  {step.status === 'COMPLETED' ? (
-                    <Check size={16} />
-                  ) : (
-                    <SkipForward size={16} />
-                  )}
-                </span>
-                <span className="step-text">{step.stepText}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
         {/* Current Step */}
         {currentStep && (
           <div className="current-step-container">
@@ -279,17 +271,34 @@ const RoutineExecutionPage: React.FC = () => {
           </div>
         )}
 
-        {/* Remaining Steps Preview */}
-        {currentStepIndex >= 0 && currentStepIndex < execution.totalSteps - 1 && (
-          <div className="remaining-steps">
-            <h3>Coming up</h3>
-            {execution.stepCompletions.slice(currentStepIndex + 1).map((step) => (
-              <div key={step.id} className="remaining-step">
+        {/* All Steps List */}
+        <div className="execution-steps-list">
+          {execution.stepCompletions.map((step, index) => {
+            const isSelected = index === currentStepIndex;
+            const isPending = step.status === 'PENDING';
+            const isCompleted = step.status === 'COMPLETED';
+            const isSkipped = step.status === 'SKIPPED';
+
+            return (
+              <div
+                key={step.id}
+                className={`execution-step-item ${isCompleted ? 'completed' : ''} ${isSkipped ? 'skipped' : ''} ${isPending ? 'pending' : ''} ${isSelected ? 'selected' : ''}`}
+                onClick={() => handleSelectStep(index)}
+              >
+                <span className="step-status-icon">
+                  {isCompleted ? (
+                    <Check size={16} />
+                  ) : isSkipped ? (
+                    <SkipForward size={16} />
+                  ) : (
+                    <span className="step-number">{index + 1}</span>
+                  )}
+                </span>
                 <span className="step-text">{step.stepText}</span>
               </div>
-            ))}
-          </div>
-        )}
+            );
+          })}
+        </div>
 
         {/* All Done */}
         {allStepsDone && (

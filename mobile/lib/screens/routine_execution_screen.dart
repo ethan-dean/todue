@@ -15,6 +15,7 @@ class RoutineExecutionScreen extends StatefulWidget {
 
 class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
   int? _editingStepId;
+  int? _selectedStepIndex;
   final TextEditingController _notesController = TextEditingController();
 
   @override
@@ -64,6 +65,10 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
           stepId,
           'complete',
         );
+    // Reset selection to auto-select first pending step
+    setState(() {
+      _selectedStepIndex = null;
+    });
   }
 
   Future<void> _skipStep(int completionId, int stepId) async {
@@ -72,6 +77,17 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
           stepId,
           'skip',
         );
+    // Reset selection to auto-select first pending step
+    setState(() {
+      _selectedStepIndex = null;
+    });
+  }
+
+  void _selectStep(int index) {
+    if (_editingStepId != null) return;
+    setState(() {
+      _selectedStepIndex = index;
+    });
   }
 
   Future<void> _finishExecution(int completionId) async {
@@ -149,17 +165,19 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
             .length;
         final progress = totalSteps > 0 ? completedSteps / totalSteps : 0.0;
 
-        // Find current step (first pending)
-        int currentStepIndex = -1;
+        // Find first pending step (for auto-selection)
+        int firstPendingStepIndex = -1;
         for (int i = 0; i < sortedSteps.length; i++) {
           final sc = completionMap[sortedSteps[i].id];
           if (sc == null || sc.status == RoutineStepCompletionStatus.pending) {
-            currentStepIndex = i;
+            firstPendingStepIndex = i;
             break;
           }
         }
 
-        final allDone = currentStepIndex == -1;
+        // Use selected step if set, otherwise default to first pending
+        final currentStepIndex = _selectedStepIndex ?? firstPendingStepIndex;
+        final allDone = firstPendingStepIndex == -1;
 
         return Scaffold(
           appBar: AppBar(
@@ -241,64 +259,66 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
                         status == RoutineStepCompletionStatus.skipped;
                     final isEditing = _editingStepId == step.id;
 
-                    return Card(
-                      elevation: isCurrent ? 4 : 1,
-                      margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: isCurrent
-                            ? const BorderSide(color: Colors.green, width: 2)
-                            : BorderSide.none,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Step header
-                            Row(
-                              children: [
-                                CircleAvatar(
-                                  radius: 16,
-                                  backgroundColor: isCompleted
-                                      ? Colors.green
-                                      : isSkipped
-                                          ? Colors.orange
-                                          : Colors.grey[300],
-                                  child: isCompleted
-                                      ? const Icon(Icons.check,
-                                          color: Colors.white, size: 18)
-                                      : isSkipped
-                                          ? const Icon(Icons.skip_next,
-                                              color: Colors.white, size: 18)
-                                          : Text(
-                                              '${index + 1}',
-                                              style: TextStyle(
-                                                color: Colors.grey[700],
-                                                fontWeight: FontWeight.bold,
+                    return GestureDetector(
+                      onTap: () => _selectStep(index),
+                      child: Card(
+                        elevation: isCurrent ? 4 : 1,
+                        margin: const EdgeInsets.only(bottom: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: isCurrent
+                              ? const BorderSide(color: Colors.green, width: 2)
+                              : BorderSide.none,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Step header
+                              Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 16,
+                                    backgroundColor: isCompleted
+                                        ? Colors.green
+                                        : isSkipped
+                                            ? Colors.orange
+                                            : Colors.grey[300],
+                                    child: isCompleted
+                                        ? const Icon(Icons.check,
+                                            color: Colors.white, size: 18)
+                                        : isSkipped
+                                            ? const Icon(Icons.skip_next,
+                                                color: Colors.white, size: 18)
+                                            : Text(
+                                                '${index + 1}',
+                                                style: TextStyle(
+                                                  color: Colors.grey[700],
+                                                  fontWeight: FontWeight.bold,
+                                                ),
                                               ),
-                                            ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    step.text,
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: isCurrent
-                                          ? FontWeight.bold
-                                          : FontWeight.normal,
-                                      decoration: isCompleted || isSkipped
-                                          ? TextDecoration.lineThrough
-                                          : null,
-                                      color: isCompleted || isSkipped
-                                          ? Colors.grey
-                                          : null,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      step.text,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: isCurrent
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
+                                        decoration: isCompleted || isSkipped
+                                            ? TextDecoration.lineThrough
+                                            : null,
+                                        color: isCompleted || isSkipped
+                                            ? Colors.grey
+                                            : null,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
+                                ],
+                              ),
 
                             // Notes section - show for current step
                             if (isCurrent) ...[
@@ -434,7 +454,7 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
                           ],
                         ),
                       ),
-                    );
+                    )); // Close GestureDetector
                   },
                 ),
               ),

@@ -2185,29 +2185,85 @@ body {
   width: 100%;
 }
 
-.completed-steps {
+.execution-steps-list {
   margin-bottom: 1.5rem;
 }
 
-.completed-step {
+.execution-step-item {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.5rem 0;
+  padding: 0.75rem 1rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+
+.execution-step-item:hover {
+  background: var(--bg-hover);
+}
+
+.execution-step-item.completed {
   color: var(--text-secondary);
 }
 
-.completed-step.skipped {
+.execution-step-item.skipped {
+  color: var(--text-disabled);
+}
+
+.execution-step-item.skipped .step-text {
   text-decoration: line-through;
-  opacity: 0.7;
+}
+
+.execution-step-item.pending {
+  color: var(--text-primary);
+}
+
+.execution-step-item .step-status-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.execution-step-item.completed .step-status-icon {
+  background: var(--color-primary);
+  color: white;
+}
+
+.execution-step-item.skipped .step-status-icon {
+  background: var(--color-warning);
+  color: white;
+}
+
+.execution-step-item.pending .step-status-icon {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.execution-step-item.selected.pending .step-status-icon,
+.execution-step-item.selected.completed .step-status-icon,
+.execution-step-item.selected.skipped .step-status-icon {
+  background: #60a5fa;
+  color: white;
+}
+
+.execution-step-item.selected .step-number {
+  background: transparent;
+  color: white;
+}
+
+.execution-step-item .step-number {
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 
 .step-status-icon {
   color: var(--color-primary);
-}
-
-.completed-step.skipped .step-status-icon {
-  color: var(--color-warning);
 }
 
 .current-step-container {
@@ -2336,27 +2392,6 @@ body {
   background: var(--border-light);
 }
 
-.remaining-steps {
-  margin-top: 2rem;
-}
-
-.remaining-steps h3 {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 0.75rem;
-}
-
-.remaining-step {
-  padding: 0.5rem 0;
-  color: var(--text-disabled);
-  border-bottom: 1px solid var(--border-light);
-}
-
-.remaining-step:last-child {
-  border-bottom: none;
-}
 
 .all-done-container {
   text-align: center;
