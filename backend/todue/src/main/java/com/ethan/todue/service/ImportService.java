@@ -79,6 +79,9 @@ public class ImportService {
             // Track TeuxDeux recurring todo ID to our RecurringTodo entity
             Map<String, RecurringTodo> teuxDeuxRecurringMap = new HashMap<>();
 
+            // Track created list names to avoid duplicates across all workspaces
+            Set<String> createdListNames = new HashSet<>();
+
             for (TeuxDeuxWorkspace workspace : importDto.getWorkspaces()) {
                 // Import recurring todos first
                 if (workspace.getRecurringTodos() != null) {
@@ -178,12 +181,15 @@ public class ImportService {
                             for (TeuxDeuxList list : listSet.getLists()) {
                                 try {
                                     // Flatten: "ListSetName: ListName"
-                                    String listName = listSet.getName() + ": " + list.getName();
+                                    String listSetName = listSet.getName() != null ? listSet.getName() : "Untitled";
+                                    String listItemName = list.getName() != null ? list.getName() : "Untitled";
+                                    String listName = listSetName + ": " + listItemName;
 
-                                    // Ensure unique list name
+                                    // Ensure unique list name (check both DB and already created in this import)
                                     String finalListName = listName;
                                     int counter = 1;
-                                    while (laterListRepository.existsByUserIdAndListName(user.getId(), finalListName)) {
+                                    while (laterListRepository.existsByUserIdAndListName(user.getId(), finalListName)
+                                           || createdListNames.contains(finalListName)) {
                                         finalListName = listName + " (" + counter + ")";
                                         counter++;
                                     }
@@ -192,6 +198,7 @@ public class ImportService {
                                     laterList.setUser(user);
                                     laterList.setListName(finalListName);
                                     laterList = laterListRepository.save(laterList);
+                                    createdListNames.add(finalListName);
                                     stats.setLaterListsImported(stats.getLaterListsImported() + 1);
 
                                     // Import todos in this list - sort by original position, assign new sequential positions
