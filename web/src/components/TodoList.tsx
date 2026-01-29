@@ -78,7 +78,7 @@ const SortableTodoItem: React.FC<SortableTodoItemProps> = ({
     <div
       ref={setNodeRef}
       style={style}
-      className={isActive ? 'todo-placeholder' : ''}
+      className={`sortable-todo-wrapper ${isActive ? 'todo-placeholder' : ''}`}
       {...attributes}
       {...listeners}
     >

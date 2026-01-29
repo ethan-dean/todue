@@ -676,6 +676,11 @@ body {
   position: relative;
 }
 
+/* Sortable Todo Wrapper - ensures consistent animations in both directions */
+.sortable-todo-wrapper {
+  transition: transform 200ms ease !important;
+}
+
 /* Todo Placeholder (for dragged item - semi-transparent) */
 .todo-placeholder {
   opacity: 0.3;
