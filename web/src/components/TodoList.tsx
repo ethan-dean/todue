@@ -114,16 +114,15 @@ interface TodoListProps {
   suppressPlaceholders?: boolean; // Hide placeholders when dragging from different day
 }
 
-const TodoList: React.FC<TodoListProps> = ({ todos: initialTodos, date, enableDragContext = true, activeId: parentActiveId, overId: parentOverId, suppressPlaceholders = false }) => {
+const TodoList: React.FC<TodoListProps> = ({ todos: initialTodos, date, enableDragContext = true, activeId: parentActiveId, overId: _parentOverId, suppressPlaceholders: _suppressPlaceholders = false }) => {
   const { updateTodoPosition, setTodoInMoveMode, todoInMoveMode } = useTodos();
   const [localActiveId, setLocalActiveId] = useState<string | null>(null);
-  const [localOverId, setLocalOverId] = useState<string | null>(null);
+  const [, setLocalOverId] = useState<string | null>(null);
   const longPressTimerRef = React.useRef<number | null>(null);
   const isLongPressRef = React.useRef<boolean>(false);
 
-  // Use parent's activeId/overId if not managing own context, otherwise use local state
+  // Use parent's activeId if not managing own context, otherwise use local state
   const activeId = enableDragContext ? localActiveId : parentActiveId;
-  const overId = enableDragContext ? localOverId : parentOverId;
 
   // Helper to compare todos
   const isSameTodo = (a: Todo | null, b: Todo | null): boolean => {
