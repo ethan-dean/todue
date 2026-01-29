@@ -161,6 +161,18 @@ const TodosPage: React.FC = () => {
 
       if (oldIndex === -1 || newIndex === -1) return;
 
+      // Validate that the reorder doesn't cross the completion boundary
+      const boundaryIndex = sortedList.findIndex(t => t.isCompleted);
+      const effectiveBoundary = boundaryIndex === -1 ? sortedList.length : boundaryIndex;
+
+      if (sourceTodo.isCompleted) {
+        // Completed todos must stay at or after the boundary
+        if (newIndex < effectiveBoundary) return;
+      } else {
+        // Incomplete todos must stay before the boundary
+        if (newIndex >= effectiveBoundary) return;
+      }
+
       // Call updateTodoPosition with the new index
       updateTodoPosition(
         sourceTodo.id!,
