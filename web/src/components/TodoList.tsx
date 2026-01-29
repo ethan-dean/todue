@@ -33,13 +33,11 @@ const getTodoId = (todo: Todo): string => {
 interface SortableTodoItemProps {
   todo: Todo;
   isActive: boolean;
-  showPlaceholderAbove: boolean;
 }
 
 const SortableTodoItem: React.FC<SortableTodoItemProps> = ({
   todo,
   isActive,
-  showPlaceholderAbove,
 }) => {
   const { deleteTodo } = useTodos();
   const [isDeleting, setIsDeleting] = useState(false);
@@ -77,22 +75,14 @@ const SortableTodoItem: React.FC<SortableTodoItemProps> = ({
   };
 
   return (
-    <div className="draggable-todo-wrapper">
-      {/* Placeholder box showing where item will drop */}
-      {showPlaceholderAbove && !isActive && (
-        <div className="drop-placeholder"></div>
-      )}
-
-      {/* The actual todo item */}
-      <div
-        ref={setNodeRef}
-        style={style}
-        className={isActive ? 'todo-placeholder' : ''}
-        {...attributes}
-        {...listeners}
-      >
-        <TodoItem todo={todo} onDelete={handleDelete} />
-      </div>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={isActive ? 'todo-placeholder' : ''}
+      {...attributes}
+      {...listeners}
+    >
+      <TodoItem todo={todo} onDelete={handleDelete} />
     </div>
   );
 };
@@ -308,22 +298,11 @@ const TodoList: React.FC<TodoListProps> = ({ todos: initialTodos, date, enableDr
     ? sortedTodos.find((t) => getTodoId(t) === activeId)
     : null;
 
-  // Determine which section the actively dragged item belongs to
-  const activeInIncomplete = useMemo(() => {
-    if (!activeId) return false;
-    return incompleteTodos.some(t => getTodoId(t) === activeId);
-  }, [activeId, incompleteTodos]);
-
   // Helper to render a section of todos
   const renderTodoSection = (sectionTodos: Todo[], isCompleteSection: boolean) => {
-    // Check if dragged item is in the same section as this one
-    const draggedInSameSection = activeId && (activeInIncomplete === !isCompleteSection);
-
     return sectionTodos.map((todo, index) => {
       const todoId = getTodoId(todo);
       const isActive = activeId === todoId;
-      // Only show placeholder if dragged item is in same section
-      const showPlaceholderAbove = !suppressPlaceholders && overId === todoId && activeId !== todoId && draggedInSameSection;
       const isInMoveMode = isSameTodo(todoInMoveMode, todo);
 
       // Determine if next target should be hidden
@@ -345,7 +324,6 @@ const TodoList: React.FC<TodoListProps> = ({ todos: initialTodos, date, enableDr
             <SortableTodoItem
               todo={todo}
               isActive={isActive}
-              showPlaceholderAbove={showPlaceholderAbove}
             />
           </div>
 
