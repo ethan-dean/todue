@@ -152,17 +152,26 @@ const TodoList: React.FC<TodoListProps> = ({ todos: initialTodos, date, enableDr
     return [...initialTodos].sort((a, b) => a.position - b.position);
   }, [initialTodos]);
 
+  // Split into incomplete and complete sections for separate drag contexts
+  const incompleteTodos = useMemo(() =>
+    sortedTodos.filter(t => !t.isCompleted), [sortedTodos]);
+  const completeTodos = useMemo(() =>
+    sortedTodos.filter(t => t.isCompleted), [sortedTodos]);
+
   // Check if we are in "Reorder Mode" for this specific list
   const isReorderMode = useMemo(() => {
     if (!todoInMoveMode) return false;
-    
+
     // Check if the moving todo belongs to this list's date
-    // We compare the date strings to ensure match
-    // Note: virtual todos might not have 'assignedDate' set to this date if they are future instances? 
-    // Actually virtuals have assignedDate == instanceDate usually.
-    // Let's rely on finding the todo in the passed 'todos' array
-    return sortedTodos.some(t => isSameTodo(t, todoInMoveMode));
-  }, [todoInMoveMode, sortedTodos]);
+    return incompleteTodos.some(t => isSameTodo(t, todoInMoveMode)) ||
+           completeTodos.some(t => isSameTodo(t, todoInMoveMode));
+  }, [todoInMoveMode, incompleteTodos, completeTodos]);
+
+  // Determine which section the todoInMoveMode belongs to
+  const moveModeInIncomplete = useMemo(() => {
+    if (!todoInMoveMode) return false;
+    return incompleteTodos.some(t => isSameTodo(t, todoInMoveMode));
+  }, [todoInMoveMode, incompleteTodos]);
 
   // Configure drag sensors - disable if in reorder mode
   const sensors = useSensors(
@@ -193,20 +202,31 @@ const TodoList: React.FC<TodoListProps> = ({ todos: initialTodos, date, enableDr
       return;
     }
 
-    const oldIndex = sortedTodos.findIndex((t) => getTodoId(t) === active.id);
-    const newIndex = sortedTodos.findIndex((t) => getTodoId(t) === over.id);
+    // Determine which section each todo belongs to
+    const activeInIncomplete = incompleteTodos.some(t => getTodoId(t) === active.id);
+    const overInIncomplete = incompleteTodos.some(t => getTodoId(t) === over.id);
+
+    // Prevent cross-section reordering
+    if (activeInIncomplete !== overInIncomplete) return;
+
+    const relevantList = activeInIncomplete ? incompleteTodos : completeTodos;
+    const oldIndex = relevantList.findIndex((t) => getTodoId(t) === active.id);
+    const newIndex = relevantList.findIndex((t) => getTodoId(t) === over.id);
 
     if (oldIndex === -1 || newIndex === -1) {
       console.error('Could not find todo indices for drag and drop');
       return;
     }
 
-    const todo = sortedTodos[oldIndex];
+    const todo = relevantList[oldIndex];
+
+    // Calculate full list index for position update
+    const fullListIndex = activeInIncomplete ? newIndex : newIndex + incompleteTodos.length;
 
     try {
       await updateTodoPosition(
         todo.id!,
-        newIndex,
+        fullListIndex,
         todo.isVirtual,
         todo.recurringTodoId,
         todo.instanceDate,
@@ -257,21 +277,22 @@ const TodoList: React.FC<TodoListProps> = ({ todos: initialTodos, date, enableDr
     }
   };
 
-  const handleReorder = async (newIndex: number) => {
+  const handleReorder = async (newIndex: number, isInCompleteSection: boolean) => {
     if (!todoInMoveMode) return;
 
-    // Find the current index of the todo being moved
-    const currentIndex = sortedTodos.findIndex(t => isSameTodo(t, todoInMoveMode));
-    
-    if (currentIndex === -1) return;
+    // Prevent cross-section moves
+    if (moveModeInIncomplete !== !isInCompleteSection) return;
+
+    // Calculate full list index
+    const fullListIndex = isInCompleteSection ? newIndex + incompleteTodos.length : newIndex;
 
     try {
       // Exit move mode immediately for better UX
       setTodoInMoveMode(null);
-      
+
       await updateTodoPosition(
         todoInMoveMode.id!,
-        newIndex,
+        fullListIndex,
         todoInMoveMode.isVirtual,
         todoInMoveMode.recurringTodoId,
         todoInMoveMode.instanceDate,
@@ -287,70 +308,88 @@ const TodoList: React.FC<TodoListProps> = ({ todos: initialTodos, date, enableDr
     ? sortedTodos.find((t) => getTodoId(t) === activeId)
     : null;
 
+  // Helper to render a section of todos
+  const renderTodoSection = (sectionTodos: Todo[], isCompleteSection: boolean) => {
+    return sectionTodos.map((todo, index) => {
+      const todoId = getTodoId(todo);
+      const isActive = activeId === todoId;
+      const showPlaceholderAbove = !suppressPlaceholders && overId === todoId && activeId !== todoId;
+      const isInMoveMode = isSameTodo(todoInMoveMode, todo);
+
+      // Determine if next target should be hidden
+      const nextTodo = sectionTodos[index + 1];
+      const isNextHidden = isInMoveMode || (nextTodo && isSameTodo(nextTodo, todoInMoveMode));
+
+      // Only show reorder targets if todo in move mode is in the same section
+      const showReorderTargets = isReorderMode && (moveModeInIncomplete === !isCompleteSection);
+
+      return (
+        <React.Fragment key={todoId}>
+          <div
+            onTouchStart={() => handleTouchStart(todo)}
+            onTouchEnd={handleTouchEnd}
+            onTouchCancel={handleTouchEnd}
+            onClick={() => handleTodoClick(todo)}
+            className={isInMoveMode ? 'todo-in-move-mode' : ''}
+          >
+            <SortableTodoItem
+              todo={todo}
+              isActive={isActive}
+              showPlaceholderAbove={showPlaceholderAbove}
+            />
+          </div>
+
+          {/* Render ReorderTarget after each item */}
+          {showReorderTargets && (
+            <ReorderTarget
+              index={index + 1}
+              onSelect={(idx) => handleReorder(idx, isCompleteSection)}
+              isHidden={!!isNextHidden}
+            />
+          )}
+        </React.Fragment>
+      );
+    });
+  };
+
   const content = (
     <>
       <div className="todo-list-container">
         <div className={`todo-list ${isReorderMode ? 'reorder-mode' : ''}`}>
-          
-          {/* Render ReorderTarget at the very top (index 0) */}
-          {isReorderMode && (
-            <ReorderTarget 
-              index={0} 
-              onSelect={handleReorder}
-              // Hide if selected todo is at index 0
-              isHidden={isSameTodo(sortedTodos[0], todoInMoveMode)}
+
+          {/* Incomplete section */}
+          {isReorderMode && moveModeInIncomplete && (
+            <ReorderTarget
+              index={0}
+              onSelect={(idx) => handleReorder(idx, false)}
+              isHidden={isSameTodo(incompleteTodos[0], todoInMoveMode)}
             />
           )}
 
           <SortableContext
-            items={sortedTodos.map(getTodoId)}
+            items={incompleteTodos.map(getTodoId)}
             strategy={verticalListSortingStrategy}
-            // Disable sortable context strategy if in reorder mode to prevent interference
-            // (Though disabling sensors above might be enough)
           >
-            {sortedTodos.map((todo, index) => {
-              const todoId = getTodoId(todo);
-              const isActive = activeId === todoId;
-              const showPlaceholderAbove = !suppressPlaceholders && overId === todoId && activeId !== todoId;
-              const isInMoveMode = isSameTodo(todoInMoveMode, todo);
-
-              // Determine if next target should be hidden
-              // Hidden if:
-              // 1. This todo is the selected one (moving below self is no-op)
-              // 2. Next todo is the selected one (moving above self is no-op)
-              const nextTodo = sortedTodos[index + 1];
-              const isNextHidden = isInMoveMode || (nextTodo && isSameTodo(nextTodo, todoInMoveMode));
-
-              return (
-                <React.Fragment key={todoId}>
-                  <div
-                    onTouchStart={() => handleTouchStart(todo)}
-                    onTouchEnd={handleTouchEnd}
-                    onTouchCancel={handleTouchEnd}
-                    onClick={() => handleTodoClick(todo)}
-                    className={isInMoveMode ? 'todo-in-move-mode' : ''}
-                  >
-                    <SortableTodoItem
-                      todo={todo}
-                      isActive={isActive}
-                      showPlaceholderAbove={showPlaceholderAbove}
-                    />
-                  </div>
-                  
-                  {/* Render ReorderTarget after each item (index + 1) */}
-                  {isReorderMode && (
-                    <ReorderTarget 
-                      index={index + 1} 
-                      onSelect={handleReorder}
-                      isHidden={!!isNextHidden}
-                    />
-                  )}
-                </React.Fragment>
-              );
-            })}
+            {renderTodoSection(incompleteTodos, false)}
           </SortableContext>
 
-          {/* Add new todo input - hide in reorder mode to reduce clutter? */}
+          {/* Complete section */}
+          {isReorderMode && !moveModeInIncomplete && (
+            <ReorderTarget
+              index={0}
+              onSelect={(idx) => handleReorder(idx, true)}
+              isHidden={isSameTodo(completeTodos[0], todoInMoveMode)}
+            />
+          )}
+
+          <SortableContext
+            items={completeTodos.map(getTodoId)}
+            strategy={verticalListSortingStrategy}
+          >
+            {renderTodoSection(completeTodos, true)}
+          </SortableContext>
+
+          {/* Add new todo input - hide in reorder mode to reduce clutter */}
           {!isReorderMode && <InlineAddTodo date={date} />}
         </div>
       </div>

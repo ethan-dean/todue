@@ -150,21 +150,37 @@ const TodosPage: React.FC = () => {
       const dateList = todos.get(dateStr) || [];
       const sortedList = [...dateList].sort((a, b) => a.position - b.position);
 
-      const oldIndex = sortedList.findIndex((t) => {
+      // Split into sections
+      const incompleteList = sortedList.filter(t => !t.isCompleted);
+      const completeList = sortedList.filter(t => t.isCompleted);
+
+      // Determine which section each todo belongs to
+      const sourceInIncomplete = !sourceTodo.isCompleted;
+      const targetInIncomplete = !targetTodo.isCompleted;
+
+      // Prevent cross-section reorder
+      if (sourceInIncomplete !== targetInIncomplete) return;
+
+      const relevantList = sourceInIncomplete ? incompleteList : completeList;
+
+      const oldIndex = relevantList.findIndex((t) => {
         const todoId = t.id != null ? `todo-${t.id}` : `virtual-${t.recurringTodoId}-${t.instanceDate}`;
         return todoId === active.id;
       });
-      const newIndex = sortedList.findIndex((t) => {
+      const newIndex = relevantList.findIndex((t) => {
         const todoId = t.id != null ? `todo-${t.id}` : `virtual-${t.recurringTodoId}-${t.instanceDate}`;
         return todoId === over.id;
       });
 
       if (oldIndex === -1 || newIndex === -1) return;
 
+      // Calculate full list index for position update
+      const fullListIndex = sourceInIncomplete ? newIndex : newIndex + incompleteList.length;
+
       // Call updateTodoPosition with the new index
       updateTodoPosition(
         sourceTodo.id!,
-        newIndex,
+        fullListIndex,
         sourceTodo.isVirtual,
         sourceTodo.recurringTodoId,
         sourceTodo.instanceDate,

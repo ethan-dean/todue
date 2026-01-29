@@ -362,6 +362,10 @@ class _TodoScreenState extends State<TodoScreen> {
   Widget _buildTodoList(TodoProvider todoProvider) {
     final todos = todoProvider.selectedDateTodos;
 
+    // Split into incomplete and complete sections
+    final incompleteTodos = todos.where((t) => !t.isCompleted).toList();
+    final completeTodos = todos.where((t) => t.isCompleted).toList();
+
     return CustomScrollView(
       physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
       slivers: [
@@ -418,59 +422,118 @@ class _TodoScreenState extends State<TodoScreen> {
               ],
             ),
           )
-        else
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(0, 0, 0, 8),
-            sliver: SliverReorderableList(
-              onReorderStart: (index) {
-                setState(() {
-                  _draggedTodo = todos[index];
-                });
-              },
-              onReorderEnd: (index) {
-                if (_draggedTodo != null && !_isHoveringTimeline) {
+        else ...[
+          // Incomplete section
+          if (incompleteTodos.isNotEmpty)
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
+              sliver: SliverReorderableList(
+                onReorderStart: (index) {
                   setState(() {
-                    _draggedTodo = null;
+                    _draggedTodo = incompleteTodos[index];
                   });
-                }
-              },
-              proxyDecorator: (child, index, animation) {
-                return AnimatedBuilder(
-                  animation: animation,
-                  builder: (context, child) {
-                    if (_isHoveringTimeline) {
-                      return const SizedBox.shrink();
-                    }
-                    return Material(
-                      elevation: 0,
-                      color: Colors.transparent,
-                      child: child,
-                    );
-                  },
-                  child: child,
-                );
-              },
-              onReorder: (oldIndex, newIndex) {
-                if (_isHoveringTimeline) return;
-                
-                todoProvider.reorderTodos(
-                  todoProvider.selectedDate.toString().split(' ')[0],
-                  oldIndex,
-                  newIndex,
-                );
-              },
-              itemCount: todos.length,
-              itemBuilder: (context, index) {
-                final todo = todos[index];
-                final item = _buildTodoItem(todo, todoProvider, isReorderable: true);
-                return ReorderableDelayedDragStartListener(
-                  key: Key('todo_${todo.id ?? 'v'}_${todo.recurringTodoId ?? 'n'}_${todo.instanceDate}'),
-                  index: index,
-                  child: item,
-                );
-              },
+                },
+                onReorderEnd: (index) {
+                  if (_draggedTodo != null && !_isHoveringTimeline) {
+                    setState(() {
+                      _draggedTodo = null;
+                    });
+                  }
+                },
+                proxyDecorator: (child, index, animation) {
+                  return AnimatedBuilder(
+                    animation: animation,
+                    builder: (context, child) {
+                      if (_isHoveringTimeline) {
+                        return const SizedBox.shrink();
+                      }
+                      return Material(
+                        elevation: 0,
+                        color: Colors.transparent,
+                        child: child,
+                      );
+                    },
+                    child: child,
+                  );
+                },
+                onReorder: (oldIndex, newIndex) {
+                  if (_isHoveringTimeline) return;
+
+                  todoProvider.reorderTodos(
+                    todoProvider.selectedDate.toString().split(' ')[0],
+                    oldIndex,
+                    newIndex,
+                  );
+                },
+                itemCount: incompleteTodos.length,
+                itemBuilder: (context, index) {
+                  final todo = incompleteTodos[index];
+                  final item = _buildTodoItem(todo, todoProvider, isReorderable: true);
+                  return ReorderableDelayedDragStartListener(
+                    key: Key('incomplete_${todo.id ?? 'v'}_${todo.recurringTodoId ?? 'n'}_${todo.instanceDate}'),
+                    index: index,
+                    child: item,
+                  );
+                },
+              ),
             ),
-          ),
+
+          // Complete section
+          if (completeTodos.isNotEmpty)
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(0, 0, 0, 8),
+              sliver: SliverReorderableList(
+                onReorderStart: (index) {
+                  setState(() {
+                    _draggedTodo = completeTodos[index];
+                  });
+                },
+                onReorderEnd: (index) {
+                  if (_draggedTodo != null && !_isHoveringTimeline) {
+                    setState(() {
+                      _draggedTodo = null;
+                    });
+                  }
+                },
+                proxyDecorator: (child, index, animation) {
+                  return AnimatedBuilder(
+                    animation: animation,
+                    builder: (context, child) {
+                      if (_isHoveringTimeline) {
+                        return const SizedBox.shrink();
+                      }
+                      return Material(
+                        elevation: 0,
+                        color: Colors.transparent,
+                        child: child,
+                      );
+                    },
+                    child: child,
+                  );
+                },
+                onReorder: (oldIndex, newIndex) {
+                  if (_isHoveringTimeline) return;
+
+                  final offset = incompleteTodos.length;
+                  todoProvider.reorderTodos(
+                    todoProvider.selectedDate.toString().split(' ')[0],
+                    oldIndex + offset,
+                    newIndex + offset,
+                  );
+                },
+                itemCount: completeTodos.length,
+                itemBuilder: (context, index) {
+                  final todo = completeTodos[index];
+                  final item = _buildTodoItem(todo, todoProvider, isReorderable: true);
+                  return ReorderableDelayedDragStartListener(
+                    key: Key('complete_${todo.id ?? 'v'}_${todo.recurringTodoId ?? 'n'}_${todo.instanceDate}'),
+                    index: index,
+                    child: item,
+                  );
+                },
+              ),
+            ),
+        ],
       ],
     );
   }
