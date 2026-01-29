@@ -533,6 +533,31 @@ class _TodoScreenState extends State<TodoScreen> {
                 },
               ),
             ),
+
+          // Tappable empty space to add todo at end of incomplete section
+          SliverToBoxAdapter(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                // Position after last incomplete todo (before completes)
+                final position = incompleteTodos.isEmpty ? 1 : incompleteTodos.length + 1;
+                _showAddTodoDialog(position: position);
+              },
+              child: const SizedBox(height: 140), // ~2 todo item heights
+            ),
+          ),
+          // Fill any remaining space
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                final position = incompleteTodos.isEmpty ? 1 : incompleteTodos.length + 1;
+                _showAddTodoDialog(position: position);
+              },
+              child: Container(),
+            ),
+          ),
         ],
       ],
     );
