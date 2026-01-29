@@ -1,5 +1,5 @@
 import api from './api';
-import type { User } from '../types';
+import type { User, TodueExport, ImportFormat, ImportResponse } from '../types';
 
 export const userApi = {
   /**
@@ -23,6 +23,22 @@ export const userApi = {
    */
   async updateTimezone(timezone: string): Promise<User> {
     const response = await api.put<User>('/user/timezone', { timezone });
+    return response.data;
+  },
+
+  /**
+   * Export all user data as JSON
+   */
+  async exportData(): Promise<TodueExport> {
+    const response = await api.get<TodueExport>('/user/export');
+    return response.data;
+  },
+
+  /**
+   * Import data from external source
+   */
+  async importData(format: ImportFormat, data: unknown): Promise<ImportResponse> {
+    const response = await api.post<ImportResponse>('/user/import', { format, data });
     return response.data;
   },
 };

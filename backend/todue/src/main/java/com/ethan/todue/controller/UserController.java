@@ -1,7 +1,12 @@
 package com.ethan.todue.controller;
 
 import com.ethan.todue.dto.UserResponse;
+import com.ethan.todue.dto.export.TodueExportDto;
+import com.ethan.todue.dto.importdata.ImportRequest;
+import com.ethan.todue.dto.importdata.ImportResponse;
 import com.ethan.todue.model.User;
+import com.ethan.todue.service.ExportService;
+import com.ethan.todue.service.ImportService;
 import com.ethan.todue.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +21,12 @@ public class UserController {
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private ExportService exportService;
+
+    @Autowired
+    private ImportService importService;
 
     @GetMapping("/me")
     public ResponseEntity<UserResponse> getCurrentUser() {
@@ -49,6 +60,18 @@ public class UserController {
             user.getLastRolloverDate() != null ? user.getLastRolloverDate().toString() : null,
             user.getUpdatedAt().toString()
         );
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/export")
+    public ResponseEntity<TodueExportDto> exportData() {
+        TodueExportDto exportData = exportService.exportUserData();
+        return ResponseEntity.ok(exportData);
+    }
+
+    @PostMapping("/import")
+    public ResponseEntity<ImportResponse> importData(@RequestBody ImportRequest request) {
+        ImportResponse response = importService.importData(request);
         return ResponseEntity.ok(response);
     }
 }

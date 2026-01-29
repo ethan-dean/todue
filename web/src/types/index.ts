@@ -270,3 +270,98 @@ export interface CompleteRoutineStepRequest {
 
 // Utility types
 export type ViewMode = 1 | 3 | 5 | 7;
+
+// Import/Export types
+export type ImportFormat = 'TEUXDEUX' | 'TODUE';
+
+export interface ImportRequest {
+  format: ImportFormat;
+  data: unknown;
+}
+
+export interface ImportStats {
+  todosImported: number;
+  recurringTodosImported: number;
+  laterListsImported: number;
+  laterListTodosImported: number;
+  routinesImported: number;
+  routineStepsImported: number;
+  skipRecurringImported: number;
+  warnings: string[];
+}
+
+export interface ImportResponse {
+  success: boolean;
+  message: string;
+  stats: ImportStats | null;
+}
+
+export interface ExportTodo {
+  id: number;
+  text: string;
+  assignedDate: string;
+  instanceDate: string;
+  position: number;
+  recurringTodoRef: number | null;
+  isCompleted: boolean;
+  completedAt: string | null;
+  isRolledOver: boolean;
+}
+
+export interface ExportRecurringTodo {
+  id: number;
+  exportRef: number;
+  text: string;
+  recurrenceType: string;
+  startDate: string;
+  endDate: string | null;
+}
+
+export interface ExportSkipRecurring {
+  recurringTodoRef: number;
+  skipDate: string;
+}
+
+export interface ExportLaterListTodo {
+  id: number;
+  text: string;
+  isCompleted: boolean;
+  completedAt: string | null;
+  position: number;
+}
+
+export interface ExportLaterList {
+  id: number;
+  listName: string;
+  todos: ExportLaterListTodo[];
+}
+
+export interface ExportRoutineStep {
+  id: number;
+  text: string;
+  notes: string | null;
+  position: number;
+}
+
+export interface ExportRoutineSchedule {
+  dayOfWeek: number;
+  promptTime: string | null;
+}
+
+export interface ExportRoutine {
+  id: number;
+  name: string;
+  steps: ExportRoutineStep[];
+  schedules: ExportRoutineSchedule[];
+}
+
+export interface TodueExport {
+  version: string;
+  exportedAt: string;
+  userTimezone: string;
+  todos: ExportTodo[];
+  recurringTodos: ExportRecurringTodo[];
+  skipRecurring: ExportSkipRecurring[];
+  laterLists: ExportLaterList[];
+  routines: ExportRoutine[];
+}
