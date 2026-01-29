@@ -107,34 +107,66 @@ public class ImportService {
                     }
                 }
 
-                // Import calendar todos
+                // Import calendar todos - group by date, sort by original position, assign new positions
                 if (workspace.getCalendarTodos() != null) {
+                    // Group todos by date
+                    Map<LocalDate, List<TeuxDeuxCalendarTodo>> todosByDate = new HashMap<>();
                     for (TeuxDeuxCalendarTodo calTodo : workspace.getCalendarTodos()) {
-                        try {
-                            String text = combineTextAndDetails(calTodo.getText(), calTodo.getDetails());
-                            LocalDate date = parseDate(calTodo.getCurrentDate());
+                        LocalDate date = parseDate(calTodo.getCurrentDate());
+                        todosByDate.computeIfAbsent(date, k -> new ArrayList<>()).add(calTodo);
+                    }
 
-                            Todo todo = new Todo();
-                            todo.setUser(user);
-                            todo.setText(text);
-                            todo.setAssignedDate(date);
-                            todo.setInstanceDate(date);
-                            todo.setPosition(calTodo.getPosition() != null ? calTodo.getPosition() * 10 : 0);
-                            todo.setIsCompleted(Boolean.TRUE.equals(calTodo.getDone()));
-                            if (Boolean.TRUE.equals(calTodo.getDone())) {
-                                todo.setCompletedAt(Instant.now());
+                    // Process each date
+                    for (Map.Entry<LocalDate, List<TeuxDeuxCalendarTodo>> entry : todosByDate.entrySet()) {
+                        LocalDate date = entry.getKey();
+                        List<TeuxDeuxCalendarTodo> dateTodos = entry.getValue();
+
+                        // Sort by original position (nulls last)
+                        dateTodos.sort((a, b) -> {
+                            Integer posA = a.getPosition();
+                            Integer posB = b.getPosition();
+                            if (posA == null && posB == null) return 0;
+                            if (posA == null) return 1;
+                            if (posB == null) return -1;
+                            return posA.compareTo(posB);
+                        });
+
+                        // Find max position for this date in existing todos
+                        List<Todo> existingTodos = todoRepository.findByUserIdAndAssignedDate(user.getId(), date);
+                        int maxPosition = existingTodos.stream()
+                                .mapToInt(Todo::getPosition)
+                                .max()
+                                .orElse(0);
+
+                        // Assign new sequential positions
+                        int nextPosition = maxPosition + 1;
+                        for (TeuxDeuxCalendarTodo calTodo : dateTodos) {
+                            try {
+                                String text = combineTextAndDetails(calTodo.getText(), calTodo.getDetails());
+
+                                Todo todo = new Todo();
+                                todo.setUser(user);
+                                todo.setText(text);
+                                todo.setAssignedDate(date);
+                                todo.setInstanceDate(date);
+                                todo.setPosition(nextPosition);
+                                nextPosition += 1;
+                                todo.setIsCompleted(Boolean.TRUE.equals(calTodo.getDone()));
+                                if (Boolean.TRUE.equals(calTodo.getDone())) {
+                                    todo.setCompletedAt(Instant.now());
+                                }
+                                todo.setIsRolledOver(false);
+
+                                // Link to recurring if exists
+                                if (calTodo.getRecurringTodoId() != null && teuxDeuxRecurringMap.containsKey(calTodo.getRecurringTodoId())) {
+                                    todo.setRecurringTodo(teuxDeuxRecurringMap.get(calTodo.getRecurringTodoId()));
+                                }
+
+                                todoRepository.save(todo);
+                                stats.setTodosImported(stats.getTodosImported() + 1);
+                            } catch (Exception e) {
+                                stats.addWarning("Failed to import todo: " + calTodo.getText() + " - " + e.getMessage());
                             }
-                            todo.setIsRolledOver(false);
-
-                            // Link to recurring if exists
-                            if (calTodo.getRecurringTodoId() != null && teuxDeuxRecurringMap.containsKey(calTodo.getRecurringTodoId())) {
-                                todo.setRecurringTodo(teuxDeuxRecurringMap.get(calTodo.getRecurringTodoId()));
-                            }
-
-                            todoRepository.save(todo);
-                            stats.setTodosImported(stats.getTodosImported() + 1);
-                        } catch (Exception e) {
-                            stats.addWarning("Failed to import todo: " + calTodo.getText() + " - " + e.getMessage());
                         }
                     }
                 }
@@ -162,16 +194,29 @@ public class ImportService {
                                     laterList = laterListRepository.save(laterList);
                                     stats.setLaterListsImported(stats.getLaterListsImported() + 1);
 
-                                    // Import todos in this list
+                                    // Import todos in this list - sort by original position, assign new sequential positions
                                     if (list.getTodos() != null) {
-                                        for (TeuxDeuxListTodo listTodo : list.getTodos()) {
+                                        // Sort by original position
+                                        List<TeuxDeuxListTodo> sortedListTodos = new ArrayList<>(list.getTodos());
+                                        sortedListTodos.sort((a, b) -> {
+                                            Integer posA = a.getPosition();
+                                            Integer posB = b.getPosition();
+                                            if (posA == null && posB == null) return 0;
+                                            if (posA == null) return 1;
+                                            if (posB == null) return -1;
+                                            return posA.compareTo(posB);
+                                        });
+
+                                        int listTodoPosition = 1;
+                                        for (TeuxDeuxListTodo listTodo : sortedListTodos) {
                                             try {
                                                 String text = combineTextAndDetails(listTodo.getText(), listTodo.getDetails());
 
                                                 LaterListTodo laterTodo = new LaterListTodo();
                                                 laterTodo.setList(laterList);
                                                 laterTodo.setText(text);
-                                                laterTodo.setPosition(listTodo.getPosition() != null ? listTodo.getPosition() * 10 : 0);
+                                                laterTodo.setPosition(listTodoPosition);
+                                                listTodoPosition += 1;
                                                 laterTodo.setIsCompleted(Boolean.TRUE.equals(listTodo.getDone()));
                                                 if (Boolean.TRUE.equals(listTodo.getDone())) {
                                                     laterTodo.setCompletedAt(Instant.now());
