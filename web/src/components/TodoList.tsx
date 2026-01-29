@@ -308,12 +308,22 @@ const TodoList: React.FC<TodoListProps> = ({ todos: initialTodos, date, enableDr
     ? sortedTodos.find((t) => getTodoId(t) === activeId)
     : null;
 
+  // Determine which section the actively dragged item belongs to
+  const activeInIncomplete = useMemo(() => {
+    if (!activeId) return false;
+    return incompleteTodos.some(t => getTodoId(t) === activeId);
+  }, [activeId, incompleteTodos]);
+
   // Helper to render a section of todos
   const renderTodoSection = (sectionTodos: Todo[], isCompleteSection: boolean) => {
+    // Check if dragged item is in the same section as this one
+    const draggedInSameSection = activeId && (activeInIncomplete === !isCompleteSection);
+
     return sectionTodos.map((todo, index) => {
       const todoId = getTodoId(todo);
       const isActive = activeId === todoId;
-      const showPlaceholderAbove = !suppressPlaceholders && overId === todoId && activeId !== todoId;
+      // Only show placeholder if dragged item is in same section
+      const showPlaceholderAbove = !suppressPlaceholders && overId === todoId && activeId !== todoId && draggedInSameSection;
       const isInMoveMode = isSameTodo(todoInMoveMode, todo);
 
       // Determine if next target should be hidden
