@@ -428,6 +428,7 @@ class _TodoScreenState extends State<TodoScreen> {
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
               sliver: SliverReorderableList(
+                autoScrollerVelocityScalar: _isHoveringTimeline ? 0.0001 : null,
                 onReorderStart: (index) {
                   setState(() {
                     _draggedTodo = incompleteTodos[index];
@@ -483,6 +484,7 @@ class _TodoScreenState extends State<TodoScreen> {
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(0, 0, 0, 8),
               sliver: SliverReorderableList(
+                autoScrollerVelocityScalar: _isHoveringTimeline ? 0.0001 : null,
                 onReorderStart: (index) {
                   setState(() {
                     _draggedTodo = completeTodos[index];
