@@ -4,8 +4,10 @@ import com.ethan.todue.model.RecurringTodo;
 import com.ethan.todue.model.Todo;
 import com.ethan.todue.model.User;
 import com.ethan.todue.repository.RecurringTodoRepository;
+import com.ethan.todue.repository.SkipRecurringRepository;
 import com.ethan.todue.repository.TodoRepository;
 import com.ethan.todue.repository.UserRepository;
+import com.ethan.todue.util.RecurrenceCalculator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +30,9 @@ public class RolloverService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private SkipRecurringRepository skipRecurringRepository;
+
     // In-memory session state for last rollover date per user
     private final ConcurrentHashMap<Long, LocalDate> lastRolloverDateMap = new ConcurrentHashMap<>();
 
@@ -38,8 +43,12 @@ public class RolloverService {
 
         int position = 1; // Start at position 1 for sequential positioning
 
-        // Step 1: Query recurring_todos to get IDs that will be materialized today
-        List<RecurringTodo> todaysRecurring = recurringTodoRepository.findActiveByUserIdAndDate(userId, currentDate);
+        // Step 1: Query recurring_todos and filter to only those that actually occur today
+        List<RecurringTodo> allActiveRecurring = recurringTodoRepository.findActiveByUserIdAndDate(userId, currentDate);
+        List<RecurringTodo> todaysRecurring = allActiveRecurring.stream()
+                .filter(rec -> RecurrenceCalculator.shouldInstanceExist(rec.getRecurrenceType(), rec.getStartDate(), currentDate))
+                .filter(rec -> !skipRecurringRepository.existsByRecurringTodoIdAndSkipDate(rec.getId(), currentDate))
+                .collect(java.util.stream.Collectors.toList());
         java.util.Set<Long> todaysRecurringIds = todaysRecurring.stream()
                 .map(RecurringTodo::getId)
                 .collect(java.util.stream.Collectors.toSet());
