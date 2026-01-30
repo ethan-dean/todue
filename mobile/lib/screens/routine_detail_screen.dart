@@ -773,43 +773,276 @@ class _ScheduleDialogState extends State<_ScheduleDialog> {
     _schedules = Map.from(widget.initialSchedules);
   }
 
+  Future<void> _pickTime(int dayIndex) async {
+    final currentTime = _schedules[dayIndex] ?? '08:00:00';
+    final parts = currentTime.split(':');
+    final initialTime = TimeOfDay(
+      hour: int.parse(parts[0]),
+      minute: int.parse(parts[1]),
+    );
+
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: initialTime,
+    );
+
+    if (picked != null) {
+      setState(() {
+        _schedules[dayIndex] = '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}:00';
+      });
+    }
+  }
+
+  String _formatTime(String? time) {
+    if (time == null) return '8:00 AM';
+    final parts = time.split(':');
+    final hour = int.parse(parts[0]);
+    final minute = int.parse(parts[1]);
+    final period = hour >= 12 ? 'PM' : 'AM';
+    final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+    return '$displayHour:${minute.toString().padLeft(2, '0')} $period';
+  }
+
+  void _toggleAll(bool enable) {
+    setState(() {
+      if (enable) {
+        for (int i = 0; i < 7; i++) {
+          if (!_schedules.containsKey(i)) {
+            _schedules[i] = '08:00:00';
+          }
+        }
+      } else {
+        _schedules.clear();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Schedule'),
-      content: SizedBox(
-        width: double.maxFinite,
-        child: ListView.builder(
-          shrinkWrap: true,
-          itemCount: 7,
-          itemBuilder: (context, index) {
-            final isEnabled = _schedules.containsKey(index);
-            return CheckboxListTile(
-              title: Text(_days[index]),
-              value: isEnabled,
-              onChanged: (value) {
-                setState(() {
-                  if (value == true) {
-                    _schedules[index] = '08:00:00';
-                  } else {
-                    _schedules.remove(index);
-                  }
-                });
-              },
-            );
-          },
+    final enabledCount = _schedules.length;
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.calendar_today, color: Colors.green),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Schedule',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(context).pop(),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Select days and times for routine prompts',
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Quick actions
+            Row(
+              children: [
+                TextButton.icon(
+                  onPressed: () => _toggleAll(true),
+                  icon: const Icon(Icons.select_all, size: 18),
+                  label: const Text('All'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.green,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                TextButton.icon(
+                  onPressed: () => _toggleAll(false),
+                  icon: const Icon(Icons.deselect, size: 18),
+                  label: const Text('None'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.grey[600],
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: enabledCount > 0 ? Colors.green[50] : Colors.grey[100],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '$enabledCount/7 days',
+                    style: TextStyle(
+                      color: enabledCount > 0 ? Colors.green[700] : Colors.grey[600],
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Divider(height: 1),
+            const SizedBox(height: 8),
+            // Days list
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 350),
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: 7,
+                itemBuilder: (context, index) {
+                  final isEnabled = _schedules.containsKey(index);
+                  final promptTime = _schedules[index];
+
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isEnabled ? Colors.green[50] : Colors.grey[50],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isEnabled ? Colors.green[200]! : Colors.grey[200]!,
+                        width: 1,
+                      ),
+                    ),
+                    child: InkWell(
+                      onTap: () {
+                        setState(() {
+                          if (isEnabled) {
+                            _schedules.remove(index);
+                          } else {
+                            _schedules[index] = '08:00:00';
+                          }
+                        });
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        child: Row(
+                          children: [
+                            // Checkbox
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              width: 24,
+                              height: 24,
+                              decoration: BoxDecoration(
+                                color: isEnabled ? Colors.green : Colors.white,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: isEnabled ? Colors.green : Colors.grey[400]!,
+                                  width: 2,
+                                ),
+                              ),
+                              child: isEnabled
+                                  ? const Icon(Icons.check, size: 16, color: Colors.white)
+                                  : null,
+                            ),
+                            const SizedBox(width: 12),
+                            // Day name
+                            Expanded(
+                              child: Text(
+                                _days[index],
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: isEnabled ? FontWeight.w600 : FontWeight.normal,
+                                  color: isEnabled ? Colors.green[800] : Colors.grey[700],
+                                ),
+                              ),
+                            ),
+                            // Time picker button
+                            if (isEnabled)
+                              Material(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                child: InkWell(
+                                  onTap: () => _pickTime(index),
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: Colors.green[300]!),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.access_time, size: 16, color: Colors.green[600]),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          _formatTime(promptTime),
+                                          style: TextStyle(
+                                            color: Colors.green[700],
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Action buttons
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      side: BorderSide(color: Colors.grey[300]!),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(_schedules),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: const Text('Save'),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(_schedules),
-          child: const Text('Save'),
-        ),
-      ],
     );
   }
 }
