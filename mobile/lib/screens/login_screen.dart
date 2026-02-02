@@ -15,6 +15,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
 
   bool _obscurePassword = true;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -28,28 +29,27 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
+    // Clear any previous error
+    setState(() {
+      _errorMessage = null;
+    });
+
     final authProvider = context.read<AuthProvider>();
 
     try {
-      print('LoginScreen: calling authProvider.login');
       await authProvider.login(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-      print('LoginScreen: authProvider.login completed');
-      
+
       if (mounted) {
         Navigator.of(context).pushReplacementNamed('/todos');
       }
     } catch (e) {
-      print('LoginScreen: caught error $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Login failed: ${authProvider.error ?? e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        setState(() {
+          _errorMessage = e.toString().replaceFirst('Exception: ', '');
+        });
       }
     }
   }
@@ -166,6 +166,30 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
+
+                  // Error message
+                  if (_errorMessage != null)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.red.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.error_outline, color: Colors.red.shade700, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _errorMessage!,
+                              style: TextStyle(color: Colors.red.shade700),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
 
                   // Login button
                   Consumer<AuthProvider>(

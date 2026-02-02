@@ -112,7 +112,8 @@ class TodoProvider extends ChangeNotifier {
         // Since prefetch happens on load, this is usually safe.
         // We overwrite whatever is there because this is "Fresh" data from API.
         _todos[entry.key] = entry.value;
-        
+        _loadedDates.add(entry.key);  // Mark as loaded from API
+
         await _databaseService.saveTodosForDate(entry.key, entry.value);
       }
       
