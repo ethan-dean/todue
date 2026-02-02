@@ -20,10 +20,10 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
     public ResponseEntity<Map<String, String>> handleOptimisticLockingFailure(ObjectOptimisticLockingFailureException ex) {
-        // This happens when the verification token was already used (deleted by another request)
+        // This happens when there's a concurrent modification (e.g., verification token already used, or stale entity update)
         return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(Map.of("message", "This verification link has already been used. Your email may already be verified."));
+                .status(HttpStatus.CONFLICT)
+                .body(Map.of("message", "The data was modified by another request. Please try again."));
     }
 
     @ExceptionHandler(Exception.class)
