@@ -268,9 +268,10 @@ class DatabaseService {
   // Helper methods
 
   Future<void> saveTodosForDate(String date, List<Todo> todos) async {
-    // In a real scenario, you might want to delete existing todos for the date first
-    // or rely on ConflictAlgorithm.replace which works by ID.
-    // For syncing a full day list, replacing is usually safer if IDs are consistent.
+    final db = await database;
+    // Delete existing todos for this date before inserting fresh data
+    // This prevents stale data from accumulating when IDs change
+    await db.delete('todos', where: 'assigned_date = ?', whereArgs: [date]);
     await saveTodos(todos);
   }
 

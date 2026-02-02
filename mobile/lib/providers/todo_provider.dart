@@ -14,6 +14,7 @@ class TodoProvider extends ChangeNotifier {
 
   // State
   Map<String, List<Todo>> _todos = {};
+  Set<String> _loadedDates = {};  // Tracks dates that have been loaded from API
   DateTime _selectedDate = DateTime.now();
   bool _isLoading = false;
   String? _error;
@@ -27,6 +28,9 @@ class TodoProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isOnline => _isOnline;
+
+  // Check if the selected date has been loaded from API
+  bool get isSelectedDateLoaded => _loadedDates.contains(_formatDate(_selectedDate));
 
   // Get todos for a specific date
   List<Todo> getTodosForDate(DateTime date) {
@@ -226,9 +230,8 @@ class TodoProvider extends ChangeNotifier {
         final localTodos = await _databaseService.getTodos(date: dateStr);
         if (localTodos.isNotEmpty) {
           _todos[dateStr] = localTodos;
+          _loadedDates.add(dateStr);  // Mark as loaded from local cache
           notifyListeners(); // Show cached data instantly
-        } else {
-          _setLoading(true); // Only show spinner if cache is empty
         }
       } catch (e) {
         print('Cache load failed: $e');
@@ -249,6 +252,7 @@ class TodoProvider extends ChangeNotifier {
       }
 
       _todos[dateStr] = fetchedTodos;
+      _loadedDates.add(dateStr);  // Mark this date as loaded from API
       _isOnline = true;
 
       // Update Cache
