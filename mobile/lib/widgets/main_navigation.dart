@@ -162,6 +162,40 @@ class _MainNavigationState extends State<MainNavigation> {
     }
   }
 
+  Future<void> _editLaterListName(int listId, String currentName) async {
+    final controller = TextEditingController(text: currentName);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Name'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: 'List name',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(controller.text),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && result.trim().isNotEmpty && mounted) {
+      await context
+          .read<LaterListProvider>()
+          .updateListName(listId, result.trim());
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer2<LaterListProvider, RoutineProvider>(
@@ -204,10 +238,24 @@ class _MainNavigationState extends State<MainNavigation> {
           }
         }
 
+        final bool isLaterListDetail = _selectedIndex == 1 && laterListProvider.currentListId != null;
         final bool isRoutineDetail = _selectedIndex == 2 && routineProvider.currentRoutineId != null;
 
         Widget titleWidget;
-        if (isRoutineDetail) {
+        if (isLaterListDetail) {
+          final listId = laterListProvider.currentListId!;
+          titleWidget = GestureDetector(
+            onTap: () => _editLaterListName(listId, title),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(child: Text(title, overflow: TextOverflow.ellipsis)),
+                const SizedBox(width: 4),
+                const Icon(Icons.edit, size: 16),
+              ],
+            ),
+          );
+        } else if (isRoutineDetail) {
           final routineId = routineProvider.currentRoutineId!;
           titleWidget = GestureDetector(
             onTap: () => _editRoutineName(routineId, title),

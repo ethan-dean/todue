@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../providers/later_list_provider.dart';
 import '../models/later_list.dart';
@@ -74,59 +75,7 @@ class _LaterListsScreenState extends State<LaterListsScreen> {
     );
   }
 
-  Future<void> _showRenameDialog(LaterList list) async {
-    final textController = TextEditingController(text: list.listName);
-    final provider = context.read<LaterListProvider>();
-
-    return showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Rename List'),
-        content: TextField(
-          controller: textController,
-          autofocus: true,
-          decoration: const InputDecoration(
-            hintText: 'List name',
-            border: OutlineInputBorder(),
-          ),
-          maxLength: 100,
-          textInputAction: TextInputAction.done,
-          onSubmitted: (value) {
-            if (value.trim().isNotEmpty && value.trim() != list.listName) {
-              Navigator.of(context).pop();
-              provider.updateListName(list.id, value.trim());
-            } else {
-              Navigator.of(context).pop();
-            }
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final text = textController.text.trim();
-              if (text.isNotEmpty && text != list.listName) {
-                Navigator.of(context).pop();
-                provider.updateListName(list.id, text);
-              } else {
-                Navigator.of(context).pop();
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _confirmDelete(LaterList list) async {
+  Future<bool> _confirmDeleteDismiss(LaterList list) async {
     final provider = context.read<LaterListProvider>();
 
     final result = await showDialog<bool>(
@@ -153,6 +102,7 @@ class _LaterListsScreenState extends State<LaterListsScreen> {
     if (result == true) {
       provider.deleteList(list.id);
     }
+    return false; // Don't dismiss, let provider handle it
   }
 
   @override
@@ -266,17 +216,64 @@ class _LaterListsScreenState extends State<LaterListsScreen> {
                         );
                       }
 
-                      return RefreshIndicator(
-                        onRefresh: () => provider.loadLists(),
-                        color: Colors.green,
-                        child: ListView.builder(
-                          padding: const EdgeInsets.all(8),
-                          itemCount: provider.lists.length,
-                          itemBuilder: (context, index) {
-                            final list = provider.lists[index];
-                            return _buildListItem(list);
-                          },
-                        ),
+                      return CustomScrollView(
+                        slivers: [
+                          // Pull-down-to-add gesture
+                          CupertinoSliverRefreshControl(
+                            onRefresh: () async {
+                              await _showCreateListDialog();
+                            },
+                            builder: (
+                              BuildContext context,
+                              RefreshIndicatorMode refreshState,
+                              double pulledExtent,
+                              double refreshTriggerPullDistance,
+                              double refreshIndicatorExtent,
+                            ) {
+                              final double percentage = (pulledExtent / refreshTriggerPullDistance).clamp(0.0, 1.0);
+                              return Center(
+                                child: Opacity(
+                                  opacity: percentage,
+                                  child: const Icon(
+                                    Icons.add_circle,
+                                    color: Colors.green,
+                                    size: 32,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          // List items
+                          SliverPadding(
+                            padding: const EdgeInsets.all(8),
+                            sliver: SliverList(
+                              delegate: SliverChildBuilderDelegate(
+                                (context, index) {
+                                  final list = provider.lists[index];
+                                  return _buildListItem(list);
+                                },
+                                childCount: provider.lists.length,
+                              ),
+                            ),
+                          ),
+                          // Tappable empty space at bottom
+                          SliverToBoxAdapter(
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: _showCreateListDialog,
+                              child: const SizedBox(height: 140),
+                            ),
+                          ),
+                          // Fill remaining space
+                          SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: _showCreateListDialog,
+                              child: Container(),
+                            ),
+                          ),
+                        ],
                       );
                     },
                   ),
@@ -321,59 +318,41 @@ class _LaterListsScreenState extends State<LaterListsScreen> {
   }
 
   Widget _buildListItem(LaterList list) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        ListTile(
-          onTap: () => context.read<LaterListProvider>().setCurrentListId(list.id),
-          title: Text(
-            list.listName,
-            style: TextStyle(
-              fontWeight: FontWeight.w500,
-              fontSize: 16,
-              color: Theme.of(context).textTheme.bodyLarge?.color,
+    return Dismissible(
+      key: Key('list_${list.id}'),
+      background: Container(
+        color: Colors.red,
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        child: const Icon(Icons.delete, color: Colors.white),
+      ),
+      direction: DismissDirection.endToStart,
+      confirmDismiss: (direction) async {
+        return await _confirmDeleteDismiss(list);
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            onTap: () => context.read<LaterListProvider>().setCurrentListId(list.id),
+            title: Text(
+              list.listName,
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 16,
+                color: Theme.of(context).textTheme.bodyLarge?.color,
+              ),
             ),
           ),
-          trailing: PopupMenuButton<String>(
-            onSelected: (value) {
-              if (value == 'rename') {
-                _showRenameDialog(list);
-              } else if (value == 'delete') {
-                _confirmDelete(list);
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'rename',
-                child: Row(
-                  children: [
-                    Icon(Icons.edit, size: 20),
-                    SizedBox(width: 8),
-                    Text('Rename'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'delete',
-                child: Row(
-                  children: [
-                    Icon(Icons.delete, size: 20, color: Colors.red),
-                    SizedBox(width: 8),
-                    Text('Delete', style: TextStyle(color: Colors.red)),
-                  ],
-                ),
-              ),
-            ],
+          Divider(
+            height: 1,
+            thickness: 1,
+            indent: 8,
+            endIndent: 8,
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
           ),
-        ),
-        Divider(
-          height: 1,
-          thickness: 1,
-          indent: 8,
-          endIndent: 8,
-          color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

@@ -279,7 +279,7 @@ class LaterListProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> createTodo(int listId, String text) async {
+  Future<bool> createTodo(int listId, String text, {int? position}) async {
     _lastMutationTime = DateTime.now();
     await _checkOnlineStatus();
     if (!_isOnline) {
@@ -290,9 +290,18 @@ class LaterListProvider extends ChangeNotifier {
 
     _error = null;
     try {
-      final newTodo = await _laterListApi.createTodo(listId: listId, text: text);
+      final newTodo = await _laterListApi.createTodo(listId: listId, text: text, position: position);
       final currentTodos = List<LaterListTodo>.from(_todos[listId] ?? []);
-      _todos[listId] = [...currentTodos, newTodo];
+      if (position != null && position == 1) {
+        // Adding at top - insert and re-number positions optimistically
+        final sortedList = List<LaterListTodo>.from(currentTodos)..sort((a, b) => a.position.compareTo(b.position));
+        for (int i = 0; i < sortedList.length; i++) {
+          sortedList[i] = sortedList[i].copyWith(position: i + 2);
+        }
+        _todos[listId] = [newTodo, ...sortedList];
+      } else {
+        _todos[listId] = [...currentTodos, newTodo];
+      }
       notifyListeners();
 
       // Save to cache

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../providers/later_list_provider.dart';
 import '../models/later_list.dart';
@@ -14,7 +15,7 @@ class LaterListDetailScreen extends StatefulWidget {
 }
 
 class _LaterListDetailScreenState extends State<LaterListDetailScreen> {
-  Future<void> _showAddTodoDialog() async {
+  Future<void> _showAddTodoDialog({int? position}) async {
     final textController = TextEditingController();
     final provider = context.read<LaterListProvider>();
 
@@ -35,7 +36,7 @@ class _LaterListDetailScreenState extends State<LaterListDetailScreen> {
           onSubmitted: (value) {
             if (value.trim().isNotEmpty) {
               Navigator.of(context).pop();
-              provider.createTodo(widget.list.id, value.trim());
+              provider.createTodo(widget.list.id, value.trim(), position: position);
             }
           },
         ),
@@ -49,7 +50,7 @@ class _LaterListDetailScreenState extends State<LaterListDetailScreen> {
               final text = textController.text.trim();
               if (text.isNotEmpty) {
                 Navigator.of(context).pop();
-                provider.createTodo(widget.list.id, text);
+                provider.createTodo(widget.list.id, text, position: position);
               }
             },
             style: ElevatedButton.styleFrom(
@@ -221,24 +222,73 @@ class _LaterListDetailScreenState extends State<LaterListDetailScreen> {
                       );
                     }
 
-                    return RefreshIndicator(
-                      onRefresh: () => provider.loadTodosForList(widget.list.id),
-                      color: Colors.green,
-                      child: ReorderableListView.builder(
-                        padding: const EdgeInsets.fromLTRB(8, 8, 8, 80),
-                        itemCount: todos.length,
-                        onReorder: (oldIndex, newIndex) {
-                          if (oldIndex < newIndex) {
-                            newIndex -= 1;
-                          }
-                          final todo = todos[oldIndex];
-                          provider.updateTodoPosition(widget.list.id, todo.id, newIndex);
-                        },
-                        itemBuilder: (context, index) {
-                          final todo = todos[index];
-                          return _buildTodoItem(todo, provider, key: Key('todo_${todo.id}'));
-                        },
-                      ),
+                    return CustomScrollView(
+                      slivers: [
+                        // Pull-down-to-add gesture
+                        CupertinoSliverRefreshControl(
+                          onRefresh: () async {
+                            await _showAddTodoDialog(position: 1);
+                          },
+                          builder: (
+                            BuildContext context,
+                            RefreshIndicatorMode refreshState,
+                            double pulledExtent,
+                            double refreshTriggerPullDistance,
+                            double refreshIndicatorExtent,
+                          ) {
+                            final double percentage = (pulledExtent / refreshTriggerPullDistance).clamp(0.0, 1.0);
+                            return Center(
+                              child: Opacity(
+                                opacity: percentage,
+                                child: const Icon(
+                                  Icons.add_circle,
+                                  color: Colors.green,
+                                  size: 32,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        // Reorderable list items
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+                          sliver: SliverReorderableList(
+                            itemCount: todos.length,
+                            onReorder: (oldIndex, newIndex) {
+                              if (oldIndex < newIndex) {
+                                newIndex -= 1;
+                              }
+                              final todo = todos[oldIndex];
+                              provider.updateTodoPosition(widget.list.id, todo.id, newIndex);
+                            },
+                            itemBuilder: (context, index) {
+                              final todo = todos[index];
+                              return ReorderableDragStartListener(
+                                key: Key('todo_${todo.id}'),
+                                index: index,
+                                child: _buildTodoItem(todo, provider),
+                              );
+                            },
+                          ),
+                        ),
+                        // Tappable empty space at bottom
+                        SliverToBoxAdapter(
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: _showAddTodoDialog,
+                            child: const SizedBox(height: 140),
+                          ),
+                        ),
+                        // Fill remaining space
+                        SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: _showAddTodoDialog,
+                            child: Container(),
+                          ),
+                        ),
+                      ],
                     );
                   },
                 ),
@@ -257,56 +307,59 @@ class _LaterListDetailScreenState extends State<LaterListDetailScreen> {
     );
   }
 
-  Widget _buildTodoItem(LaterListTodo todo, LaterListProvider provider, {Key? key}) {
-    return Dismissible(
-      key: key ?? Key('todo_${todo.id}'),
-      background: Container(
-        color: Colors.red,
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        child: const Icon(Icons.delete, color: Colors.white),
-      ),
-      direction: DismissDirection.endToStart,
-      confirmDismiss: (direction) async {
-        return await _confirmDeleteDismiss(todo);
-      },
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(
-            onTap: () => _showEditTodoDialog(todo),
-            leading: Checkbox(
-              value: todo.isCompleted,
-              onChanged: (value) {
-                if (value != null) {
-                  if (value) {
-                    provider.completeTodo(widget.list.id, todo.id);
-                  } else {
-                    provider.uncompleteTodo(widget.list.id, todo.id);
+  Widget _buildTodoItem(LaterListTodo todo, LaterListProvider provider) {
+    return Material(
+      type: MaterialType.transparency,
+      child: Dismissible(
+        key: Key('dismissible_${todo.id}'),
+        background: Container(
+          color: Colors.red,
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: 20),
+          child: const Icon(Icons.delete, color: Colors.white),
+        ),
+        direction: DismissDirection.endToStart,
+        confirmDismiss: (direction) async {
+          return await _confirmDeleteDismiss(todo);
+        },
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              onTap: () => _showEditTodoDialog(todo),
+              leading: Checkbox(
+                value: todo.isCompleted,
+                onChanged: (value) {
+                  if (value != null) {
+                    if (value) {
+                      provider.completeTodo(widget.list.id, todo.id);
+                    } else {
+                      provider.uncompleteTodo(widget.list.id, todo.id);
+                    }
                   }
-                }
-              },
-              activeColor: Colors.green,
-            ),
-            title: Text(
-              todo.text,
-              style: TextStyle(
-                fontSize: 16,
-                decoration: todo.isCompleted ? TextDecoration.lineThrough : TextDecoration.none,
-                color: todo.isCompleted
-                    ? Colors.grey
-                    : Theme.of(context).textTheme.bodyLarge?.color,
+                },
+                activeColor: Colors.green,
+              ),
+              title: Text(
+                todo.text,
+                style: TextStyle(
+                  fontSize: 16,
+                  decoration: todo.isCompleted ? TextDecoration.lineThrough : TextDecoration.none,
+                  color: todo.isCompleted
+                      ? Colors.grey
+                      : Theme.of(context).textTheme.bodyLarge?.color,
+                ),
               ),
             ),
-          ),
-          Divider(
-            height: 1,
-            thickness: 1,
-            indent: 8,
-            endIndent: 8,
-            color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
-          ),
-        ],
+            Divider(
+              height: 1,
+              thickness: 1,
+              indent: 8,
+              endIndent: 8,
+              color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
+            ),
+          ],
+        ),
       ),
     );
   }
