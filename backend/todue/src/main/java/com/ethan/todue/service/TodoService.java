@@ -18,6 +18,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -342,6 +343,12 @@ public class TodoService {
             throw new RuntimeException("Unauthorized access");
         }
 
+        // Check if already materialized
+        Optional<Todo> existing = todoRepository.findFirstByRecurringTodoIdAndInstanceDate(recurringTodoId, instanceDate);
+        if (existing.isPresent()) {
+            return toTodoResponse(existing.get());
+        }
+
         Todo todo = new Todo();
         todo.setUser(user);
         todo.setText(recurringTodo.getText());
@@ -592,6 +599,11 @@ public class TodoService {
             // Send WebSocket notification - deleting all future affects all dates
             webSocketService.notifyRecurringChanged(userId);
         } else {
+            // If this todo is linked to a recurring pattern, skip the instance so it doesn't regenerate
+            if (todo.getRecurringTodo() != null) {
+                skipRecurringService.skipInstance(todo.getRecurringTodo().getId(), todo.getInstanceDate());
+            }
+
             todoRepository.delete(todo);
 
             // Send WebSocket notification - single delete affects only assigned date
@@ -748,19 +760,31 @@ public class TodoService {
                     .filter(t -> t.getRecurringTodo() == null) // Only normal todos
                     .collect(Collectors.toList());
 
-            // If user is placing normal todo at position that would be in virtual group
-            // (virtuals are at top with position 0), materialize all virtuals
+            // If user is placing virtual todo at position that would mix with normal todos, materialize all virtuals
             if (newPosition <= normalTodos.size()) {
                 // Materialize all virtuals for this date
                 List<RecurringTodo> allRecurring = recurringTodoRepository.findActiveByUserIdAndDate(
                         user.getId(), instanceDate);
 
                 int pos = 1;
-                for (RecurringTodo rec : allRecurring) {
-                    // Check if not already materialized
-                    if (todoRepository.findFirstByRecurringTodoIdAndInstanceDate(
-                            rec.getId(), instanceDate).isEmpty()) {
+                Todo targetMaterialized = null;
 
+                for (RecurringTodo rec : allRecurring) {
+                    // Check if instance should exist on this date
+                    if (!RecurrenceCalculator.shouldInstanceExist(rec.getRecurrenceType(), rec.getStartDate(), instanceDate)) {
+                        continue;
+                    }
+
+                    // Check if this instance is skipped
+                    if (skipRecurringRepository.existsByRecurringTodoIdAndSkipDate(rec.getId(), instanceDate)) {
+                        continue;
+                    }
+
+                    // Check if not already materialized
+                    Optional<Todo> existingTodo = todoRepository.findFirstByRecurringTodoIdAndInstanceDate(
+                            rec.getId(), instanceDate);
+
+                    if (existingTodo.isEmpty()) {
                         Todo materialized = new Todo();
                         materialized.setUser(user);
                         materialized.setText(rec.getText());
@@ -771,7 +795,14 @@ public class TodoService {
                         materialized.setIsCompleted(false);
                         materialized.setIsRolledOver(false);
 
-                        todoRepository.save(materialized);
+                        materialized = todoRepository.save(materialized);
+
+                        // Track if this is the one we're repositioning
+                        if (rec.getId().equals(recurringTodoId)) {
+                            targetMaterialized = materialized;
+                        }
+                    } else if (rec.getId().equals(recurringTodoId)) {
+                        targetMaterialized = existingTodo.get();
                     }
                 }
 
@@ -781,6 +812,11 @@ public class TodoService {
                     normalTodo.setPosition(pos++);
                 }
                 todoRepository.saveAll(normalTodos);
+
+                // If we already materialized the target, just update its position
+                if (targetMaterialized != null) {
+                    return updateTodoPosition(targetMaterialized.getId(), newPosition);
+                }
             }
         }
 
