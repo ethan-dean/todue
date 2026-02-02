@@ -429,6 +429,17 @@ class _TodoScreenState extends State<TodoScreen> {
                   ),
           )
         else ...[
+          // Top divider for visual separation from date timeline
+          SliverToBoxAdapter(
+            child: Divider(
+              height: 1,
+              thickness: 1,
+              indent: 16,
+              endIndent: 16,
+              color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
+            ),
+          ),
+
           // Incomplete section
           if (incompleteTodos.isNotEmpty)
             SliverPadding(
@@ -599,10 +610,10 @@ class _TodoScreenState extends State<TodoScreen> {
           return await _confirmDelete(todo);
         }
       },
-      child: Card(
-        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        elevation: 1,
-        child: ListTile(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
           onTap: () => _showEditTodoDialog(todo, todoProvider),
           leading: Checkbox(
             value: todo.isCompleted,
@@ -630,7 +641,9 @@ class _TodoScreenState extends State<TodoScreen> {
                     decoration: todo.isCompleted
                         ? TextDecoration.lineThrough
                         : TextDecoration.none,
-                    color: todo.isCompleted ? Colors.grey : Colors.black,
+                    color: todo.isCompleted
+                        ? Colors.grey
+                        : Theme.of(context).textTheme.bodyLarge?.color,
                   ),
                 ),
               ),
@@ -666,6 +679,14 @@ class _TodoScreenState extends State<TodoScreen> {
           ),
           subtitle: null,
         ),
+          Divider(
+            height: 1,
+            thickness: 1,
+            indent: 16,
+            endIndent: 16,
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
+          ),
+        ],
       ),
     );
 

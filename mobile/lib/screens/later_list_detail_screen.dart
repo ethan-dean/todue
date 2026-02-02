@@ -270,32 +270,43 @@ class _LaterListDetailScreenState extends State<LaterListDetailScreen> {
       confirmDismiss: (direction) async {
         return await _confirmDeleteDismiss(todo);
       },
-      child: Card(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        child: ListTile(
-          onTap: () => _showEditTodoDialog(todo),
-          leading: Checkbox(
-            value: todo.isCompleted,
-            onChanged: (value) {
-              if (value != null) {
-                if (value) {
-                  provider.completeTodo(widget.list.id, todo.id);
-                } else {
-                  provider.uncompleteTodo(widget.list.id, todo.id);
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            onTap: () => _showEditTodoDialog(todo),
+            leading: Checkbox(
+              value: todo.isCompleted,
+              onChanged: (value) {
+                if (value != null) {
+                  if (value) {
+                    provider.completeTodo(widget.list.id, todo.id);
+                  } else {
+                    provider.uncompleteTodo(widget.list.id, todo.id);
+                  }
                 }
-              }
-            },
-            activeColor: Colors.green,
-          ),
-          title: Text(
-            todo.text,
-            style: TextStyle(
-              fontSize: 16,
-              decoration: todo.isCompleted ? TextDecoration.lineThrough : TextDecoration.none,
-              color: todo.isCompleted ? Colors.grey : null,
+              },
+              activeColor: Colors.green,
+            ),
+            title: Text(
+              todo.text,
+              style: TextStyle(
+                fontSize: 16,
+                decoration: todo.isCompleted ? TextDecoration.lineThrough : TextDecoration.none,
+                color: todo.isCompleted
+                    ? Colors.grey
+                    : Theme.of(context).textTheme.bodyLarge?.color,
+              ),
             ),
           ),
-        ),
+          Divider(
+            height: 1,
+            thickness: 1,
+            indent: 8,
+            endIndent: 8,
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
+          ),
+        ],
       ),
     );
   }

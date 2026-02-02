@@ -321,49 +321,59 @@ class _LaterListsScreenState extends State<LaterListsScreen> {
   }
 
   Widget _buildListItem(LaterList list) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      child: ListTile(
-        onTap: () => context.read<LaterListProvider>().setCurrentListId(list.id),
-        title: Text(
-          list.listName,
-          style: const TextStyle(
-            fontWeight: FontWeight.w500,
-            fontSize: 16,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ListTile(
+          onTap: () => context.read<LaterListProvider>().setCurrentListId(list.id),
+          title: Text(
+            list.listName,
+            style: TextStyle(
+              fontWeight: FontWeight.w500,
+              fontSize: 16,
+              color: Theme.of(context).textTheme.bodyLarge?.color,
+            ),
+          ),
+          trailing: PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'rename') {
+                _showRenameDialog(list);
+              } else if (value == 'delete') {
+                _confirmDelete(list);
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'rename',
+                child: Row(
+                  children: [
+                    Icon(Icons.edit, size: 20),
+                    SizedBox(width: 8),
+                    Text('Rename'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete, size: 20, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Delete', style: TextStyle(color: Colors.red)),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
-        trailing: PopupMenuButton<String>(
-          onSelected: (value) {
-            if (value == 'rename') {
-              _showRenameDialog(list);
-            } else if (value == 'delete') {
-              _confirmDelete(list);
-            }
-          },
-          itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'rename',
-              child: Row(
-                children: [
-                  Icon(Icons.edit, size: 20),
-                  SizedBox(width: 8),
-                  Text('Rename'),
-                ],
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'delete',
-              child: Row(
-                children: [
-                  Icon(Icons.delete, size: 20, color: Colors.red),
-                  SizedBox(width: 8),
-                  Text('Delete', style: TextStyle(color: Colors.red)),
-                ],
-              ),
-            ),
-          ],
+        Divider(
+          height: 1,
+          thickness: 1,
+          indent: 8,
+          endIndent: 8,
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
         ),
-      ),
+      ],
     );
   }
 }

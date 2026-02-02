@@ -4,8 +4,7 @@ import '../screens/todo_screen.dart';
 import '../screens/later_lists_screen.dart';
 import '../screens/routines_screen.dart';
 import '../screens/routine_execution_screen.dart';
-import '../providers/auth_provider.dart';
-import '../providers/theme_provider.dart';
+import '../screens/settings_screen.dart';
 import '../providers/later_list_provider.dart';
 import '../providers/todo_provider.dart';
 import '../providers/routine_provider.dart';
@@ -129,14 +128,6 @@ class _MainNavigationState extends State<MainNavigation> {
     });
   }
 
-  Future<void> _handleLogout() async {
-    final authProvider = context.read<AuthProvider>();
-    await authProvider.logout();
-    if (mounted) {
-      Navigator.of(context).pushReplacementNamed('/login');
-    }
-  }
-
   Future<void> _editRoutineName(int routineId, String currentName) async {
     final controller = TextEditingController(text: currentName);
     final result = await showDialog<String>(
@@ -249,22 +240,15 @@ class _MainNavigationState extends State<MainNavigation> {
                   },
                   tooltip: routineProvider.showAnalytics ? 'Steps' : 'Analytics',
                 ),
-              Consumer<ThemeProvider>(
-                builder: (context, themeProvider, _) {
-                  final isDark = Theme.of(context).brightness == Brightness.dark;
-                  return IconButton(
-                    icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
-                    onPressed: () {
-                      themeProvider.toggleTheme();
-                    },
-                    tooltip: isDark ? 'Light Mode' : 'Dark Mode',
+              IconButton(
+                icon: const Icon(Icons.menu),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SettingsScreen()),
                   );
                 },
-              ),
-              IconButton(
-                icon: const Icon(Icons.logout),
-                onPressed: _handleLogout,
-                tooltip: 'Logout',
+                tooltip: 'Settings',
               ),
             ],
           ),

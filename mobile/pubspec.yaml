@@ -57,6 +57,9 @@ dependencies:
   # Connectivity
   connectivity_plus: ^6.1.2
 
+  # Package Info
+  package_info_plus: ^8.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
