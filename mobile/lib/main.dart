@@ -57,8 +57,8 @@ class TodoApp extends StatelessWidget {
           return MaterialApp(
             title: 'Todue',
             debugShowCheckedModeBanner: false,
-            theme: ThemeProvider.lightTheme,
-            darkTheme: ThemeProvider.darkTheme,
+            theme: themeProvider.lightTheme,
+            darkTheme: themeProvider.darkTheme,
             themeMode: themeProvider.themeMode,
             home: const AuthWrapper(),
             routes: {
@@ -96,15 +96,18 @@ class AuthWrapper extends StatelessWidget {
         if (authProvider.isLoading) {
           return const Scaffold(
             body: Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
-              ),
+              child: CircularProgressIndicator(),
             ),
           );
         }
 
         // Show main app if authenticated, otherwise show login
         if (authProvider.isAuthenticated) {
+          // Apply user's accent color preference
+          final accentHex = authProvider.user?.accentColor;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            context.read<ThemeProvider>().setAccentColorFromHex(accentHex);
+          });
           return const MainNavigation();
         } else {
           return const LoginScreen();

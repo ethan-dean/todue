@@ -4,11 +4,14 @@ import { ArrowLeft, Moon, Sun, LogOut, Download, Upload } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { userApi } from '../services/userApi';
+import AccentColorPicker from '../components/AccentColorPicker';
+import TimezoneSelector from '../components/TimezoneSelector';
 import type { ImportFormat, ImportResponse } from '../types';
 
 const SettingsPage: React.FC = () => {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const [timezone, setTimezone] = useState(user?.timezone || 'UTC');
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -134,6 +137,30 @@ const SettingsPage: React.FC = () => {
                   <>Switch to Light <Sun size={16} /></>
                 )}
               </button>
+            </div>
+
+            <div className="setting-item">
+              <div className="setting-info">
+                <span className="setting-label">Accent Color</span>
+              </div>
+              <AccentColorPicker />
+            </div>
+
+            <div className="setting-item">
+              <div className="setting-info">
+                <span className="setting-label">Timezone</span>
+              </div>
+              <TimezoneSelector
+                value={timezone}
+                onChange={async (tz) => {
+                  setTimezone(tz);
+                  try {
+                    await userApi.updateTimezone(tz);
+                  } catch (err) {
+                    console.error('Failed to update timezone:', err);
+                  }
+                }}
+              />
             </div>
           </div>
 

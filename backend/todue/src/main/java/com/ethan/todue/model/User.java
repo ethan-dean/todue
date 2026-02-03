@@ -43,6 +43,9 @@ public class User {
     @Column(nullable = false, updatable = false, columnDefinition = "DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6)")
     private Instant createdAt;
 
+    @Column(length = 7)
+    private String accentColor;
+
     @Column
     private Instant lastRolloverDate;
 

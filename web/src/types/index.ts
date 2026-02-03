@@ -3,6 +3,7 @@ export interface User {
   id: number;
   email: string;
   timezone: string;
+  accentColor?: string | null;
   createdAt?: string;
   lastRolloverDate?: string | null;
   updatedAt?: string;

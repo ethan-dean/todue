@@ -54,7 +54,7 @@ class _LaterListDetailScreenState extends State<LaterListDetailScreen> {
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
+              backgroundColor: Theme.of(context).colorScheme.primary,
               foregroundColor: Colors.white,
             ),
             child: const Text('Add'),
@@ -107,7 +107,7 @@ class _LaterListDetailScreenState extends State<LaterListDetailScreen> {
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
+              backgroundColor: Theme.of(context).colorScheme.primary,
               foregroundColor: Colors.white,
             ),
             child: const Text('Save'),
@@ -184,9 +184,9 @@ class _LaterListDetailScreenState extends State<LaterListDetailScreen> {
                 child: Builder(
                   builder: (context) {
                     if (provider.isLoading && todos.isEmpty) {
-                      return const Center(
+                      return Center(
                         child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+                          valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
                         ),
                       );
                     }
@@ -240,9 +240,9 @@ class _LaterListDetailScreenState extends State<LaterListDetailScreen> {
                             return Center(
                               child: Opacity(
                                 opacity: percentage,
-                                child: const Icon(
+                                child: Icon(
                                   Icons.add_circle,
-                                  color: Colors.green,
+                                  color: Theme.of(context).colorScheme.primary,
                                   size: 32,
                                 ),
                               ),
@@ -331,7 +331,7 @@ class _LaterListDetailScreenState extends State<LaterListDetailScreen> {
                     }
                   }
                 },
-                activeColor: Colors.green,
+                activeColor: Theme.of(context).colorScheme.primary,
               ),
               title: Text(
                 todo.text,

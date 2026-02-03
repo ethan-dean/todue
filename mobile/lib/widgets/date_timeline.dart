@@ -231,13 +231,13 @@ class DateTimelineState extends State<DateTimeline> {
                       margin: EdgeInsets.only(top: 10, bottom: 25, left: _itemMargin, right: _itemMargin),
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? Colors.green
-                            : (isToday ? Colors.green.withOpacity(0.1) : (isHovering ? Colors.green.withOpacity(0.2) : Colors.transparent)),
+                            ? Theme.of(context).colorScheme.primary
+                            : (isToday ? Theme.of(context).colorScheme.primary.withOpacity(0.1) : (isHovering ? Theme.of(context).colorScheme.primary.withOpacity(0.2) : Colors.transparent)),
                         borderRadius: BorderRadius.circular(16),
                         border: (isToday && !isSelected) || isHovering
-                            ? Border.all(color: Colors.green, width: isHovering ? 2 : 1)
+                            ? Border.all(color: Theme.of(context).colorScheme.primary, width: isHovering ? 2 : 1)
                             : null,
-                        boxShadow: isHovering ? [BoxShadow(color: Colors.green.withOpacity(0.3), blurRadius: 8, spreadRadius: 2)] : null,
+                        boxShadow: isHovering ? [BoxShadow(color: Theme.of(context).colorScheme.primary.withOpacity(0.3), blurRadius: 8, spreadRadius: 2)] : null,
                       ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,

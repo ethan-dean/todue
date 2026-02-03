@@ -283,7 +283,7 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
                 Card(
                   margin: const EdgeInsets.all(16),
                   child: ListTile(
-                    leading: const Icon(Icons.schedule, color: Colors.green),
+                    leading: Icon(Icons.schedule, color: Theme.of(context).colorScheme.primary),
                     title: const Text('Schedule'),
                     subtitle: Text(_getScheduleSummary(detail.schedules)),
                     trailing: const Icon(Icons.chevron_right),
@@ -344,10 +344,10 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
                               key: ValueKey(step.id),
                               child: ListTile(
                                 leading: CircleAvatar(
-                                  backgroundColor: Colors.green[100],
+                                  backgroundColor: Theme.of(context).colorScheme.primaryContainer,
                                   child: Text(
                                     '${index + 1}',
-                                    style: TextStyle(color: Colors.green[800]),
+                                    style: TextStyle(color: Theme.of(context).colorScheme.primary),
                                   ),
                                 ),
                                 title: Text(step.text),
@@ -391,7 +391,7 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
                           }
                         : _startRoutine,
                 backgroundColor:
-                    sortedSteps.isEmpty ? Colors.grey : Colors.green,
+                    sortedSteps.isEmpty ? Colors.grey : Theme.of(context).colorScheme.primary,
                 icon: Icon(
                   hasActiveExecution ? Icons.play_arrow : Icons.play_circle_outline,
                   color: Colors.white,
@@ -471,7 +471,7 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
                 'Completion Rate',
                 '${analytics.completionRate.round()}%',
                 Icons.pie_chart,
-                Colors.green,
+                Theme.of(context).colorScheme.primary,
               ),
             ),
             const SizedBox(width: 12),
@@ -553,7 +553,7 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _buildLegendItem(Colors.green, 'Completed'),
+            _buildLegendItem(Theme.of(context).colorScheme.primary, 'Completed'),
             const SizedBox(width: 16),
             _buildLegendItem(Colors.red, 'Abandoned'),
             const SizedBox(width: 16),
@@ -613,7 +613,7 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
 
                     Color? dotColor;
                     if (status == 'COMPLETED') {
-                      dotColor = Colors.green;
+                      dotColor = Theme.of(context).colorScheme.primary;
                     } else if (status == 'ABANDONED') {
                       dotColor = Colors.red;
                     }
@@ -627,7 +627,7 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: isToday
-                              ? Border.all(color: Colors.green, width: 2)
+                              ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2)
                               : null,
                         ),
                         child: Stack(
@@ -636,7 +636,7 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
                             Text(
                               '$dayNumber',
                               style: TextStyle(
-                                color: isToday ? Colors.green : null,
+                                color: isToday ? Theme.of(context).colorScheme.primary : null,
                                 fontWeight: isToday ? FontWeight.bold : null,
                               ),
                             ),
@@ -724,7 +724,7 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
                         minHeight: 8,
                         backgroundColor: Colors.orange.withOpacity(0.3),
                         valueColor:
-                            const AlwaysStoppedAnimation<Color>(Colors.green),
+                            AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -733,7 +733,7 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
                         Text(
                           '${step.completedCount} completed',
                           style:
-                              TextStyle(fontSize: 12, color: Colors.green[700]),
+                              TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.primary),
                         ),
                         const Text(' • '),
                         Text(
@@ -831,7 +831,7 @@ class _ScheduleDialogState extends State<_ScheduleDialog> {
           children: [
             Row(
               children: [
-                const Icon(Icons.calendar_today, color: Colors.green),
+                Icon(Icons.calendar_today, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(width: 12),
                 const Expanded(
                   child: Text(
@@ -867,7 +867,7 @@ class _ScheduleDialogState extends State<_ScheduleDialog> {
                   icon: const Icon(Icons.select_all, size: 18),
                   label: const Text('All'),
                   style: TextButton.styleFrom(
-                    foregroundColor: Colors.green,
+                    foregroundColor: Theme.of(context).colorScheme.primary,
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                   ),
                 ),
@@ -885,13 +885,13 @@ class _ScheduleDialogState extends State<_ScheduleDialog> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: enabledCount > 0 ? Colors.green[50] : Colors.grey[100],
+                    color: enabledCount > 0 ? Theme.of(context).colorScheme.primaryContainer : Colors.grey[100],
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     '$enabledCount/7 days',
                     style: TextStyle(
-                      color: enabledCount > 0 ? Colors.green[700] : Colors.grey[600],
+                      color: enabledCount > 0 ? Theme.of(context).colorScheme.primary : Colors.grey[600],
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
                     ),
@@ -916,10 +916,10 @@ class _ScheduleDialogState extends State<_ScheduleDialog> {
                     duration: const Duration(milliseconds: 200),
                     margin: const EdgeInsets.symmetric(vertical: 4),
                     decoration: BoxDecoration(
-                      color: isEnabled ? Colors.green[50] : Colors.grey[50],
+                      color: isEnabled ? Theme.of(context).colorScheme.primaryContainer : Colors.grey[50],
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: isEnabled ? Colors.green[200]! : Colors.grey[200]!,
+                        color: isEnabled ? Theme.of(context).colorScheme.primary.withOpacity(0.3) : Colors.grey[200]!,
                         width: 1,
                       ),
                     ),
@@ -944,10 +944,10 @@ class _ScheduleDialogState extends State<_ScheduleDialog> {
                               width: 24,
                               height: 24,
                               decoration: BoxDecoration(
-                                color: isEnabled ? Colors.green : Colors.white,
+                                color: isEnabled ? Theme.of(context).colorScheme.primary : Colors.white,
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(
-                                  color: isEnabled ? Colors.green : Colors.grey[400]!,
+                                  color: isEnabled ? Theme.of(context).colorScheme.primary : Colors.grey[400]!,
                                   width: 2,
                                 ),
                               ),
@@ -963,7 +963,7 @@ class _ScheduleDialogState extends State<_ScheduleDialog> {
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: isEnabled ? FontWeight.w600 : FontWeight.normal,
-                                  color: isEnabled ? Colors.green[800] : Colors.grey[700],
+                                  color: isEnabled ? Theme.of(context).colorScheme.primary : Colors.grey[700],
                                 ),
                               ),
                             ),
@@ -979,17 +979,17 @@ class _ScheduleDialogState extends State<_ScheduleDialog> {
                                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: Colors.green[300]!),
+                                      border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.5)),
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Icon(Icons.access_time, size: 16, color: Colors.green[600]),
+                                        Icon(Icons.access_time, size: 16, color: Theme.of(context).colorScheme.primary),
                                         const SizedBox(width: 6),
                                         Text(
                                           _formatTime(promptTime),
                                           style: TextStyle(
-                                            color: Colors.green[700],
+                                            color: Theme.of(context).colorScheme.primary,
                                             fontWeight: FontWeight.w500,
                                           ),
                                         ),
@@ -1028,7 +1028,7 @@ class _ScheduleDialogState extends State<_ScheduleDialog> {
                   child: ElevatedButton(
                     onPressed: () => Navigator.of(context).pop(_schedules),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(

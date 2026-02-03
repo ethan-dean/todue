@@ -173,7 +173,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
                   icon: const Icon(Icons.add),
                   label: const Text('Create Routine'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
+                    backgroundColor: Theme.of(context).colorScheme.primary,
                     foregroundColor: Colors.white,
                   ),
                 ),
@@ -217,7 +217,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.green,
+                                color: Theme.of(context).colorScheme.primary,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: const Text(
@@ -233,7 +233,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
                               hasActiveExecution
                                   ? Icons.play_arrow
                                   : Icons.play_circle_outline,
-                              color: Colors.green,
+                              color: Theme.of(context).colorScheme.primary,
                             ),
                             onPressed: () {
                               if (hasActiveExecution) {
@@ -261,7 +261,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
               right: 16,
               child: FloatingActionButton(
                 onPressed: _showCreateDialog,
-                backgroundColor: Colors.green,
+                backgroundColor: Theme.of(context).colorScheme.primary,
                 child: const Icon(Icons.add, color: Colors.white),
               ),
             ),

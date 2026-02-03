@@ -35,6 +35,7 @@ public class UserController {
             user.getId(),
             user.getEmail(),
             user.getTimezone(),
+            user.getAccentColor(),
             user.getCreatedAt().toString(),
             user.getLastRolloverDate() != null ? user.getLastRolloverDate().toString() : null,
             user.getUpdatedAt().toString()
@@ -56,11 +57,33 @@ public class UserController {
             user.getId(),
             user.getEmail(),
             user.getTimezone(),
+            user.getAccentColor(),
             user.getCreatedAt().toString(),
             user.getLastRolloverDate() != null ? user.getLastRolloverDate().toString() : null,
             user.getUpdatedAt().toString()
         );
         return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/accent-color")
+    public ResponseEntity<UserResponse> updateAccentColor(@RequestBody Map<String, String> request) {
+        String accentColor = request.get("accentColor");
+        User user = userService.updateAccentColor(accentColor);
+        UserResponse response = new UserResponse(
+            user.getId(),
+            user.getEmail(),
+            user.getTimezone(),
+            user.getAccentColor(),
+            user.getCreatedAt().toString(),
+            user.getLastRolloverDate() != null ? user.getLastRolloverDate().toString() : null,
+            user.getUpdatedAt().toString()
+        );
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/timezones")
+    public ResponseEntity<java.util.List<String>> getTimezones() {
+        return ResponseEntity.ok(userService.getAvailableTimezones());
     }
 
     @GetMapping("/export")

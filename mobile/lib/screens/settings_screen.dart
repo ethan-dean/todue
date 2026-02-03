@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
+import '../widgets/accent_color_picker.dart';
+import '../widgets/timezone_selector.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -62,21 +64,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  void _openTimezoneSelector() {
+    final authProvider = context.read<AuthProvider>();
+    final currentTz = authProvider.user?.timezone ?? 'UTC';
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TimezoneSelector(
+          currentTimezone: currentTz,
+          onSelected: (tz) async {
+            try {
+              await authProvider.updateTimezone(timezone: tz);
+            } catch (_) {
+              // Error handled in provider
+            }
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Settings'),
-        backgroundColor: Colors.green,
-        foregroundColor: Colors.white,
       ),
-      body: Consumer<ThemeProvider>(
-        builder: (context, themeProvider, _) {
+      body: Consumer2<ThemeProvider, AuthProvider>(
+        builder: (context, themeProvider, authProvider, _) {
+          final userTimezone = authProvider.user?.timezone ?? 'UTC';
+
           return ListView(
             children: [
               const SizedBox(height: 16),
 
-              // Theme Section
+              // Appearance Section
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Text(
@@ -119,6 +141,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     themeProvider.setThemeMode(value);
                   }
                 },
+              ),
+
+              const Divider(height: 32),
+
+              // Accent Color Section
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Text(
+                  'Accent Color',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+              ),
+
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: const AccentColorPicker(),
+              ),
+
+              const Divider(height: 32),
+
+              // Timezone Section
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Text(
+                  'Timezone',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+              ),
+
+              ListTile(
+                leading: const Icon(Icons.schedule),
+                title: const Text('Timezone'),
+                subtitle: Text(userTimezone.replaceAll('_', ' ')),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: _openTimezoneSelector,
               ),
 
               const Divider(height: 32),

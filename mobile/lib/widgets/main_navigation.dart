@@ -275,8 +275,6 @@ class _MainNavigationState extends State<MainNavigation> {
         return Scaffold(
           appBar: AppBar(
             title: titleWidget,
-            backgroundColor: Colors.green,
-            foregroundColor: Colors.white,
             actions: [
               if (isRoutineDetail)
                 IconButton(
@@ -311,7 +309,7 @@ class _MainNavigationState extends State<MainNavigation> {
           bottomNavigationBar: BottomNavigationBar(
             currentIndex: _selectedIndex,
             onTap: _onItemTapped,
-            selectedItemColor: Colors.green,
+            selectedItemColor: Theme.of(context).colorScheme.primary,
             items: const [
               BottomNavigationBarItem(
                 icon: Icon(Icons.today),
@@ -510,7 +508,7 @@ class _DoneDropdownButton extends StatelessWidget {
               icon: const Icon(Icons.check, size: 18),
               label: const Text('Done'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
+                backgroundColor: Theme.of(context).colorScheme.primary,
                 foregroundColor: Colors.white,
                 shape: const RoundedRectangleBorder(
                   borderRadius: BorderRadius.only(
@@ -541,7 +539,7 @@ class _DoneDropdownButton extends StatelessWidget {
                       );
                     },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
+                backgroundColor: Theme.of(context).colorScheme.primary,
                 foregroundColor: Colors.white,
                 shape: const RoundedRectangleBorder(
                   borderRadius: BorderRadius.only(

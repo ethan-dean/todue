@@ -59,6 +59,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const currentUser = await userApi.getCurrentUser();
           setUser(currentUser);
           localStorage.setItem('user', JSON.stringify(currentUser));
+          if (currentUser.accentColor) {
+            localStorage.setItem('accentColor', currentUser.accentColor);
+          }
         } catch (err) {
           // Token is invalid, clear everything
           console.error('Token validation failed:', err);
@@ -84,6 +87,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Store in localStorage
       localStorage.setItem('token', response.token);
       localStorage.setItem('user', JSON.stringify(response.user));
+      if (response.user.accentColor) {
+        localStorage.setItem('accentColor', response.user.accentColor);
+      }
     } catch (err) {
       const errorMessage = handleApiError(err);
       setError(errorMessage);

@@ -139,8 +139,6 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
           return Scaffold(
             appBar: AppBar(
               title: const Text('Loading...'),
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
             ),
             body: const Center(child: CircularProgressIndicator()),
           );
@@ -182,8 +180,6 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
         return Scaffold(
           appBar: AppBar(
             title: Text(detail.name),
-            backgroundColor: Colors.green,
-            foregroundColor: Colors.white,
             actions: [
               PopupMenuButton<String>(
                 onSelected: (value) {
@@ -211,7 +207,7 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
               // Progress section
               Container(
                 padding: const EdgeInsets.all(16),
-                color: Colors.green.withOpacity(0.1),
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                 child: Column(
                   children: [
                     Row(
@@ -235,7 +231,7 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
                         minHeight: 12,
                         backgroundColor: Colors.grey[300],
                         valueColor:
-                            const AlwaysStoppedAnimation<Color>(Colors.green),
+                            AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
                       ),
                     ),
                   ],
@@ -267,7 +263,7 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                           side: isCurrent
-                              ? const BorderSide(color: Colors.green, width: 2)
+                              ? BorderSide(color: Theme.of(context).colorScheme.primary, width: 2)
                               : BorderSide.none,
                         ),
                         child: Padding(
@@ -281,7 +277,7 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
                                   CircleAvatar(
                                     radius: 16,
                                     backgroundColor: isCompleted
-                                        ? Colors.green
+                                        ? Theme.of(context).colorScheme.primary
                                         : isSkipped
                                             ? Colors.orange
                                             : Colors.grey[300],
@@ -351,7 +347,7 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
                                     ElevatedButton(
                                       onPressed: () => _saveNotes(step.id),
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.green,
+                                        backgroundColor: Theme.of(context).colorScheme.primary,
                                         foregroundColor: Colors.white,
                                       ),
                                       child: const Text('Save'),
@@ -411,7 +407,7 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
                                       icon: const Icon(Icons.check),
                                       label: const Text('Complete'),
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.green,
+                                        backgroundColor: Theme.of(context).colorScheme.primary,
                                         foregroundColor: Colors.white,
                                         padding: const EdgeInsets.symmetric(
                                             vertical: 12),
@@ -471,7 +467,7 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
                         icon: const Icon(Icons.celebration),
                         label: const Text('Finish Routine'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
+                          backgroundColor: Theme.of(context).colorScheme.primary,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           textStyle: const TextStyle(fontSize: 18),

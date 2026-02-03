@@ -65,9 +65,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       // Registration successful (email verification required)
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Registration successful! Please check your email to verify your account.'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: const Text('Registration successful! Please check your email to verify your account.'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
             duration: Duration(seconds: 5),
           ),
         );
@@ -141,10 +141,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // App logo/title
-                  const Icon(
+                  Icon(
                     Icons.check_circle_outline,
                     size: 60,
-                    color: Colors.green,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -254,7 +254,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         onPressed: authProvider.isLoading ? null : _handleRegister,
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
-                          backgroundColor: Colors.green,
+                          backgroundColor: Theme.of(context).colorScheme.primary,
                           foregroundColor: Colors.white,
                         ),
                         child: authProvider.isLoading

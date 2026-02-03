@@ -65,7 +65,7 @@ class _LaterListsScreenState extends State<LaterListsScreen> {
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
+              backgroundColor: Theme.of(context).colorScheme.primary,
               foregroundColor: Colors.white,
             ),
             child: const Text('Create'),
@@ -168,9 +168,9 @@ class _LaterListsScreenState extends State<LaterListsScreen> {
                   child: Builder(
                     builder: (context) {
                       if (provider.isLoading && provider.lists.isEmpty) {
-                        return const Center(
+                        return Center(
                           child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+                            valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
                           ),
                         );
                       }
@@ -207,7 +207,7 @@ class _LaterListsScreenState extends State<LaterListsScreen> {
                                 icon: const Icon(Icons.add),
                                 label: const Text('Create Your First List'),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.green,
+                                  backgroundColor: Theme.of(context).colorScheme.primary,
                                   foregroundColor: Colors.white,
                                 ),
                               ),
@@ -234,9 +234,9 @@ class _LaterListsScreenState extends State<LaterListsScreen> {
                               return Center(
                                 child: Opacity(
                                   opacity: percentage,
-                                  child: const Icon(
+                                  child: Icon(
                                     Icons.add_circle,
-                                    color: Colors.green,
+                                    color: Theme.of(context).colorScheme.primary,
                                     size: 32,
                                   ),
                                 ),

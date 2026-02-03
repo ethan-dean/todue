@@ -157,7 +157,7 @@ class _TodoScreenState extends State<TodoScreen> {
                   }
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
                   foregroundColor: Colors.white,
                 ),
                 child: const Text('Add'),
@@ -259,9 +259,9 @@ class _TodoScreenState extends State<TodoScreen> {
                       child: Builder(
                         builder: (context) {
                           if (todoProvider.isLoading && todoProvider.selectedDateTodos.isEmpty) {
-                            return const Center(
+                            return Center(
                               child: CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+                                valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
                               ),
                             );
                           }
@@ -377,9 +377,9 @@ class _TodoScreenState extends State<TodoScreen> {
             return Center(
               child: Opacity(
                 opacity: percentage,
-                child: const Icon(
+                child: Icon(
                   Icons.add_circle,
-                  color: Colors.green,
+                  color: Theme.of(context).colorScheme.primary,
                   size: 32,
                 ),
               ),
@@ -389,9 +389,9 @@ class _TodoScreenState extends State<TodoScreen> {
         if (todos.isEmpty)
           SliverFillRemaining(
             child: !todoProvider.isSelectedDateLoaded
-                ? const Center(
+                ? Center(
                     child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+                      valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
                     ),
                   )
                 : Column(
@@ -622,7 +622,7 @@ class _TodoScreenState extends State<TodoScreen> {
                 );
               }
             },
-            activeColor: Colors.green,
+            activeColor: Theme.of(context).colorScheme.primary,
           ),
           title: Row(
             children: [
@@ -881,7 +881,7 @@ class _TodoScreenState extends State<TodoScreen> {
                   }
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
                   foregroundColor: Colors.white,
                 ),
                 child: const Text('Save'),

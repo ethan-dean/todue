@@ -97,6 +97,7 @@ public class AuthService {
             user.getId(),
             user.getEmail(),
             user.getTimezone(),
+            user.getAccentColor(),
             user.getCreatedAt().toString(),
             user.getLastRolloverDate() != null ? user.getLastRolloverDate().toString() : null,
             user.getUpdatedAt().toString()

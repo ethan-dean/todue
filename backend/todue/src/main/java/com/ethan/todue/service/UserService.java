@@ -10,6 +10,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class UserService {
@@ -38,5 +40,22 @@ public class UserService {
     public LocalDate getCurrentDateForUser() {
         String timezone = getUserTimezone();
         return LocalDate.now(ZoneId.of(timezone));
+    }
+
+    @Transactional
+    public User updateAccentColor(String accentColor) {
+        if (accentColor != null && !accentColor.matches("^#[0-9A-Fa-f]{6}$")) {
+            throw new RuntimeException("Invalid accent color format. Must be a hex color like #4CAF50");
+        }
+        User user = getCurrentUser();
+        user.setAccentColor(accentColor);
+        return userRepository.save(user);
+    }
+
+    public List<String> getAvailableTimezones() {
+        return ZoneId.getAvailableZoneIds().stream()
+                .filter(id -> id.contains("/"))
+                .sorted()
+                .collect(Collectors.toList());
     }
 }

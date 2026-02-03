@@ -252,6 +252,28 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// Update user accent color
+  Future<void> updateAccentColor({required String? accentColor}) async {
+    _clearError();
+
+    try {
+      final updatedUser = await _userApi.updateAccentColor(accentColor: accentColor);
+      _user = updatedUser;
+
+      // Update in shared preferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user', updatedUser.toJson().toString());
+
+      // Update in local database
+      await _databaseService.saveUser(updatedUser);
+
+      notifyListeners();
+    } catch (e) {
+      _setError('Failed to update accent color: $e');
+      rethrow;
+    }
+  }
+
   /// Update user timezone
   Future<void> updateTimezone({required String timezone}) async {
     _setLoading(true);

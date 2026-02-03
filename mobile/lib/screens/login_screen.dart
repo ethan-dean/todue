@@ -88,17 +88,17 @@ class _LoginScreenState extends State<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // App logo/title
-                  const Icon(
+                  Icon(
                     Icons.check_circle_outline,
                     size: 80,
-                    color: Colors.green,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                   const SizedBox(height: 16),
                   Text(
                     'Todue',
                     style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                           fontWeight: FontWeight.bold,
-                          color: Colors.green,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                     textAlign: TextAlign.center,
                   ),
@@ -198,7 +198,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         onPressed: authProvider.isLoading ? null : _handleLogin,
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
-                          backgroundColor: Colors.green,
+                          backgroundColor: Theme.of(context).colorScheme.primary,
                           foregroundColor: Colors.white,
                         ),
                         child: authProvider.isLoading

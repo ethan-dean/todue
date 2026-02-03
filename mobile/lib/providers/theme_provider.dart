@@ -5,9 +5,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ThemeProvider extends ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.system;
   bool _isInitialized = false;
+  Color _accentColor = Colors.green;
 
   ThemeMode get themeMode => _themeMode;
   bool get isInitialized => _isInitialized;
+  Color get accentColor => _accentColor;
 
   // Get current theme based on mode and system brightness
   bool isDarkMode(BuildContext context) {
@@ -42,6 +44,14 @@ class ThemeProvider extends ChangeNotifier {
     } else {
       // Default to system theme
       _themeMode = ThemeMode.system;
+    }
+
+    final savedColor = prefs.getString('accentColor');
+    if (savedColor != null) {
+      final parsed = _parseHexColor(savedColor);
+      if (parsed != null) {
+        _accentColor = parsed;
+      }
     }
 
     _isInitialized = true;
@@ -87,98 +97,141 @@ class ThemeProvider extends ChangeNotifier {
     await setThemeMode(newMode);
   }
 
-  // Light theme
-  static ThemeData lightTheme = ThemeData(
-    useMaterial3: true,
-    brightness: Brightness.light,
-    primarySwatch: Colors.green,
-    primaryColor: Colors.green,
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: Colors.green,
-      brightness: Brightness.light,
-    ),
-    scaffoldBackgroundColor: Colors.grey[50],
-    cardTheme: CardThemeData(
-      elevation: 1,
-      color: Colors.white,
-      surfaceTintColor: Colors.white,
-    ),
-    appBarTheme: AppBarTheme(
-      backgroundColor: Colors.green,
-      foregroundColor: Colors.white,
-      elevation: 2,
-    ),
-    floatingActionButtonTheme: FloatingActionButtonThemeData(
-      backgroundColor: Colors.green,
-      foregroundColor: Colors.white,
-    ),
-    elevatedButtonTheme: ElevatedButtonThemeData(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.green,
-        foregroundColor: Colors.white,
-      ),
-    ),
-    checkboxTheme: CheckboxThemeData(
-      fillColor: MaterialStateProperty.resolveWith((states) {
-        if (states.contains(MaterialState.selected)) {
-          return Colors.green;
-        }
-        return null;
-      }),
-    ),
-    dividerTheme: DividerThemeData(
-      color: Colors.grey[300],
-      thickness: 1,
-    ),
-  );
+  Future<void> setAccentColor(Color color) async {
+    _accentColor = color;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('accentColor', _colorToHex(color));
+    notifyListeners();
+  }
 
+  void setAccentColorFromHex(String? hex) {
+    if (hex == null) {
+      _accentColor = Colors.green;
+    } else {
+      final parsed = _parseHexColor(hex);
+      if (parsed != null) {
+        _accentColor = parsed;
+      }
+    }
+    notifyListeners();
+  }
+
+  static Color? _parseHexColor(String hex) {
+    hex = hex.replaceFirst('#', '');
+    if (hex.length == 6) {
+      final value = int.tryParse(hex, radix: 16);
+      if (value != null) {
+        return Color.fromARGB(255, (value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF);
+      }
+    }
+    return null;
+  }
+
+  static String _colorToHex(Color color) {
+    return '#${(color.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
+  }
+
+  String get accentColorHex => _colorToHex(_accentColor);
+
+  // Light theme
+  ThemeData get lightTheme => _buildLightTheme(_accentColor);
   // Dark theme
-  static ThemeData darkTheme = ThemeData(
-    useMaterial3: true,
-    brightness: Brightness.dark,
-    primarySwatch: Colors.green,
-    primaryColor: Colors.green,
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: Colors.green,
-      brightness: Brightness.dark,
-    ),
-    scaffoldBackgroundColor: const Color(0xFF1C1C1E),
-    cardTheme: const CardThemeData(
-      elevation: 0,
-      color: Color(0xFF2C2C2E),
-      surfaceTintColor: Color(0xFF2C2C2E),
-    ),
-    appBarTheme: AppBarTheme(
-      backgroundColor: const Color(0xFF2C2C2E),
-      foregroundColor: Colors.white,
-      elevation: 0,
-    ),
-    floatingActionButtonTheme: FloatingActionButtonThemeData(
-      backgroundColor: Colors.green[600],
-      foregroundColor: Colors.white,
-    ),
-    elevatedButtonTheme: ElevatedButtonThemeData(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.green[700],
+  ThemeData get darkTheme => _buildDarkTheme(_accentColor);
+
+  static ThemeData _buildLightTheme(Color accent) {
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.light,
+      primaryColor: accent,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: accent,
+        brightness: Brightness.light,
+        primary: accent,
+      ),
+      scaffoldBackgroundColor: Colors.grey[50],
+      cardTheme: CardThemeData(
+        elevation: 1,
+        color: Colors.white,
+        surfaceTintColor: Colors.white,
+      ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: accent,
+        foregroundColor: Colors.white,
+        elevation: 2,
+      ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: accent,
         foregroundColor: Colors.white,
       ),
-    ),
-    checkboxTheme: CheckboxThemeData(
-      fillColor: MaterialStateProperty.resolveWith((states) {
-        if (states.contains(MaterialState.selected)) {
-          return Colors.green[600];
-        }
-        return null;
-      }),
-    ),
-    dividerTheme: DividerThemeData(
-      color: Colors.grey[800],
-      thickness: 1,
-    ),
-    textTheme: const TextTheme(
-      bodyLarge: TextStyle(color: Colors.white),
-      bodyMedium: TextStyle(color: Colors.white70),
-      bodySmall: TextStyle(color: Colors.white60),
-    ),
-  );
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: accent,
+          foregroundColor: Colors.white,
+        ),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return accent;
+          }
+          return null;
+        }),
+      ),
+      dividerTheme: DividerThemeData(
+        color: Colors.grey[300],
+        thickness: 1,
+      ),
+    );
+  }
+
+  static ThemeData _buildDarkTheme(Color accent) {
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      primaryColor: accent,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: accent,
+        brightness: Brightness.dark,
+        primary: accent,
+      ),
+      scaffoldBackgroundColor: const Color(0xFF1C1C1E),
+      cardTheme: const CardThemeData(
+        elevation: 0,
+        color: Color(0xFF2C2C2E),
+        surfaceTintColor: Color(0xFF2C2C2E),
+      ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: accent,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: accent,
+        foregroundColor: Colors.white,
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: accent,
+          foregroundColor: Colors.white,
+        ),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return accent;
+          }
+          return null;
+        }),
+      ),
+      dividerTheme: DividerThemeData(
+        color: Colors.grey[800],
+        thickness: 1,
+      ),
+      textTheme: const TextTheme(
+        bodyLarge: TextStyle(color: Colors.white),
+        bodyMedium: TextStyle(color: Colors.white70),
+        bodySmall: TextStyle(color: Colors.white60),
+      ),
+    );
+  }
 }

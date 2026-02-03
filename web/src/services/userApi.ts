@@ -27,6 +27,14 @@ export const userApi = {
   },
 
   /**
+   * Update user's accent color
+   */
+  async updateAccentColor(accentColor: string | null): Promise<User> {
+    const response = await api.put<User>('/user/accent-color', { accentColor });
+    return response.data;
+  },
+
+  /**
    * Export all user data as JSON
    */
   async exportData(): Promise<TodueExport> {
