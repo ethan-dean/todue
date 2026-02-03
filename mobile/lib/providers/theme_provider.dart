@@ -104,7 +104,7 @@ class ThemeProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setAccentColorFromHex(String? hex) {
+  Future<void> setAccentColorFromHex(String? hex) async {
     if (hex == null) {
       _accentColor = Colors.green;
     } else {
@@ -112,6 +112,12 @@ class ThemeProvider extends ChangeNotifier {
       if (parsed != null) {
         _accentColor = parsed;
       }
+    }
+    final prefs = await SharedPreferences.getInstance();
+    if (hex != null) {
+      await prefs.setString('accentColor', hex);
+    } else {
+      await prefs.remove('accentColor');
     }
     notifyListeners();
   }

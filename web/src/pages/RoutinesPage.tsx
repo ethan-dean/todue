@@ -607,7 +607,7 @@ const RoutinesPage: React.FC = () => {
               <section className="routine-schedule-section">
                 <div className="section-header">
                   <h3>Schedule</h3>
-                  <button className="btn-secondary" onClick={() => setIsScheduleModalOpen(true)}>
+                  <button className="btn-secondary" onClick={() => setIsScheduleModalOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <Clock size={16} />
                     Edit Schedule
                   </button>
@@ -618,7 +618,7 @@ const RoutinesPage: React.FC = () => {
               {/* Steps Section */}
               <section className="routine-steps-section">
                 <div className="section-header">
-                  <h3>Steps ({sortedSteps.length})</h3>
+                  <h3>Steps</h3>
                 </div>
 
                 <div className="routine-steps-list">

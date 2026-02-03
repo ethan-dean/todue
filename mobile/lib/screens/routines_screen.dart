@@ -197,60 +197,82 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
                   final hasActiveExecution =
                       provider.getActiveExecution(routine.id) != null;
 
-                  return Card(
-                    margin: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 6,
+                  return Dismissible(
+                    key: Key('routine_${routine.id}'),
+                    background: Container(
+                      color: Colors.red,
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.only(right: 20),
+                      child: const Icon(Icons.delete, color: Colors.white),
                     ),
-                    child: ListTile(
-                      title: Text(routine.name),
-                      subtitle: Text(
-                        '${routine.stepCount} ${routine.stepCount == 1 ? 'step' : 'steps'}',
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (hasActiveExecution)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.primary,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Text(
-                                'In Progress',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
+                    direction: DismissDirection.endToStart,
+                    confirmDismiss: (direction) async {
+                      await _deleteRoutine(routine);
+                      return false;
+                    },
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ListTile(
+                          title: Text(
+                            routine.name,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w500,
+                              fontSize: 16,
+                              color: Theme.of(context).textTheme.bodyLarge?.color,
+                            ),
+                          ),
+                          subtitle: Text(
+                            '${routine.stepCount} ${routine.stepCount == 1 ? 'step' : 'steps'}',
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (hasActiveExecution)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).colorScheme.primary,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Text(
+                                    'In Progress',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                    ),
+                                  ),
                                 ),
+                              IconButton(
+                                icon: Icon(
+                                  hasActiveExecution
+                                      ? Icons.play_arrow
+                                      : Icons.play_circle_outline,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                                onPressed: () {
+                                  if (hasActiveExecution) {
+                                    _navigateToExecution(routine.id);
+                                  } else {
+                                    _startRoutine(routine.id);
+                                  }
+                                },
                               ),
-                            ),
-                          IconButton(
-                            icon: Icon(
-                              hasActiveExecution
-                                  ? Icons.play_arrow
-                                  : Icons.play_circle_outline,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                            onPressed: () {
-                              if (hasActiveExecution) {
-                                _navigateToExecution(routine.id);
-                              } else {
-                                _startRoutine(routine.id);
-                              }
-                            },
+                            ],
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.delete_outline),
-                            onPressed: () => _deleteRoutine(routine),
-                          ),
-                          const Icon(Icons.chevron_right),
-                        ],
-                      ),
-                      onTap: () => provider.setCurrentRoutineId(routine.id),
+                          onTap: () => provider.setCurrentRoutineId(routine.id),
+                        ),
+                        Divider(
+                          height: 1,
+                          thickness: 1,
+                          indent: 8,
+                          endIndent: 8,
+                          color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
+                        ),
+                      ],
                     ),
                   );
                 },

@@ -16,7 +16,7 @@ const PRESET_COLORS = [
 const AccentColorPicker: React.FC = () => {
   const { accentColor, setAccentColor } = useTheme();
   const colorInputRef = useRef<HTMLInputElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const isPreset = PRESET_COLORS.some(c => c.hex.toLowerCase() === accentColor.toLowerCase());
 
