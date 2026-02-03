@@ -573,6 +573,7 @@ body {
 .center-group {
   gap: 0.5rem; /* Reduced from 0.75rem */
   justify-content: center;
+  position: relative;
 }
 
 .header-date-display {
@@ -664,6 +665,109 @@ body {
   color: var(--color-primary);
   font-weight: bold;
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Calendar Picker */
+.calendar-picker {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 280px;
+  background: var(--bg-container);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  padding: 12px;
+  z-index: 100;
+  color: var(--text-primary);
+}
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.calendar-nav-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background 0.15s;
+}
+
+.calendar-nav-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.calendar-month-label {
+  font-weight: 600;
+  font-size: 0.95rem;
+  user-select: none;
+}
+
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 4px;
+}
+
+.calendar-weekday {
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 4px 0;
+  user-select: none;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.calendar-day {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  padding: 0;
+}
+
+.calendar-day:hover {
+  background: var(--bg-hover);
+}
+
+.calendar-day-outside {
+  color: var(--text-secondary);
+  opacity: 0.45;
+}
+
+.calendar-day-today {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.calendar-day-selected {
+  background: var(--color-primary) !important;
+  color: white !important;
+  font-weight: 600;
+  opacity: 1;
 }
 
 /* Todos Container */

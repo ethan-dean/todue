@@ -1,11 +1,22 @@
-import React, { useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ChevronLeft, ChevronsLeft, ChevronRight, ChevronsRight, CalendarDays } from 'lucide-react';
 import { useTodos } from '../context/TodoContext';
-import { addDays, isToday } from '../utils/dateUtils';
+import { addDays, isToday, isSameDay, formatDate } from '../utils/dateUtils';
+import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, addMonths, eachDayOfInterval, isSameMonth } from 'date-fns';
+
+const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+function getCalendarDays(month: Date): Date[] {
+  const start = startOfWeek(startOfMonth(month));
+  const end = endOfWeek(endOfMonth(month));
+  return eachDayOfInterval({ start, end });
+}
 
 const DateNavigator: React.FC = () => {
   const { selectedDate, viewMode, setViewMode, changeDate } = useTodos();
-  const dateInputRef = useRef<HTMLInputElement>(null);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [viewingMonth, setViewingMonth] = useState(selectedDate);
+  const calendarRef = useRef<HTMLDivElement>(null);
 
   const handlePrevDay = () => {
     changeDate(addDays(selectedDate, -1));
@@ -28,29 +39,63 @@ const DateNavigator: React.FC = () => {
   };
 
   const handleCalendarClick = () => {
-    dateInputRef.current?.showPicker();
+    setIsCalendarOpen((prev) => {
+      if (!prev) {
+        setViewingMonth(selectedDate);
+      }
+      return !prev;
+    });
   };
 
-  const handleDatePickerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const dateStr = e.target.value;
-    if (dateStr) {
-      // Parse YYYY-MM-DD to Date object
-      const [year, month, day] = dateStr.split('-').map(Number);
-      const newDate = new Date(year, month - 1, day);
-      changeDate(newDate);
-    }
+  const handleDateSelect = (date: Date) => {
+    changeDate(date);
+    setIsCalendarOpen(false);
   };
 
-  const formatDateForInput = (date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+  const handlePrevMonth = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setViewingMonth((prev) => addMonths(prev, -1));
+  };
+
+  const handleNextMonth = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setViewingMonth((prev) => addMonths(prev, 1));
   };
 
   const handleViewModeChange = (mode: 1 | 3 | 5 | 7) => {
     setViewMode(mode);
   };
+
+  // Close on click outside
+  useEffect(() => {
+    if (!isCalendarOpen) return;
+
+    const handleMouseDown = (e: MouseEvent) => {
+      if (calendarRef.current && !calendarRef.current.contains(e.target as Node)) {
+        setIsCalendarOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleMouseDown);
+    return () => document.removeEventListener('mousedown', handleMouseDown);
+  }, [isCalendarOpen]);
+
+  // Close on Escape
+  useEffect(() => {
+    if (!isCalendarOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsCalendarOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isCalendarOpen]);
+
+  const calendarDays = getCalendarDays(viewingMonth);
+  const today = new Date();
 
   return (
     <div className="header-date-navigator">
@@ -63,24 +108,59 @@ const DateNavigator: React.FC = () => {
         </button>
       </div>
 
-      <div className="nav-group center-group">
+      <div className="nav-group center-group" ref={calendarRef}>
         <button onClick={handleCalendarClick} className="btn-header-calendar" title="Pick a date">
           <CalendarDays size={18} />
         </button>
-        
+
         {!isToday(selectedDate) && (
           <button onClick={handleToday} className="btn-header-today">
             Today
           </button>
         )}
-        
-        <input
-          ref={dateInputRef}
-          type="date"
-          value={formatDateForInput(selectedDate)}
-          onChange={handleDatePickerChange}
-          style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', top: 0, left: 0 }}
-        />
+
+        {isCalendarOpen && (
+          <div className="calendar-picker">
+            <div className="calendar-header">
+              <button className="calendar-nav-btn" onClick={handlePrevMonth} title="Previous month">
+                <ChevronLeft size={16} />
+              </button>
+              <span className="calendar-month-label">
+                {formatDate(viewingMonth, 'MMMM yyyy')}
+              </span>
+              <button className="calendar-nav-btn" onClick={handleNextMonth} title="Next month">
+                <ChevronRight size={16} />
+              </button>
+            </div>
+            <div className="calendar-weekdays">
+              {WEEKDAY_LABELS.map((label, i) => (
+                <span key={i} className="calendar-weekday">{label}</span>
+              ))}
+            </div>
+            <div className="calendar-grid">
+              {calendarDays.map((day, i) => {
+                const outside = !isSameMonth(day, viewingMonth);
+                const isSelected = isSameDay(day, selectedDate);
+                const isTodayDate = isSameDay(day, today);
+
+                let className = 'calendar-day';
+                if (outside) className += ' calendar-day-outside';
+                if (isTodayDate) className += ' calendar-day-today';
+                if (isSelected) className += ' calendar-day-selected';
+
+                return (
+                  <button
+                    key={i}
+                    className={className}
+                    onClick={() => handleDateSelect(day)}
+                  >
+                    {day.getDate()}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="nav-group">
