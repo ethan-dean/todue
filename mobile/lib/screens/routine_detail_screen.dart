@@ -279,7 +279,7 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
           children: [
             // Schedule section
             Card(
-              margin: const EdgeInsets.all(16),
+              margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: ListTile(
                 leading: Icon(Icons.schedule, color: Theme.of(context).colorScheme.primary),
                 title: const Text('Schedule'),
@@ -357,7 +357,9 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
                     )
                   : CustomScrollView(
                       slivers: [
-                        SliverReorderableList(
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+                          sliver: SliverReorderableList(
                           onReorder: (oldIndex, newIndex) {
                             if (newIndex > oldIndex) newIndex--;
                             final step = sortedSteps[oldIndex];
@@ -417,6 +419,7 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
                               child: item,
                             );
                           },
+                        ),
                         ),
                       ],
                     ),

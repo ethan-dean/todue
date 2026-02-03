@@ -181,24 +181,10 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
           appBar: AppBar(
             title: Text(detail.name),
             actions: [
-              PopupMenuButton<String>(
-                onSelected: (value) {
-                  if (value == 'abandon') {
-                    _abandonExecution(execution.id);
-                  }
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'abandon',
-                    child: Row(
-                      children: [
-                        Icon(Icons.close, color: Colors.red),
-                        SizedBox(width: 8),
-                        Text('Abandon', style: TextStyle(color: Colors.red)),
-                      ],
-                    ),
-                  ),
-                ],
+              IconButton(
+                icon: const Icon(Icons.flag, color: Colors.red),
+                onPressed: () => _abandonExecution(execution.id),
+                tooltip: 'Abandon routine',
               ),
             ],
           ),
@@ -229,7 +215,7 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
                       child: LinearProgressIndicator(
                         value: progress,
                         minHeight: 12,
-                        backgroundColor: Colors.grey[300],
+                        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                         valueColor:
                             AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
                       ),
@@ -363,7 +349,7 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
                                     width: double.infinity,
                                     padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
-                                      color: Colors.grey[100],
+                                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Row(
@@ -374,13 +360,13 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
                                               ? Text(
                                                   step.notes!,
                                                   style: TextStyle(
-                                                    color: Colors.grey[700],
+                                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                                                   ),
                                                 )
                                               : Text(
                                                   'Add notes...',
                                                   style: TextStyle(
-                                                    color: Colors.grey[500],
+                                                    color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                                                     fontStyle: FontStyle.italic,
                                                   ),
                                                 ),
@@ -388,7 +374,7 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
                                         Icon(
                                           Icons.edit,
                                           size: 18,
-                                          color: Colors.grey[500],
+                                          color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                                         ),
                                       ],
                                     ),

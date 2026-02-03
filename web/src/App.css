@@ -2398,12 +2398,14 @@ body {
 .notes-display-section {
   display: flex;
   align-items: flex-start;
+  justify-content: center;
   gap: 0.5rem;
   padding: 0.75rem 1rem;
   background: var(--bg-secondary);
   border-radius: 8px;
   cursor: pointer;
   margin-bottom: 1.5rem;
+  min-height: 4.5em;
   transition: background 0.15s ease;
 }
 
@@ -2415,10 +2417,16 @@ body {
   flex: 1;
 }
 
-.notes-edit-icon {
+.notes-display-section .notes-edit-icon {
   color: var(--text-tertiary);
   flex-shrink: 0;
   margin-top: 2px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.notes-display-section:hover .notes-edit-icon {
+  opacity: 1;
 }
 
 .notes-edit-section {
@@ -3344,6 +3352,14 @@ body {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+}
+
+.routine-detail-actions .btn-primary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
 }
 
 /* Analytics Toggle Button */

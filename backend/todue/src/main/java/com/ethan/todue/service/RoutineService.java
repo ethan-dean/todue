@@ -491,10 +491,14 @@ public class RoutineService {
         List<RoutineCompletion> completions = routineCompletionRepository
                 .findByRoutineIdAndDateRange(routineId, startDate, endDate);
 
-        // Build calendar data
+        // Build calendar data - COMPLETED takes priority over ABANDONED for any given day
         Map<LocalDate, String> calendarData = new HashMap<>();
         for (RoutineCompletion completion : completions) {
-            calendarData.put(completion.getDate(), completion.getStatus().name());
+            String existing = calendarData.get(completion.getDate());
+            String status = completion.getStatus().name();
+            if (existing == null || !"COMPLETED".equals(existing)) {
+                calendarData.put(completion.getDate(), status);
+            }
         }
 
         // Calculate stats
@@ -663,6 +667,7 @@ public class RoutineService {
                 .findByRoutineIdAndDateRange(routineId, startDate, endDate);
 
         List<Long> completionIds = completions.stream()
+                .filter(c -> c.getStatus() == RoutineCompletionStatus.COMPLETED)
                 .map(RoutineCompletion::getId)
                 .collect(Collectors.toList());
 

@@ -33,52 +33,28 @@ class RoutinePromptDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black54,
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Time for Your Routine${prompts.length > 1 ? 's' : ''}',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-              const SizedBox(height: 20),
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: prompts.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final prompt = prompts[index];
-                  return PromptItemCard(
-                    prompt: prompt,
-                    formatTime: _formatTime,
-                    onStart: onStart,
-                    onAlreadyDone: onAlreadyDone,
-                    onPartiallyDone: onPartiallyDone,
-                    onDismiss: onDismiss,
-                  );
-                },
-              ),
-              const SizedBox(height: 20),
-              Center(
-                child: TextButton(
-                  onPressed: onClose,
-                  child: const Text(
-                    'Close',
-                    style: TextStyle(color: Colors.white70),
-                  ),
-                ),
-              ),
-            ],
-          ),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: onClose,
         ),
+        title: Text('Time for Your Routine${prompts.length > 1 ? 's' : ''}'),
+      ),
+      body: ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: prompts.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (context, index) {
+          final prompt = prompts[index];
+          return PromptItemCard(
+            prompt: prompt,
+            formatTime: _formatTime,
+            onStart: onStart,
+            onAlreadyDone: onAlreadyDone,
+            onPartiallyDone: onPartiallyDone,
+            onDismiss: onDismiss,
+          );
+        },
       ),
     );
   }
@@ -117,7 +93,7 @@ class _PromptItemCardState extends State<PromptItemCard> {
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -143,7 +119,7 @@ class _PromptItemCardState extends State<PromptItemCard> {
                 ],
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -185,7 +161,7 @@ class _PromptItemCardState extends State<PromptItemCard> {
   }
 }
 
-class DoneDropdownButton extends StatelessWidget {
+class DoneDropdownButton extends StatefulWidget {
   final bool isProcessing;
   final VoidCallback onAlreadyDone;
   final VoidCallback onPartiallyDone;
@@ -198,10 +174,18 @@ class DoneDropdownButton extends StatelessWidget {
   }) : super(key: key);
 
   @override
+  State<DoneDropdownButton> createState() => _DoneDropdownButtonState();
+}
+
+class _DoneDropdownButtonState extends State<DoneDropdownButton> {
+  final GlobalKey _buttonKey = GlobalKey();
+
+  @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
 
     return SizedBox(
+      key: _buttonKey,
       height: 40,
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -209,7 +193,7 @@ class DoneDropdownButton extends StatelessWidget {
           SizedBox(
             height: 40,
             child: ElevatedButton.icon(
-              onPressed: isProcessing ? null : onAlreadyDone,
+              onPressed: widget.isProcessing ? null : widget.onAlreadyDone,
               icon: const Icon(Icons.check, size: 18),
               label: const Text('Done'),
               style: ElevatedButton.styleFrom(
@@ -229,10 +213,10 @@ class DoneDropdownButton extends StatelessWidget {
             height: 40,
             width: 32,
             child: ElevatedButton(
-              onPressed: isProcessing
+              onPressed: widget.isProcessing
                   ? null
                   : () {
-                      _showStyledDropdown(context);
+                      _showStyledDropdown();
                     },
               style: ElevatedButton.styleFrom(
                 backgroundColor: primary,
@@ -253,10 +237,9 @@ class DoneDropdownButton extends StatelessWidget {
     );
   }
 
-  void _showStyledDropdown(BuildContext context) {
-    final RenderBox button = context.findRenderObject() as RenderBox;
-    final RenderBox overlay = Navigator.of(context).overlay!.context.findRenderObject() as RenderBox;
-    final Offset buttonPosition = button.localToGlobal(Offset.zero, ancestor: overlay);
+  void _showStyledDropdown() {
+    final RenderBox renderBox = _buttonKey.currentContext!.findRenderObject() as RenderBox;
+    final Offset position = renderBox.localToGlobal(Offset.zero);
     final theme = Theme.of(context);
 
     showDialog(
@@ -273,23 +256,33 @@ class DoneDropdownButton extends StatelessWidget {
               ),
             ),
             Positioned(
-              left: buttonPosition.dx,
-              top: buttonPosition.dy + button.size.height + 4,
+              left: position.dx,
+              top: position.dy - 6,
               child: Material(
-                elevation: 8,
-                borderRadius: BorderRadius.circular(12),
-                color: theme.cardTheme.color ?? theme.colorScheme.surface,
+                elevation: 2,
+                shadowColor: Colors.black26,
+                borderRadius: BorderRadius.circular(8),
+                color: theme.colorScheme.surface,
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(8),
                   onTap: () {
                     Navigator.of(dialogContext).pop();
-                    onPartiallyDone();
+                    widget.onPartiallyDone();
                   },
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    child: Text(
-                      'Partially Done',
-                      style: theme.textTheme.bodyMedium,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.checklist, size: 16, color: theme.colorScheme.primary),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Partially Done',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

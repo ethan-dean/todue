@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Check, SkipForward, MoreVertical, Flag, Edit2 } from 'lucide-react';
+import { ArrowLeft, Check, SkipForward, Flag, Edit2 } from 'lucide-react';
 import { useRoutines } from '../context/RoutineContext';
 
 const RoutineExecutionPage: React.FC = () => {
@@ -18,11 +18,11 @@ const RoutineExecutionPage: React.FC = () => {
     error,
   } = useRoutines();
 
-  const [showMenu, setShowMenu] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [editingStepId, setEditingStepId] = useState<number | null>(null);
   const [notesValue, setNotesValue] = useState('');
   const [selectedStepIndex, setSelectedStepIndex] = useState<number | null>(null);
+  const [hasCheckedExecution, setHasCheckedExecution] = useState(false);
 
   const numericRoutineId = routineId ? parseInt(routineId, 10) : null;
   const execution = numericRoutineId ? activeExecutions.get(numericRoutineId) : null;
@@ -32,7 +32,11 @@ const RoutineExecutionPage: React.FC = () => {
     if (numericRoutineId) {
       // Load execution if not already present
       if (!activeExecutions.has(numericRoutineId)) {
-        loadActiveExecution(numericRoutineId);
+        loadActiveExecution(numericRoutineId).then(() => {
+          setHasCheckedExecution(true);
+        });
+      } else {
+        setHasCheckedExecution(true);
       }
       // Load detail for step notes
       if (!routineDetails.has(numericRoutineId)) {
@@ -40,6 +44,13 @@ const RoutineExecutionPage: React.FC = () => {
       }
     }
   }, [numericRoutineId, activeExecutions, routineDetails, loadActiveExecution, loadRoutineDetail]);
+
+  // Redirect when no active execution after check
+  useEffect(() => {
+    if (hasCheckedExecution && !execution && numericRoutineId) {
+      navigate(`/routines/${numericRoutineId}`, { replace: true });
+    }
+  }, [hasCheckedExecution, execution, numericRoutineId, navigate]);
 
   // Check if all steps are done
   const allStepsDone = execution
@@ -165,28 +176,9 @@ const RoutineExecutionPage: React.FC = () => {
           <ArrowLeft size={20} />
         </button>
         <h1>{execution.routineName}</h1>
-        <div className="execution-menu-container">
-          <button className="btn-icon" onClick={() => setShowMenu(!showMenu)}>
-            <MoreVertical size={20} />
-          </button>
-          {showMenu && (
-            <>
-              <div className="menu-backdrop" onClick={() => setShowMenu(false)} />
-              <div className="execution-menu">
-                <button
-                  className="menu-item danger"
-                  onClick={() => {
-                    setShowMenu(false);
-                    handleAbandon();
-                  }}
-                >
-                  <Flag size={16} />
-                  Abandon Routine
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+        <button className="btn-icon btn-abandon" onClick={handleAbandon} title="Abandon routine">
+          <Flag size={20} color="var(--color-danger, #e53e3e)" />
+        </button>
       </header>
 
       {error && (

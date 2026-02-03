@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../providers/routine_provider.dart';
 import '../models/routine.dart';
@@ -185,106 +186,137 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
         final sortedRoutines = List<Routine>.from(provider.routines)
           ..sort((a, b) => a.name.compareTo(b.name));
 
-        return Stack(
-          children: [
-            RefreshIndicator(
-              onRefresh: () => provider.loadRoutines(),
-              child: ListView.builder(
-                padding: const EdgeInsets.only(bottom: 80),
-                itemCount: sortedRoutines.length,
-                itemBuilder: (context, index) {
-                  final routine = sortedRoutines[index];
-                  final hasActiveExecution =
-                      provider.getActiveExecution(routine.id) != null;
-
-                  return Dismissible(
-                    key: Key('routine_${routine.id}'),
-                    background: Container(
-                      color: Colors.red,
-                      alignment: Alignment.centerRight,
-                      padding: const EdgeInsets.only(right: 20),
-                      child: const Icon(Icons.delete, color: Colors.white),
+        return CustomScrollView(
+          slivers: [
+            CupertinoSliverRefreshControl(
+              onRefresh: () async {
+                await _showCreateDialog();
+              },
+              builder: (
+                BuildContext context,
+                RefreshIndicatorMode refreshState,
+                double pulledExtent,
+                double refreshTriggerPullDistance,
+                double refreshIndicatorExtent,
+              ) {
+                final double percentage = (pulledExtent / refreshTriggerPullDistance).clamp(0.0, 1.0);
+                return Center(
+                  child: Opacity(
+                    opacity: percentage,
+                    child: Icon(
+                      Icons.add_circle,
+                      color: Theme.of(context).colorScheme.primary,
+                      size: 32,
                     ),
-                    direction: DismissDirection.endToStart,
-                    confirmDismiss: (direction) async {
-                      await _deleteRoutine(routine);
-                      return false;
-                    },
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ListTile(
-                          title: Text(
-                            routine.name,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w500,
-                              fontSize: 16,
-                              color: Theme.of(context).textTheme.bodyLarge?.color,
+                  ),
+                );
+              },
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.all(8),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final routine = sortedRoutines[index];
+                    final hasActiveExecution =
+                        provider.getActiveExecution(routine.id) != null;
+
+                    return Dismissible(
+                      key: Key('routine_${routine.id}'),
+                      background: Container(
+                        color: Colors.red,
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.only(right: 20),
+                        child: const Icon(Icons.delete, color: Colors.white),
+                      ),
+                      direction: DismissDirection.endToStart,
+                      confirmDismiss: (direction) async {
+                        await _deleteRoutine(routine);
+                        return false;
+                      },
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ListTile(
+                            title: Text(
+                              routine.name,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w500,
+                                fontSize: 16,
+                                color: Theme.of(context).textTheme.bodyLarge?.color,
+                              ),
                             ),
-                          ),
-                          subtitle: Text(
-                            '${routine.stepCount} ${routine.stepCount == 1 ? 'step' : 'steps'}',
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (hasActiveExecution)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context).colorScheme.primary,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: const Text(
-                                    'In Progress',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
+                            subtitle: Text(
+                              '${routine.stepCount} ${routine.stepCount == 1 ? 'step' : 'steps'}',
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (hasActiveExecution)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context).colorScheme.primary,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Text(
+                                      'In Progress',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                      ),
                                     ),
                                   ),
+                                IconButton(
+                                  icon: Icon(
+                                    hasActiveExecution
+                                        ? Icons.play_arrow
+                                        : Icons.play_circle_outline,
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
+                                  onPressed: () {
+                                    if (hasActiveExecution) {
+                                      _navigateToExecution(routine.id);
+                                    } else {
+                                      _startRoutine(routine.id);
+                                    }
+                                  },
                                 ),
-                              IconButton(
-                                icon: Icon(
-                                  hasActiveExecution
-                                      ? Icons.play_arrow
-                                      : Icons.play_circle_outline,
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
-                                onPressed: () {
-                                  if (hasActiveExecution) {
-                                    _navigateToExecution(routine.id);
-                                  } else {
-                                    _startRoutine(routine.id);
-                                  }
-                                },
-                              ),
-                            ],
+                              ],
+                            ),
+                            onTap: () => provider.setCurrentRoutineId(routine.id),
                           ),
-                          onTap: () => provider.setCurrentRoutineId(routine.id),
-                        ),
-                        Divider(
-                          height: 1,
-                          thickness: 1,
-                          indent: 8,
-                          endIndent: 8,
-                          color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
-                        ),
-                      ],
-                    ),
-                  );
-                },
+                          Divider(
+                            height: 1,
+                            thickness: 1,
+                            indent: 8,
+                            endIndent: 8,
+                            color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                  childCount: sortedRoutines.length,
+                ),
               ),
             ),
-            Positioned(
-              bottom: 16,
-              right: 16,
-              child: FloatingActionButton(
-                onPressed: _showCreateDialog,
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                child: const Icon(Icons.add, color: Colors.white),
+            SliverToBoxAdapter(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _showCreateDialog,
+                child: const SizedBox(height: 140),
+              ),
+            ),
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _showCreateDialog,
+                child: Container(),
               ),
             ),
           ],

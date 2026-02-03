@@ -534,18 +534,28 @@ class RoutineProvider extends ChangeNotifier {
 
     // Find routineId
     int? routineId;
+    RoutineCompletion? previousExecution;
     _activeExecutions.forEach((rId, exec) {
-      if (exec.id == completionId) routineId = rId;
+      if (exec.id == completionId) {
+        routineId = rId;
+        previousExecution = exec;
+      }
     });
+
+    // Optimistic update
+    if (routineId != null) {
+      _activeExecutions.remove(routineId);
+      notifyListeners();
+    }
 
     try {
       await _routineApi.finishExecution(completionId: completionId);
-      if (routineId != null) {
-        _activeExecutions.remove(routineId);
-        notifyListeners();
-      }
       return true;
     } catch (e) {
+      // Rollback on error
+      if (routineId != null && previousExecution != null) {
+        _activeExecutions[routineId!] = previousExecution!;
+      }
       _error = e.toString();
       notifyListeners();
       return false;
@@ -558,18 +568,28 @@ class RoutineProvider extends ChangeNotifier {
 
     // Find routineId
     int? routineId;
+    RoutineCompletion? previousExecution;
     _activeExecutions.forEach((rId, exec) {
-      if (exec.id == completionId) routineId = rId;
+      if (exec.id == completionId) {
+        routineId = rId;
+        previousExecution = exec;
+      }
     });
+
+    // Optimistic update
+    if (routineId != null) {
+      _activeExecutions.remove(routineId);
+      notifyListeners();
+    }
 
     try {
       await _routineApi.abandonExecution(completionId: completionId);
-      if (routineId != null) {
-        _activeExecutions.remove(routineId);
-        notifyListeners();
-      }
       return true;
     } catch (e) {
+      // Rollback on error
+      if (routineId != null && previousExecution != null) {
+        _activeExecutions[routineId!] = previousExecution!;
+      }
       _error = e.toString();
       notifyListeners();
       return false;
