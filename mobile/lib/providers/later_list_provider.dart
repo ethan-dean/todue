@@ -345,46 +345,63 @@ class LaterListProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> updateTodoPosition(int listId, int todoId, int newPosition) async {
+  /// Reorder a todo - synchronous optimistic update, async sync
+  void updateTodoPosition(int listId, int todoId, int newPosition) {
     _lastMutationTime = DateTime.now();
-    await _checkOnlineStatus();
+
+    // Check cached online status immediately (no await)
     if (!_isOnline) {
       _error = 'Cannot update todo position while offline';
       notifyListeners();
-      return false;
+      return;
     }
 
-    // Optimistic update
+    // Snapshot for rollback
     final currentTodos = List<LaterListTodo>.from(_todos[listId] ?? []);
     final sortedList = List<LaterListTodo>.from(currentTodos)..sort((a, b) => a.position.compareTo(b.position));
 
     final oldIndex = sortedList.indexWhere((t) => t.id == todoId);
-    if (oldIndex == -1 || oldIndex == newPosition) return true;
+    if (oldIndex == -1 || oldIndex == newPosition) return;
 
     final movedTodo = sortedList.removeAt(oldIndex);
     sortedList.insert(newPosition, movedTodo);
 
-    // Renumber positions
-    final reorderedList = <LaterListTodo>[];
-    for (int i = 0; i < sortedList.length; i++) {
-      reorderedList.add(sortedList[i].copyWith(position: i + 1));
+    // Renumber only affected range
+    final startIdx = oldIndex < newPosition ? oldIndex : newPosition;
+    final endIdx = oldIndex > newPosition ? oldIndex : newPosition;
+    for (int i = startIdx; i <= endIdx; i++) {
+      sortedList[i] = sortedList[i].copyWith(position: i + 1);
     }
-    _todos[listId] = reorderedList;
-    notifyListeners();
+    _todos[listId] = sortedList;
+    notifyListeners(); // Immediate UI update
 
+    // Async sync (fire and forget with rollback on error)
+    _syncTodoPosition(listId, todoId, newPosition, sortedList, currentTodos);
+  }
+
+  Future<void> _syncTodoPosition(
+    int listId,
+    int todoId,
+    int newPosition,
+    List<LaterListTodo> newList,
+    List<LaterListTodo> originalList,
+  ) async {
     try {
+      await _checkOnlineStatus();
+      if (!_isOnline) {
+        throw Exception('Cannot update todo position while offline');
+      }
+
       await _laterListApi.updateTodoPosition(listId: listId, todoId: todoId, position: newPosition);
 
       // Save to cache
-      await _databaseService.saveLaterListTodos(_todos[listId]!, listId);
-      return true;
+      await _databaseService.saveLaterListTodos(newList, listId);
     } catch (e) {
       // Rollback
-      _todos[listId] = currentTodos;
+      _todos[listId] = originalList;
       _error = e.toString();
       debugPrint('Failed to update todo position: $e');
       notifyListeners();
-      return false;
     }
   }
 
