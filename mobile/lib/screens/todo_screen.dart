@@ -232,13 +232,6 @@ class _TodoScreenState extends State<TodoScreen> {
               children: [
                 Column(
                   children: [
-                    // Date Timeline
-                    DateTimeline(
-                      key: _timelineKey,
-                      selectedDate: todoProvider.selectedDate,
-                      onDateSelected: _navigateToDate,
-                    ),
-
                     // Offline indicator
                     if (!todoProvider.isOnline)
                       Container(
@@ -314,9 +307,16 @@ class _TodoScreenState extends State<TodoScreen> {
                         },
                       ),
                     ),
+
+                    // Date Timeline
+                    DateTimeline(
+                      key: _timelineKey,
+                      selectedDate: todoProvider.selectedDate,
+                      onDateSelected: _navigateToDate,
+                    ),
                   ],
                 ),
-                
+
                 // Custom Drag Feedback (Manual Stack)
                 if (_isHoveringTimeline && _draggedTodo != null)
                   Positioned(
