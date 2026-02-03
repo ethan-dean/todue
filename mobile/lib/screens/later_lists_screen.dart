@@ -280,13 +280,6 @@ class _LaterListsScreenState extends State<LaterListsScreen> {
                 ),
               ],
             ),
-            floatingActionButton: FloatingActionButton(
-              heroTag: 'fab_later_lists',
-              onPressed: _showCreateListDialog,
-              backgroundColor: Colors.green,
-              child: const Icon(Icons.add, color: Colors.white),
-              tooltip: 'Create List',
-            ),
           );
         }
 

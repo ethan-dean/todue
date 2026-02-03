@@ -297,13 +297,6 @@ class _LaterListDetailScreenState extends State<LaterListDetailScreen> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        heroTag: 'fab_later_detail',
-        onPressed: _showAddTodoDialog,
-        backgroundColor: Colors.green,
-        child: const Icon(Icons.add, color: Colors.white),
-        tooltip: 'Add Item',
-      ),
     );
   }
 

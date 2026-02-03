@@ -347,13 +347,6 @@ class _TodoScreenState extends State<TodoScreen> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        heroTag: 'fab_now',
-        onPressed: _showAddTodoDialog,
-        backgroundColor: Colors.green,
-        child: const Icon(Icons.add, color: Colors.white),
-        tooltip: 'Add Todo',
-      ),
     );
   }
 
