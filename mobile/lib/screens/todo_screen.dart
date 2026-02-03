@@ -328,7 +328,7 @@ class _TodoScreenState extends State<TodoScreen> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.95),
+                            color: Theme.of(context).cardColor.withValues(alpha: 0.95),
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: const [
                               BoxShadow(color: Colors.black26, blurRadius: 8, spreadRadius: 1)
