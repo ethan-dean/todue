@@ -15,8 +15,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 @Service
 public class RolloverService {
@@ -57,6 +60,11 @@ public class RolloverService {
         List<Todo> incompleteTodos = todoRepository.findIncompleteBeforeDate(userId, currentDate);
         List<Todo> todosToDelete = new ArrayList<>();
 
+        // Collect source dates before mutation (the loop below changes assignedDate)
+        Set<LocalDate> sourceDates = incompleteTodos.stream()
+                .map(Todo::getAssignedDate)
+                .collect(Collectors.toSet());
+
         for (Todo incompleteTodo : incompleteTodos) {
             // Delete if this recurring_todo_id will be materialized today
             if (incompleteTodo.getRecurringTodo() != null
@@ -79,6 +87,9 @@ public class RolloverService {
         }
 
         todoRepository.saveAll(incompleteTodos);
+
+        // Renumber remaining todos on source dates to close position gaps
+        sourceDates.forEach(date -> renumberPositions(date, userId));
 
         // Step 3: Materialize virtual todos for today
         for (RecurringTodo recurring : todaysRecurring) {
@@ -125,6 +136,16 @@ public class RolloverService {
         lastRolloverDateMap.put(userId, currentDate);
     }
 
+
+    private void renumberPositions(LocalDate date, Long userId) {
+        List<Todo> todos = todoRepository.findByUserIdAndAssignedDate(userId, date);
+        todos.sort(Comparator.comparing(Todo::getPosition).thenComparing(Todo::getId));
+        int pos = 1;
+        for (Todo t : todos) {
+            t.setPosition(pos++);
+        }
+        todoRepository.saveAll(todos);
+    }
 
     public boolean shouldTriggerRollover(Long userId, LocalDate requestedDate, LocalDate currentDate) {
         // Only rollover if requesting current date

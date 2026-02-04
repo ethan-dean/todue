@@ -3,6 +3,8 @@ package com.ethan.todue.websocket;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDate;
 import java.util.HashMap;
@@ -14,7 +16,25 @@ public class WebSocketService {
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
 
+    /**
+     * Send a WebSocket message to a user. If called inside a transaction,
+     * the send is deferred until after the transaction commits, preventing
+     * clients from refetching stale data.
+     */
     public void sendToUser(Long userId, WebSocketMessage<?> message) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    doSend(userId, message);
+                }
+            });
+        } else {
+            doSend(userId, message);
+        }
+    }
+
+    private void doSend(Long userId, WebSocketMessage<?> message) {
         messagingTemplate.convertAndSendToUser(
                 userId.toString(),
                 "/queue/updates",

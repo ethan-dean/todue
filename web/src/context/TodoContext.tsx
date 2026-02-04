@@ -66,8 +66,17 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
   const selectedDateRef = useRef(selectedDate);
   const viewModeRef = useRef(viewMode);
 
-  // Track when mutations start to ignore stale fetches
-  const lastMutationTimeRef = useRef<number>(0);
+  // Track pending mutations to ignore stale fetches from WebSocket refetches
+  // that arrive before all in-flight mutations have completed
+  const pendingMutationCountRef = useRef<number>(0);
+
+  // Decrement after a delay so the counter stays elevated through the window
+  // where the afterCommit WS message arrives and triggers a refetch
+  const decrementPendingMutations = useCallback(() => {
+    setTimeout(() => {
+      decrementPendingMutations();
+    }, 500);
+  }, []);
 
   // Keep refs in sync with state
   useEffect(() => {
@@ -123,9 +132,6 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
   };
 
   const loadTodosForDate = useCallback(async (date: Date, silent: boolean = false): Promise<void> => {
-    // Record when this fetch started
-    const fetchStartTime = Date.now();
-
     // Only show loading state if not silent (e.g., initial load, manual refresh)
     // Silent refetches (from WebSocket) don't clear the UI
     if (!silent) {
@@ -136,9 +142,10 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
       const dateStr = formatDateForAPI(date);
       const fetchedTodos = await todoApi.getTodosForDate(dateStr);
 
-      // Check if a mutation happened after this fetch started
-      if (fetchStartTime < lastMutationTimeRef.current) {
-        console.log('Ignoring stale fetch for date:', dateStr, '- mutation happened during fetch');
+      // If any mutations are still in flight, their WS-triggered refetches
+      // may return data that doesn't reflect those mutations yet
+      if (pendingMutationCountRef.current > 0) {
+        console.log('Ignoring stale fetch for date:', dateStr, '- mutations still in flight');
         return; // Don't update state with stale data
       }
 
@@ -169,9 +176,6 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
   }, []);
 
   const loadTodosForDateRange = useCallback(async (startDate: Date, endDate: Date, silent: boolean = false): Promise<void> => {
-    // Record when this fetch started
-    const fetchStartTime = Date.now();
-
     if (!silent) {
       setIsLoading(true);
     }
@@ -181,9 +185,10 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
       const endDateStr = formatDateForAPI(endDate);
       const fetchedTodos = await todoApi.getTodosForDateRange(startDateStr, endDateStr);
 
-      // Check if a mutation happened after this fetch started
-      if (fetchStartTime < lastMutationTimeRef.current) {
-        console.log('Ignoring stale fetch for date range:', startDateStr, '-', endDateStr, '- mutation happened during fetch');
+      // If any mutations are still in flight, their WS-triggered refetches
+      // may return data that doesn't reflect those mutations yet
+      if (pendingMutationCountRef.current > 0) {
+        console.log('Ignoring stale fetch for date range:', startDateStr, '-', endDateStr, '- mutations still in flight');
         return; // Don't update state with stale data
       }
 
@@ -239,8 +244,7 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
   }, [viewMode, selectedDate, loadTodosForDate, loadTodosForDateRange]);
 
   const createTodo = async (text: string, date: Date): Promise<void> => {
-    // Record mutation timestamp
-    lastMutationTimeRef.current = Date.now();
+    pendingMutationCountRef.current++;
 
     setError(null);
     try {
@@ -254,6 +258,8 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
       const errorMessage = handleApiError(err);
       setError(errorMessage);
       throw new Error(errorMessage);
+    } finally {
+      decrementPendingMutations();
     }
   };
 
@@ -265,8 +271,7 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     instanceDate: string,
     assignedDate: string
   ): Promise<void> => {
-    // Record mutation timestamp
-    lastMutationTimeRef.current = Date.now();
+    pendingMutationCountRef.current++;
 
     // Optimistically update local state first for instant feedback
     setTodos((prevTodos) => {
@@ -307,6 +312,8 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
       const errorMessage = handleApiError(err);
       setError(errorMessage);
       throw new Error(errorMessage);
+    } finally {
+      decrementPendingMutations();
     }
   };
 
@@ -318,8 +325,7 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     instanceDate: string,
     assignedDate: string
   ): Promise<void> => {
-    // Record mutation timestamp
-    lastMutationTimeRef.current = Date.now();
+    pendingMutationCountRef.current++;
 
     setError(null);
 
@@ -383,6 +389,8 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
       const errorMessage = handleApiError(err);
       setError(errorMessage);
       throw new Error(errorMessage);
+    } finally {
+      decrementPendingMutations();
     }
   };
 
@@ -393,8 +401,7 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     instanceDate: string,
     assignedDate: string
   ): Promise<void> => {
-    // Record mutation timestamp
-    lastMutationTimeRef.current = Date.now();
+    pendingMutationCountRef.current++;
 
     setError(null);
 
@@ -461,6 +468,8 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
       const errorMessage = handleApiError(err);
       setError(errorMessage);
       throw new Error(errorMessage);
+    } finally {
+      decrementPendingMutations();
     }
   };
 
@@ -471,8 +480,7 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     _instanceDate: string,
     assignedDate: string
   ): Promise<void> => {
-    // Record mutation timestamp
-    lastMutationTimeRef.current = Date.now();
+    pendingMutationCountRef.current++;
 
     setError(null);
 
@@ -533,6 +541,8 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
       const errorMessage = handleApiError(err);
       setError(errorMessage);
       throw new Error(errorMessage);
+    } finally {
+      decrementPendingMutations();
     }
   };
 
@@ -543,8 +553,7 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     instanceDate: string,
     deleteAllFuture?: boolean
   ): Promise<void> => {
-    // Record mutation timestamp
-    lastMutationTimeRef.current = Date.now();
+    pendingMutationCountRef.current++;
 
     // Optimistically update local state first for instant feedback
     setTodos((prevTodos) => {
@@ -564,7 +573,11 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
             if (filteredList.length === 0) {
               newTodos.delete(dateKey);
             } else {
-              newTodos.set(dateKey, filteredList);
+              // Renumber positions after removal
+              const renumbered = filteredList
+                .sort((a, b) => a.position - b.position)
+                .map((t, idx) => ({ ...t, position: idx + 1 }));
+              newTodos.set(dateKey, renumbered);
             }
           });
         } else {
@@ -576,7 +589,10 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
           if (filteredList.length === 0) {
             newTodos.delete(instanceDate);
           } else {
-            newTodos.set(instanceDate, filteredList);
+            const renumbered = filteredList
+              .sort((a, b) => a.position - b.position)
+              .map((t, idx) => ({ ...t, position: idx + 1 }));
+            newTodos.set(instanceDate, renumbered);
           }
         }
       } else if (id != null) {
@@ -595,7 +611,10 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
           if (filteredList.length === 0) {
             newTodos.delete(todoDateStr);
           } else {
-            newTodos.set(todoDateStr, filteredList);
+            const renumbered = filteredList
+              .sort((a, b) => a.position - b.position)
+              .map((t, idx) => ({ ...t, position: idx + 1 }));
+            newTodos.set(todoDateStr, renumbered);
           }
         }
       }
@@ -624,6 +643,8 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
       const errorMessage = handleApiError(err);
       setError(errorMessage);
       throw new Error(errorMessage);
+    } finally {
+      decrementPendingMutations();
     }
   };
 
@@ -634,8 +655,7 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     // Don't move if already on target date
     if (fromDateStr === toDateStr) return;
 
-    // Record mutation timestamp
-    lastMutationTimeRef.current = Date.now();
+    pendingMutationCountRef.current++;
 
     try {
       // Optimistic update: remove from source, add to target
@@ -713,6 +733,8 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
       const errorMessage = handleApiError(err);
       setError(errorMessage);
       throw new Error(errorMessage);
+    } finally {
+      decrementPendingMutations();
     }
   };
 
@@ -772,41 +794,31 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
         const { date } = message.data as { date: string };
 
         if (date) {
-          // Small delay to allow database transaction to commit (prevents race condition)
-          setTimeout(() => {
-            // Always refetch - state comparison will prevent unnecessary updates
-            // Use refs to get current values instead of closure values
-            if (viewModeRef.current === 1) {
-              // Single day view - only refetch if it's the selected date
-              if (formatDateForAPI(selectedDateRef.current) === date) {
-                // Silent refetch - comparison prevents flicker if data unchanged
-                loadTodosForDate(parseDateString(date), true);
-              }
-            } else {
-              // Multi-day view - refetch if the date is in visible range
-              const dates = getDateRange(selectedDateRef.current, viewModeRef.current);
-              const isVisible = dates.some(d => formatDateForAPI(d) === date);
-              if (isVisible) {
-                // Silent refetch - comparison prevents flicker if data unchanged
-                loadTodosForDate(parseDateString(date), true);
-              }
+          // Use refs to get current values instead of closure values
+          if (viewModeRef.current === 1) {
+            // Single day view - only refetch if it's the selected date
+            if (formatDateForAPI(selectedDateRef.current) === date) {
+              loadTodosForDate(parseDateString(date), true);
             }
-          }, 300); // 300ms delay to allow transaction commit
+          } else {
+            // Multi-day view - refetch if the date is in visible range
+            const dates = getDateRange(selectedDateRef.current, viewModeRef.current);
+            const isVisible = dates.some(d => formatDateForAPI(d) === date);
+            if (isVisible) {
+              loadTodosForDate(parseDateString(date), true);
+            }
+          }
         }
       }
     } else if (message.type === WebSocketMessageType.RECURRING_CHANGED) {
       // Recurring pattern changed - refetch all currently visible dates
-      setTimeout(() => {
-        // Use refs to get current values instead of closure values
-        if (viewModeRef.current === 1) {
-          // Single day view
-          loadTodosForDate(selectedDateRef.current, true);
-        } else {
-          // Multi-day view
-          const dates = getDateRange(selectedDateRef.current, viewModeRef.current);
-          loadTodosForDateRange(dates[0], dates[dates.length - 1], true);
-        }
-      }, 300); // 300ms delay to allow transaction commit
+      // Use refs to get current values instead of closure values
+      if (viewModeRef.current === 1) {
+        loadTodosForDate(selectedDateRef.current, true);
+      } else {
+        const dates = getDateRange(selectedDateRef.current, viewModeRef.current);
+        loadTodosForDateRange(dates[0], dates[dates.length - 1], true);
+      }
     }
   }, [parseDateString, loadTodosForDate, loadTodosForDateRange]);
 

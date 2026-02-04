@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -431,8 +432,32 @@ public class TodoService {
             throw new RuntimeException("Todo not found in list");
         }
 
+        // Validate: completed todos can't move above incomplete ones, and vice versa
+        Todo movedTodo = allTodos.get(oldIndex);
+        if (movedTodo.getIsCompleted()) {
+            // Find the first completed todo's index — can't move above it
+            for (int i = 0; i < allTodos.size(); i++) {
+                if (allTodos.get(i).getIsCompleted()) {
+                    if (newPosition < i) {
+                        return toTodoResponse(movedTodo); // silently reject
+                    }
+                    break;
+                }
+            }
+        } else {
+            // Find the first completed todo's index — can't move into or below it
+            for (int i = 0; i < allTodos.size(); i++) {
+                if (allTodos.get(i).getIsCompleted()) {
+                    if (newPosition >= i) {
+                        return toTodoResponse(movedTodo); // silently reject
+                    }
+                    break;
+                }
+            }
+        }
+
         // Remove from old position, insert at new position
-        Todo movedTodo = allTodos.remove(oldIndex);
+        allTodos.remove(oldIndex);
         allTodos.add(newPosition, movedTodo);
 
         // Only renumber the affected range (between old and new positions)
@@ -589,12 +614,20 @@ public class TodoService {
             recurringTodoRepository.save(recurring);
 
             // Delete all future incomplete instances
-            todoRepository.findFutureIncompleteTodosForRecurring(
+            List<Todo> futureTodos = todoRepository.findFutureIncompleteTodosForRecurring(
                     recurring.getId(),
                     todo.getInstanceDate()
-            ).forEach(todoRepository::delete);
+            );
+            Set<LocalDate> affectedDates = futureTodos.stream()
+                    .map(Todo::getAssignedDate)
+                    .collect(Collectors.toSet());
+            affectedDates.add(assignedDate);
 
+            futureTodos.forEach(todoRepository::delete);
             todoRepository.delete(todo);
+
+            // Renumber positions on all affected dates
+            affectedDates.forEach(date -> renumberPositionsAfterRemoval(date, userId));
 
             // Send WebSocket notification - deleting all future affects all dates
             webSocketService.notifyRecurringChanged(userId);
@@ -605,6 +638,7 @@ public class TodoService {
             }
 
             todoRepository.delete(todo);
+            renumberPositionsAfterRemoval(assignedDate, userId);
 
             // Send WebSocket notification - single delete affects only assigned date
             webSocketService.notifyTodosChanged(userId, assignedDate);
@@ -638,10 +672,18 @@ public class TodoService {
             recurringTodoRepository.save(recurringTodo);
 
             // Delete all future incomplete real instances
-            todoRepository.findFutureIncompleteTodosForRecurring(
+            List<Todo> futureTodos = todoRepository.findFutureIncompleteTodosForRecurring(
                     recurringTodo.getId(),
                     instanceDate
-            ).forEach(todoRepository::delete);
+            );
+            Set<LocalDate> affectedDates = futureTodos.stream()
+                    .map(Todo::getAssignedDate)
+                    .collect(Collectors.toSet());
+
+            futureTodos.forEach(todoRepository::delete);
+
+            // Renumber positions on all affected dates
+            affectedDates.forEach(date -> renumberPositionsAfterRemoval(date, user.getId()));
 
             // Send WebSocket notification - deleting all future affects all dates
             webSocketService.notifyRecurringChanged(user.getId());

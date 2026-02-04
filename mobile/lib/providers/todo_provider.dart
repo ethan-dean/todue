@@ -20,7 +20,18 @@ class TodoProvider extends ChangeNotifier {
   String? _error;
   bool _isOnline = true;
   VoidCallback? _wsUnsubscribe;
-  DateTime _lastMutationTime = DateTime.fromMillisecondsSinceEpoch(0);
+  int _pendingMutationCount = 0;
+
+  /// Decrement the pending mutation counter after a delay.
+  /// The delay ensures the counter stays elevated through the window where
+  /// the afterCommit WebSocket message arrives and triggers a refetch.
+  /// Without this, the HTTP response decrements the counter before the
+  /// WS-triggered loadTodos runs, letting stale data through.
+  void _decrementPendingMutations() {
+    Future.delayed(const Duration(milliseconds: 500), () {
+      _pendingMutationCount--;
+    });
+  }
 
   // Getters
   Map<String, List<Todo>> get todos => _todos;
@@ -158,9 +169,6 @@ class TodoProvider extends ChangeNotifier {
   void _handleWebSocketMessage(WebSocketMessage message) async {
     print('TodoProvider WebSocket message: ${message.type}');
 
-    // Delay to allow backend DB to settle
-    await Future.delayed(const Duration(milliseconds: 300));
-
     if (message.type == WebSocketMessageType.TODOS_CHANGED) {
       // Single date changed - refetch that specific date
       if (message.data != null && message.data is Map) {
@@ -209,7 +217,6 @@ class TodoProvider extends ChangeNotifier {
 
   // Load todos for a date (or selected date if not specified)
   Future<void> loadTodos({DateTime? date, bool force = false}) async {
-    final fetchStartTime = DateTime.now();
     final targetDate = date ?? _selectedDate;
     final dateStr = _formatDate(targetDate);
 
@@ -220,13 +227,12 @@ class TodoProvider extends ChangeNotifier {
 
     _setError(null);
 
-    // 1. Load from Cache (DB) immediately - BUT only if no recent mutation
-    // If we just mutated, the DB might be stale compared to our optimistic RAM state.
-    // We want to keep showing RAM state until API confirms.
-    const recentMutationWindow = Duration(seconds: 2);
-    final hasRecentMutation = DateTime.now().difference(_lastMutationTime) < recentMutationWindow;
+    final hasPendingMutations = _pendingMutationCount > 0;
 
-    if (!hasRecentMutation) {
+    // 1. Load from Cache (DB) immediately - BUT only if no pending mutations
+    // If we have mutations in flight, the DB might be stale compared to our optimistic RAM state.
+    // We want to keep showing RAM state until API confirms.
+    if (!hasPendingMutations) {
       try {
         final localTodos = await _databaseService.getTodos(date: dateStr);
         if (localTodos.isNotEmpty) {
@@ -238,17 +244,18 @@ class TodoProvider extends ChangeNotifier {
         print('Cache load failed: $e');
       }
     } else {
-      print('Skipping DB load due to recent mutation');
+      print('Skipping DB load due to pending mutations');
     }
 
     // 2. Fetch from API (Stale-While-Revalidate)
     try {
       final fetchedTodos = await _todoApi.getTodos(date: dateStr);
-      
-      // Guard: If a mutation happened since we started fetching, ignore this result
-      // to avoid overwriting optimistic updates with stale data.
-      if (_lastMutationTime.isAfter(fetchStartTime)) {
-        print('Discarding stale fetch result (mutation occurred during fetch)');
+
+      // Guard: If mutations are still in flight, their WS-triggered refetches
+      // may return data that doesn't reflect those mutations yet
+      print('loadTodos guard check: _pendingMutationCount=$_pendingMutationCount for $dateStr');
+      if (_pendingMutationCount > 0) {
+        print('Discarding stale fetch result ($_pendingMutationCount mutations still in flight)');
         return;
       }
 
@@ -266,7 +273,7 @@ class TodoProvider extends ChangeNotifier {
         _setError('Failed to load todos');
       }
     } finally {
-      if (!hasRecentMutation) {
+      if (!hasPendingMutations) {
         _setLoading(false);
       }
       notifyListeners();
@@ -280,8 +287,8 @@ class TodoProvider extends ChangeNotifier {
     int? recurringTodoId,
     int? position,
   }) async {
-    _lastMutationTime = DateTime.now();
-    
+    _pendingMutationCount++;
+
     await _checkOnlineStatus();
     if (!_isOnline) {
       throw Exception('Cannot create todo while offline');
@@ -346,6 +353,8 @@ class TodoProvider extends ChangeNotifier {
       notifyListeners();
       _setError('Failed to create todo: $e');
       rethrow;
+    } finally {
+      _decrementPendingMutations();
     }
   }
 
@@ -358,7 +367,7 @@ class TodoProvider extends ChangeNotifier {
     int? recurringTodoId,
     String? instanceDate,
   }) async {
-    _lastMutationTime = DateTime.now();
+    _pendingMutationCount++;
 
     await _checkOnlineStatus();
     if (!_isOnline) {
@@ -449,6 +458,8 @@ class TodoProvider extends ChangeNotifier {
       }
       _setError('Failed to update todo: $e');
       rethrow;
+    } finally {
+      _decrementPendingMutations();
     }
   }
 
@@ -461,7 +472,7 @@ class TodoProvider extends ChangeNotifier {
     String? instanceDate,
     bool deleteAllFuture = false,
   }) async {
-    _lastMutationTime = DateTime.now(); // Track local mutation
+    _pendingMutationCount++;
 
     await _checkOnlineStatus();
     if (!_isOnline) {
@@ -487,10 +498,19 @@ class TodoProvider extends ChangeNotifier {
       _todos.forEach((dateKey, list) {
         if (dateKey.compareTo(instanceDate) >= 0) {
           list.removeWhere((t) => t.recurringTodoId == recurringTodoId);
+          // Renumber positions after removal
+          for (int i = 0; i < list.length; i++) {
+            list[i] = list[i].copyWith(position: i + 1);
+          }
         }
       });
     } else {
       _todos[assignedDate]!.removeAt(index);
+      // Renumber positions after removal
+      final list = _todos[assignedDate]!;
+      for (int i = 0; i < list.length; i++) {
+        list[i] = list[i].copyWith(position: i + 1);
+      }
     }
     notifyListeners();
 
@@ -520,6 +540,8 @@ class TodoProvider extends ChangeNotifier {
       notifyListeners();
       _setError('Failed to delete todo: $e');
       rethrow;
+    } finally {
+      _decrementPendingMutations();
     }
   }
 
@@ -532,7 +554,7 @@ class TodoProvider extends ChangeNotifier {
     int? recurringTodoId,
     String? instanceDate,
   }) async {
-    _lastMutationTime = DateTime.now(); // Track local mutation
+    _pendingMutationCount++;
 
     await _checkOnlineStatus();
     if (!_isOnline) {
@@ -634,32 +656,41 @@ class TodoProvider extends ChangeNotifier {
       notifyListeners();
       _setError('Failed to update completion status: $e');
       rethrow;
+    } finally {
+      _decrementPendingMutations();
     }
   }
 
   // Reorder todos
   void reorderTodos(String date, int oldIndex, int newIndex) {
-    _lastMutationTime = DateTime.now(); // Track local mutation
+    _pendingMutationCount++;
 
     // Check cached online status immediately
     if (!_isOnline) {
+      _pendingMutationCount--;
       _setError('Cannot reorder todos while offline');
       notifyListeners(); // Force UI to snap back
       return;
     }
 
-    if (!_todos.containsKey(date)) return;
+    if (!_todos.containsKey(date)) {
+      _pendingMutationCount--;
+      return;
+    }
 
     // Snapshot for rollback
     final originalList = List<Todo>.from(_todos[date]!);
-    
+
     // Adjust newIndex if moving down (Flutter ReorderableListView quirk)
     int adjustedNewIndex = newIndex;
     if (oldIndex < newIndex) {
       adjustedNewIndex -= 1;
     }
-    
-    if (oldIndex == adjustedNewIndex) return;
+
+    if (oldIndex == adjustedNewIndex) {
+      _pendingMutationCount--;
+      return;
+    }
 
     final movedTodo = originalList[oldIndex];
 
@@ -690,7 +721,7 @@ class TodoProvider extends ChangeNotifier {
       // Call API for the single moved item
       // Position is 1-based index
       final position = newIndex;
-      
+
       if (movedTodo.isVirtual && movedTodo.recurringTodoId != null) {
         await _todoApi.updateVirtualTodoPosition(
           recurringTodoId: movedTodo.recurringTodoId!,
@@ -703,7 +734,7 @@ class TodoProvider extends ChangeNotifier {
           position: position,
         );
       }
-      
+
       // Update Cache with optimistic state
       await _databaseService.saveTodosForDate(date, newList);
     } catch (e) {
@@ -711,12 +742,14 @@ class TodoProvider extends ChangeNotifier {
       _todos[date] = originalList;
       notifyListeners();
       _setError('Failed to reorder todos: $e');
+    } finally {
+      _decrementPendingMutations();
     }
   }
 
   // Move todo to another date
   Future<void> moveTodo(Todo todo, DateTime toDate) async {
-    _lastMutationTime = DateTime.now(); // Track local mutation
+    _pendingMutationCount++;
 
     await _checkOnlineStatus();
     if (!_isOnline) {
@@ -805,6 +838,8 @@ class TodoProvider extends ChangeNotifier {
       notifyListeners();
       _setError('Failed to move todo: $e');
       rethrow;
+    } finally {
+      _decrementPendingMutations();
     }
   }
 

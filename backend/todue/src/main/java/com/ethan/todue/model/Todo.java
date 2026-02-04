@@ -66,6 +66,10 @@ public class Todo {
     @Column(nullable = false, columnDefinition = "BIT(1) DEFAULT 0")
     private Boolean isRolledOver = false;
 
+    @Version
+    @Column(nullable = false)
+    private Long version = 0L;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false, columnDefinition = "DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6)")
     private Instant createdAt;
