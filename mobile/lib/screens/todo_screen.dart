@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../widgets/date_timeline.dart';
+import '../widgets/app_dialogs.dart';
 import '../providers/todo_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
@@ -78,10 +79,11 @@ class _TodoScreenState extends State<TodoScreen> {
     final textController = TextEditingController();
     final todoProvider = context.read<TodoProvider>();
 
-    return showDialog(
+    return AppBottomSheet.show(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
           String? detectedPattern;
 
           textController.addListener(() {
@@ -93,74 +95,78 @@ class _TodoScreenState extends State<TodoScreen> {
             }
           });
 
-          return AlertDialog(
-            title: const Text('Add Todo'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TextField(
-                  controller: textController,
-                  autofocus: true,
-                  decoration: const InputDecoration(
-                    hintText: 'Enter todo text...',
-                    helperText: 'Tip: Add "every day", "every week", etc.',
-                    border: OutlineInputBorder(),
-                  ),
-                  maxLines: 3,
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (value) {
-                    if (value.trim().isNotEmpty) {
-                      Navigator.of(context).pop();
-                      todoProvider.createTodo(text: value.trim(), position: position);
-                    }
-                  },
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AppTextField(
+                controller: textController,
+                autofocus: true,
+                hintText: 'What needs to be done?',
+                maxLines: 3,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (value) {
+                  Navigator.of(context).pop();
+                  if (value.trim().isNotEmpty) {
+                    todoProvider.createTodo(text: value.trim(), position: position);
+                  }
+                },
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "Tip: Add 'every day', 'every week', etc.",
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey[500],
                 ),
-                if (detectedPattern != null) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.blue.shade200),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.repeat, size: 18, color: Colors.blue.shade700),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Recurring: $detectedPattern',
-                          style: TextStyle(
-                            color: Colors.blue.shade700,
-                            fontWeight: FontWeight.w500,
-                          ),
+              ),
+              if (detectedPattern != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.blue.shade900.withValues(alpha: 0.4) : Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: isDark ? Colors.blue.shade700 : Colors.blue.shade200),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.repeat, size: 18, color: isDark ? Colors.blue.shade300 : Colors.blue.shade700),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Recurring: $detectedPattern',
+                        style: TextStyle(
+                          color: isDark ? Colors.blue.shade300 : Colors.blue.shade700,
+                          fontWeight: FontWeight.w500,
                         ),
-                      ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: AppCancelButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: AppActionButton(
+                      label: 'Add',
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        final text = textController.text.trim();
+                        if (text.isNotEmpty) {
+                          todoProvider.createTodo(text: text, position: position);
+                        }
+                      },
                     ),
                   ),
                 ],
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  final text = textController.text.trim();
-                  if (text.isNotEmpty) {
-                    Navigator.of(context).pop();
-                    todoProvider.createTodo(text: text, position: position);
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('Add'),
               ),
             ],
           );
@@ -578,6 +584,10 @@ class _TodoScreenState extends State<TodoScreen> {
   Widget _buildTodoItem(Todo todo, TodoProvider todoProvider, {bool isReorderable = false}) {
     final widget = Dismissible(
       key: Key('todo_${todo.id ?? 'v'}_${todo.recurringTodoId ?? 'n'}_${todo.instanceDate}'),
+      dismissThresholds: const {
+        DismissDirection.endToStart: 0.5,
+        DismissDirection.startToEnd: 0.4,
+      },
       background: Container(
         color: Colors.blue,
         alignment: Alignment.centerLeft,
@@ -595,9 +605,9 @@ class _TodoScreenState extends State<TodoScreen> {
           // Swipe right - move to next day
           final currentDate = DateTime.parse(todo.assignedDate);
           final nextDay = currentDate.add(const Duration(days: 1));
-          
+
           await todoProvider.moveTodo(todo, nextDay);
-          return false; // Don't dismiss immediately, let provider handle list update
+          return false;
         } else {
           // Swipe left - delete
           return await _confirmDelete(todo);
@@ -688,30 +698,14 @@ class _TodoScreenState extends State<TodoScreen> {
 
   Future<bool> _confirmDelete(Todo todo) async {
     if (todo.recurringTodoId != null) {
-      // Show options for recurring todo
-      final result = await showDialog<String>(
+      // Show choice dialog for recurring todo
+      final result = await AppChoiceDialog.show(
         context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Delete Recurring Todo'),
-          content: const Text(
-            'This is a recurring todo. What would you like to do?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop('cancel'),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop('this'),
-              child: const Text('Delete This Instance'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop('all'),
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('Delete All Future'),
-            ),
-          ],
-        ),
+        description: 'This is a recurring todo. What would you like to do?',
+        options: [
+          const AppChoiceOption(label: 'Delete This Instance', value: 'this'),
+          const AppChoiceOption(label: 'Delete All Future', value: 'all', isDestructive: true),
+        ],
       );
 
       if (result == 'this') {
@@ -734,28 +728,8 @@ class _TodoScreenState extends State<TodoScreen> {
       }
       return false;
     } else {
-      // Simple confirmation for non-recurring todo
-      final result = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Delete Todo'),
-          content: const Text('Are you sure you want to delete this todo?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('Delete'),
-            ),
-          ],
-        ),
-      );
-      if (result ?? false) {
-        await context.read<TodoProvider>().deleteTodo(todo.id, todo.assignedDate);
-      }
+      // Non-recurring: delete immediately, no dialog
+      await context.read<TodoProvider>().deleteTodo(todo.id, todo.assignedDate);
       return false;
     }
   }
@@ -763,10 +737,11 @@ class _TodoScreenState extends State<TodoScreen> {
   Future<void> _showEditTodoDialog(Todo todo, TodoProvider todoProvider) async {
     final textController = TextEditingController(text: todo.text);
 
-    return showDialog(
+    return AppBottomSheet.show(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
           String? detectedPattern;
 
           textController.addListener(() {
@@ -781,110 +756,104 @@ class _TodoScreenState extends State<TodoScreen> {
           // Initial pattern detection
           detectedPattern = _detectRecurrencePattern(textController.text);
 
-          return AlertDialog(
-            title: const Text('Edit Todo'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (todo.recurringTodoId != null)
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.orange.shade200),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.warning_amber, size: 18, color: Colors.orange.shade700),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Editing will orphan this from its recurring series',
-                            style: TextStyle(
-                              color: Colors.orange.shade700,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (todo.recurringTodoId != null)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.orange.shade900.withValues(alpha: 0.4) : Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: isDark ? Colors.orange.shade700 : Colors.orange.shade200),
                   ),
-                TextField(
-                  controller: textController,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    hintText: 'Enter todo text...',
-                    helperText: detectedPattern != null
-                      ? 'Note: This will create a new recurring series'
-                      : 'Tip: Add "every day", "every week", etc.',
-                    border: const OutlineInputBorder(),
-                  ),
-                  maxLines: 3,
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (value) {
-                    if (value.trim().isNotEmpty && value.trim() != todo.text) {
-                      Navigator.of(context).pop();
-                      todoProvider.updateTodo(
-                        todoId: todo.id!,
-                        text: value.trim(),
-                      );
-                    }
-                  },
-                ),
-                if (detectedPattern != null) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.blue.shade200),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.repeat, size: 18, color: Colors.blue.shade700),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Recurring: $detectedPattern',
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning_amber, size: 18, color: isDark ? Colors.orange.shade300 : Colors.orange.shade700),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Editing will orphan this from its recurring series',
                           style: TextStyle(
-                            color: Colors.blue.shade700,
-                            fontWeight: FontWeight.w500,
+                            color: isDark ? Colors.orange.shade300 : Colors.orange.shade700,
+                            fontSize: 12,
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  final text = textController.text.trim();
-                  if (text.isNotEmpty && text != todo.text) {
-                    Navigator.of(context).pop();
+                ),
+              AppTextField(
+                controller: textController,
+                autofocus: true,
+                hintText: 'Enter todo text...',
+                maxLines: 3,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (value) {
+                  Navigator.of(context).pop();
+                  if (value.trim().isNotEmpty && value.trim() != todo.text) {
                     todoProvider.updateTodo(
-                      todoId: todo.id,
-                      text: text,
-                      isVirtual: todo.isVirtual,
-                      recurringTodoId: todo.recurringTodoId,
-                      instanceDate: todo.instanceDate,
+                      todoId: todo.id!,
+                      text: value.trim(),
                     );
                   }
                 },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Colors.white,
+              ),
+              if (detectedPattern != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.blue.shade900.withValues(alpha: 0.4) : Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: isDark ? Colors.blue.shade700 : Colors.blue.shade200),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.repeat, size: 18, color: isDark ? Colors.blue.shade300 : Colors.blue.shade700),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Recurring: $detectedPattern',
+                        style: TextStyle(
+                          color: isDark ? Colors.blue.shade300 : Colors.blue.shade700,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                child: const Text('Save'),
+              ],
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: AppCancelButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: AppActionButton(
+                      label: 'Save',
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        final text = textController.text.trim();
+                        if (text.isNotEmpty && text != todo.text) {
+                          todoProvider.updateTodo(
+                            todoId: todo.id,
+                            text: text,
+                            isVirtual: todo.isVirtual,
+                            recurringTodoId: todo.recurringTodoId,
+                            instanceDate: todo.instanceDate,
+                          );
+                        }
+                      },
+                    ),
+                  ),
+                ],
               ),
             ],
           );

@@ -5,6 +5,7 @@ import '../screens/later_lists_screen.dart';
 import '../screens/routines_screen.dart';
 import '../screens/routine_execution_screen.dart';
 import '../screens/settings_screen.dart';
+import '../widgets/app_dialogs.dart';
 import '../providers/later_list_provider.dart';
 import '../providers/todo_provider.dart';
 import '../providers/routine_provider.dart';
@@ -133,70 +134,100 @@ class _MainNavigationState extends State<MainNavigation> {
 
   Future<void> _editRoutineName(int routineId, String currentName) async {
     final controller = TextEditingController(text: currentName);
-    final result = await showDialog<String>(
+
+    await AppBottomSheet.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Name'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(
+      builder: (sheetContext) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppTextField(
+            controller: controller,
+            autofocus: true,
             hintText: 'Routine name',
-            border: OutlineInputBorder(),
+            textInputAction: TextInputAction.done,
+            onSubmitted: (value) {
+              Navigator.of(sheetContext).pop();
+              if (value.trim().isNotEmpty && value.trim() != currentName) {
+                context.read<RoutineProvider>().updateRoutineName(routineId, value.trim());
+              }
+            },
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(controller.text),
-            child: const Text('Save'),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: AppCancelButton(
+                  onPressed: () => Navigator.of(sheetContext).pop(),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: AppActionButton(
+                  label: 'Save',
+                  onPressed: () {
+                    Navigator.of(sheetContext).pop();
+                    final text = controller.text.trim();
+                    if (text.isNotEmpty && text != currentName) {
+                      context.read<RoutineProvider>().updateRoutineName(routineId, text);
+                    }
+                  },
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
-
-    if (result != null && result.trim().isNotEmpty && mounted) {
-      await context
-          .read<RoutineProvider>()
-          .updateRoutineName(routineId, result.trim());
-    }
   }
 
   Future<void> _editLaterListName(int listId, String currentName) async {
     final controller = TextEditingController(text: currentName);
-    final result = await showDialog<String>(
+
+    await AppBottomSheet.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Name'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(
+      builder: (sheetContext) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppTextField(
+            controller: controller,
+            autofocus: true,
             hintText: 'List name',
-            border: OutlineInputBorder(),
+            textInputAction: TextInputAction.done,
+            onSubmitted: (value) {
+              Navigator.of(sheetContext).pop();
+              if (value.trim().isNotEmpty && value.trim() != currentName) {
+                context.read<LaterListProvider>().updateListName(listId, value.trim());
+              }
+            },
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(controller.text),
-            child: const Text('Save'),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: AppCancelButton(
+                  onPressed: () => Navigator.of(sheetContext).pop(),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: AppActionButton(
+                  label: 'Save',
+                  onPressed: () {
+                    Navigator.of(sheetContext).pop();
+                    final text = controller.text.trim();
+                    if (text.isNotEmpty && text != currentName) {
+                      context.read<LaterListProvider>().updateListName(listId, text);
+                    }
+                  },
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
-
-    if (result != null && result.trim().isNotEmpty && mounted) {
-      await context
-          .read<LaterListProvider>()
-          .updateListName(listId, result.trim());
-    }
   }
 
   @override

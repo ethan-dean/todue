@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../widgets/app_dialogs.dart';
 import '../providers/routine_provider.dart';
 import '../models/routine.dart';
 import 'routine_execution_screen.dart';
@@ -58,153 +59,127 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
     final textController = TextEditingController();
     final notesController = TextEditingController();
 
-    final result = await showDialog<Map<String, String>>(
+    await AppBottomSheet.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Step'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: textController,
-              autofocus: true,
-              decoration: const InputDecoration(
-                labelText: 'Step text',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: notesController,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Notes (optional)',
-                hintText: 'Add helpful details or reminders...',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppTextField(
+            controller: textController,
+            autofocus: true,
+            hintText: 'Step text',
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop({
-              'text': textController.text,
-              'notes': notesController.text,
-            }),
-            child: const Text('Add'),
+          const SizedBox(height: 12),
+          AppTextField(
+            controller: notesController,
+            hintText: 'Notes (optional)',
+            maxLines: 3,
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: AppCancelButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: AppActionButton(
+                  label: 'Add',
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    var text = textController.text.trim();
+                    final notes = notesController.text.trim();
+                    if (text.isEmpty && notes.isNotEmpty) {
+                      text = 'Step text';
+                    }
+                    if (text.isNotEmpty) {
+                      this.context.read<RoutineProvider>().createStep(
+                            widget.routineId,
+                            text,
+                            notes: notes.isEmpty ? null : notes,
+                          );
+                    }
+                  },
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
-
-    if (result != null && result['text']!.trim().isNotEmpty && mounted) {
-      final notes = result['notes']!.trim();
-      await context.read<RoutineProvider>().createStep(
-            widget.routineId,
-            result['text']!.trim(),
-            notes: notes.isEmpty ? null : notes,
-          );
-    }
   }
 
   Future<void> _editStep(RoutineStep step) async {
     final textController = TextEditingController(text: step.text);
     final notesController = TextEditingController(text: step.notes ?? '');
 
-    final result = await showDialog<Map<String, String>>(
+    await AppBottomSheet.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Step'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: textController,
-              autofocus: true,
-              decoration: const InputDecoration(
-                labelText: 'Step text',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: notesController,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Notes (optional)',
-                hintText: 'Add helpful details or reminders...',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppTextField(
+            controller: textController,
+            autofocus: true,
+            hintText: 'Step text',
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop({
-              'text': textController.text,
-              'notes': notesController.text,
-            }),
-            child: const Text('Save'),
+          const SizedBox(height: 12),
+          AppTextField(
+            controller: notesController,
+            hintText: 'Notes (optional)',
+            maxLines: 3,
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: AppCancelButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: AppActionButton(
+                  label: 'Save',
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    var newText = textController.text.trim();
+                    if (newText.isEmpty) {
+                      newText = 'Step text';
+                    }
+                    final provider = this.context.read<RoutineProvider>();
+                    final newNotes = notesController.text.trim();
+
+                    if (newText != step.text) {
+                      provider.updateStepText(widget.routineId, step.id, newText);
+                    }
+
+                    final oldNotes = step.notes ?? '';
+                    if (newNotes != oldNotes) {
+                      provider.updateStepNotes(
+                        widget.routineId,
+                        step.id,
+                        newNotes.isEmpty ? null : newNotes,
+                      );
+                    }
+                  },
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
-
-    if (result != null && result['text']!.trim().isNotEmpty && mounted) {
-      final provider = context.read<RoutineProvider>();
-      final newText = result['text']!.trim();
-      final newNotes = result['notes']!.trim();
-
-      // Update text if changed
-      if (newText != step.text) {
-        await provider.updateStepText(widget.routineId, step.id, newText);
-      }
-
-      // Update notes if changed
-      final oldNotes = step.notes ?? '';
-      if (newNotes != oldNotes) {
-        await provider.updateStepNotes(
-          widget.routineId,
-          step.id,
-          newNotes.isEmpty ? null : newNotes,
-        );
-      }
-    }
   }
 
   Future<void> _deleteStep(RoutineStep step) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Step'),
-        content: Text('Delete "${step.text}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true && mounted) {
-      await context
-          .read<RoutineProvider>()
-          .deleteStep(widget.routineId, step.id);
-    }
+    await context
+        .read<RoutineProvider>()
+        .deleteStep(widget.routineId, step.id);
   }
 
   Future<void> _editSchedule(RoutineDetail detail) async {
@@ -374,6 +349,7 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
                             final step = sortedSteps[index];
                             final item = Dismissible(
                               key: ValueKey('dismiss_${step.id}'),
+                              dismissThresholds: const {DismissDirection.endToStart: 0.5},
                               background: Container(
                                 color: Colors.red,
                                 alignment: Alignment.centerRight,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
+import '../widgets/app_dialogs.dart';
 import '../providers/later_list_provider.dart';
 import '../models/later_list.dart';
 import '../models/later_list_todo.dart';
@@ -19,45 +20,48 @@ class _LaterListDetailScreenState extends State<LaterListDetailScreen> {
     final textController = TextEditingController();
     final provider = context.read<LaterListProvider>();
 
-    return showDialog(
+    return AppBottomSheet.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Item'),
-        content: TextField(
-          controller: textController,
-          autofocus: true,
-          decoration: const InputDecoration(
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppTextField(
+            controller: textController,
+            autofocus: true,
             hintText: 'Enter item text...',
-            border: OutlineInputBorder(),
-          ),
-          maxLength: 500,
-          maxLines: 3,
-          textInputAction: TextInputAction.done,
-          onSubmitted: (value) {
-            if (value.trim().isNotEmpty) {
+            maxLength: 500,
+            maxLines: 3,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (value) {
               Navigator.of(context).pop();
-              provider.createTodo(widget.list.id, value.trim(), position: position);
-            }
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final text = textController.text.trim();
-              if (text.isNotEmpty) {
-                Navigator.of(context).pop();
-                provider.createTodo(widget.list.id, text, position: position);
+              if (value.trim().isNotEmpty) {
+                provider.createTodo(widget.list.id, value.trim(), position: position);
               }
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Add'),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: AppCancelButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: AppActionButton(
+                  label: 'Add',
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    final text = textController.text.trim();
+                    if (text.isNotEmpty) {
+                      provider.createTodo(widget.list.id, text, position: position);
+                    }
+                  },
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -68,80 +72,52 @@ class _LaterListDetailScreenState extends State<LaterListDetailScreen> {
     final textController = TextEditingController(text: todo.text);
     final provider = context.read<LaterListProvider>();
 
-    return showDialog(
+    return AppBottomSheet.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Item'),
-        content: TextField(
-          controller: textController,
-          autofocus: true,
-          decoration: const InputDecoration(
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppTextField(
+            controller: textController,
+            autofocus: true,
             hintText: 'Enter item text...',
-            border: OutlineInputBorder(),
-          ),
-          maxLength: 500,
-          maxLines: 3,
-          textInputAction: TextInputAction.done,
-          onSubmitted: (value) {
-            if (value.trim().isNotEmpty && value.trim() != todo.text) {
+            maxLength: 500,
+            maxLines: 3,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (value) {
               Navigator.of(context).pop();
-              provider.updateTodoText(widget.list.id, todo.id, value.trim());
-            } else {
-              Navigator.of(context).pop();
-            }
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final text = textController.text.trim();
-              if (text.isNotEmpty && text != todo.text) {
-                Navigator.of(context).pop();
-                provider.updateTodoText(widget.list.id, todo.id, text);
-              } else {
-                Navigator.of(context).pop();
+              if (value.trim().isNotEmpty && value.trim() != todo.text) {
+                provider.updateTodoText(widget.list.id, todo.id, value.trim());
               }
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Save'),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: AppCancelButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: AppActionButton(
+                  label: 'Save',
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    final text = textController.text.trim();
+                    if (text.isNotEmpty && text != todo.text) {
+                      provider.updateTodoText(widget.list.id, todo.id, text);
+                    }
+                  },
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
-  }
-
-  Future<void> _confirmDelete(LaterListTodo todo) async {
-    final provider = context.read<LaterListProvider>();
-
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Item'),
-        content: const Text('Are you sure you want to delete this item?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (result == true) {
-      provider.deleteTodo(widget.list.id, todo.id);
-    }
   }
 
   @override
@@ -305,6 +281,7 @@ class _LaterListDetailScreenState extends State<LaterListDetailScreen> {
       type: MaterialType.transparency,
       child: Dismissible(
         key: Key('dismissible_${todo.id}'),
+        dismissThresholds: const {DismissDirection.endToStart: 0.5},
         background: Container(
           color: Colors.red,
           alignment: Alignment.centerRight,
@@ -359,29 +336,7 @@ class _LaterListDetailScreenState extends State<LaterListDetailScreen> {
 
   Future<bool> _confirmDeleteDismiss(LaterListTodo todo) async {
     final provider = context.read<LaterListProvider>();
-
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Item'),
-        content: const Text('Are you sure you want to delete this item?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (result == true) {
-      provider.deleteTodo(widget.list.id, todo.id);
-    }
-    return false; // Don't dismiss, let provider handle it
+    provider.deleteTodo(widget.list.id, todo.id);
+    return false;
   }
 }

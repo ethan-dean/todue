@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
+import '../widgets/app_dialogs.dart';
 import '../providers/routine_provider.dart';
 import '../models/routine.dart';
 import 'routine_detail_screen.dart';
@@ -27,39 +28,59 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
 
   Future<void> _showCreateDialog() async {
     final nameController = TextEditingController();
-    final result = await showDialog<String>(
+
+    await AppBottomSheet.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Create Routine'),
-        content: TextField(
-          controller: nameController,
-          autofocus: true,
-          decoration: const InputDecoration(
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppTextField(
+            controller: nameController,
+            autofocus: true,
             hintText: 'Routine name',
-            border: OutlineInputBorder(),
+            textInputAction: TextInputAction.done,
+            onSubmitted: (value) async {
+              Navigator.of(context).pop();
+              if (value.trim().isNotEmpty) {
+                final provider = this.context.read<RoutineProvider>();
+                final routine = await provider.createRoutine(value.trim());
+                if (routine != null && mounted) {
+                  provider.setCurrentRoutineId(routine.id);
+                }
+              }
+            },
           ),
-          onSubmitted: (value) => Navigator.of(context).pop(value),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(nameController.text),
-            child: const Text('Create'),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: AppCancelButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: AppActionButton(
+                  label: 'Create',
+                  onPressed: () async {
+                    Navigator.of(context).pop();
+                    final text = nameController.text.trim();
+                    if (text.isNotEmpty) {
+                      final provider = this.context.read<RoutineProvider>();
+                      final routine = await provider.createRoutine(text);
+                      if (routine != null && mounted) {
+                        provider.setCurrentRoutineId(routine.id);
+                      }
+                    }
+                  },
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
-
-    if (result != null && result.trim().isNotEmpty && mounted) {
-      final provider = context.read<RoutineProvider>();
-      final routine = await provider.createRoutine(result.trim());
-      if (routine != null && mounted) {
-        provider.setCurrentRoutineId(routine.id);
-      }
-    }
   }
 
   void _navigateToExecution(int routineId) {
@@ -85,28 +106,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
   }
 
   Future<void> _deleteRoutine(Routine routine) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Routine'),
-        content: Text('Are you sure you want to delete "${routine.name}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true && mounted) {
-      await context.read<RoutineProvider>().deleteRoutine(routine.id);
-    }
+    await context.read<RoutineProvider>().deleteRoutine(routine.id);
   }
 
   @override
@@ -223,6 +223,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
 
                     return Dismissible(
                       key: Key('routine_${routine.id}'),
+                      dismissThresholds: const {DismissDirection.endToStart: 0.5},
                       background: Container(
                         color: Colors.red,
                         alignment: Alignment.centerRight,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
+import '../widgets/app_dialogs.dart';
 import '../providers/later_list_provider.dart';
 import '../models/later_list.dart';
 import 'later_list_detail_screen.dart';
@@ -25,50 +26,53 @@ class _LaterListsScreenState extends State<LaterListsScreen> {
     final textController = TextEditingController();
     final provider = context.read<LaterListProvider>();
 
-    return showDialog(
+    return AppBottomSheet.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Create New List'),
-        content: TextField(
-          controller: textController,
-          autofocus: true,
-          decoration: const InputDecoration(
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppTextField(
+            controller: textController,
+            autofocus: true,
             hintText: 'e.g., Movies to Watch',
-            border: OutlineInputBorder(),
-          ),
-          maxLength: 100,
-          textInputAction: TextInputAction.done,
-          onSubmitted: (value) async {
-            if (value.trim().isNotEmpty) {
+            maxLength: 100,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (value) async {
               Navigator.of(context).pop();
-              final newList = await provider.createList(value.trim());
-              if (newList != null && mounted) {
-                provider.setCurrentListId(newList.id);
-              }
-            }
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final text = textController.text.trim();
-              if (text.isNotEmpty) {
-                Navigator.of(context).pop();
-                final newList = await provider.createList(text);
+              if (value.trim().isNotEmpty) {
+                final newList = await provider.createList(value.trim());
                 if (newList != null && mounted) {
                   provider.setCurrentListId(newList.id);
                 }
               }
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Create'),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: AppCancelButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: AppActionButton(
+                  label: 'Create',
+                  onPressed: () async {
+                    Navigator.of(context).pop();
+                    final text = textController.text.trim();
+                    if (text.isNotEmpty) {
+                      final newList = await provider.createList(text);
+                      if (newList != null && mounted) {
+                        provider.setCurrentListId(newList.id);
+                      }
+                    }
+                  },
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -77,32 +81,8 @@ class _LaterListsScreenState extends State<LaterListsScreen> {
 
   Future<bool> _confirmDeleteDismiss(LaterList list) async {
     final provider = context.read<LaterListProvider>();
-
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete List'),
-        content: Text(
-          'Are you sure you want to delete "${list.listName}"? This will delete all items in this list.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (result == true) {
-      provider.deleteList(list.id);
-    }
-    return false; // Don't dismiss, let provider handle it
+    provider.deleteList(list.id);
+    return false;
   }
 
   @override
@@ -313,6 +293,7 @@ class _LaterListsScreenState extends State<LaterListsScreen> {
   Widget _buildListItem(LaterList list) {
     return Dismissible(
       key: Key('list_${list.id}'),
+      dismissThresholds: const {DismissDirection.endToStart: 0.5},
       background: Container(
         color: Colors.red,
         alignment: Alignment.centerRight,
