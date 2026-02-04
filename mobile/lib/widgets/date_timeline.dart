@@ -37,14 +37,10 @@ class DateTimelineState extends State<DateTimeline> {
     if (box == null) return null;
 
     final localPosition = box.globalToLocal(globalPosition);
-    
-    // Update drag state for auto-scroll
-    _currentDragX = localPosition.dx;
-    _currentWidgetWidth = box.size.width;
-    _updateAutoScroll();
 
     // Check if within the widget's vertical bounds
     if (localPosition.dy < 0 || localPosition.dy > box.size.height) {
+      _stopAutoScroll();
       if (_hoverDate != null) {
         setState(() {
           _hoverDate = null;
@@ -52,6 +48,11 @@ class DateTimelineState extends State<DateTimeline> {
       }
       return null;
     }
+
+    // Update drag state for auto-scroll (only when within vertical bounds)
+    _currentDragX = localPosition.dx;
+    _currentWidgetWidth = box.size.width;
+    _updateAutoScroll();
 
     // Determine scroll offset to find the item index
     final scrollOffset = _scrollController.offset;
