@@ -2,6 +2,7 @@ package com.ethan.todue.controller;
 
 import com.ethan.todue.dto.*;
 import com.ethan.todue.service.LaterListService;
+import com.ethan.todue.util.DeadlockRetry;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -27,7 +28,7 @@ public class LaterListController {
 
     @PostMapping
     public ResponseEntity<LaterListResponse> createList(@Valid @RequestBody CreateLaterListRequest request) {
-        LaterListResponse response = laterListService.createList(request.getListName());
+        LaterListResponse response = DeadlockRetry.execute(() -> laterListService.createList(request.getListName()));
         return ResponseEntity.ok(response);
     }
 
@@ -36,13 +37,13 @@ public class LaterListController {
             @PathVariable Long id,
             @Valid @RequestBody UpdateLaterListNameRequest request
     ) {
-        LaterListResponse response = laterListService.updateListName(id, request.getListName());
+        LaterListResponse response = DeadlockRetry.execute(() -> laterListService.updateListName(id, request.getListName()));
         return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Map<String, String>> deleteList(@PathVariable Long id) {
-        laterListService.deleteList(id);
+        DeadlockRetry.executeVoid(() -> laterListService.deleteList(id));
         return ResponseEntity.ok(Map.of("message", "List deleted successfully"));
     }
 
@@ -59,11 +60,11 @@ public class LaterListController {
             @PathVariable Long listId,
             @Valid @RequestBody CreateLaterListTodoRequest request
     ) {
-        LaterListTodoResponse response = laterListService.createTodo(
+        LaterListTodoResponse response = DeadlockRetry.execute(() -> laterListService.createTodo(
                 listId,
                 request.getText(),
                 request.getPosition()
-        );
+        ));
         return ResponseEntity.ok(response);
     }
 
@@ -73,7 +74,7 @@ public class LaterListController {
             @PathVariable Long id,
             @Valid @RequestBody UpdateLaterListTodoTextRequest request
     ) {
-        LaterListTodoResponse response = laterListService.updateTodoText(listId, id, request.getText());
+        LaterListTodoResponse response = DeadlockRetry.execute(() -> laterListService.updateTodoText(listId, id, request.getText()));
         return ResponseEntity.ok(response);
     }
 
@@ -83,7 +84,7 @@ public class LaterListController {
             @PathVariable Long id,
             @Valid @RequestBody UpdateLaterListTodoPositionRequest request
     ) {
-        LaterListTodoResponse response = laterListService.updateTodoPosition(listId, id, request.getPosition());
+        LaterListTodoResponse response = DeadlockRetry.execute(() -> laterListService.updateTodoPosition(listId, id, request.getPosition()));
         return ResponseEntity.ok(response);
     }
 
@@ -92,7 +93,7 @@ public class LaterListController {
             @PathVariable Long listId,
             @PathVariable Long id
     ) {
-        LaterListTodoResponse response = laterListService.completeTodo(listId, id);
+        LaterListTodoResponse response = DeadlockRetry.execute(() -> laterListService.completeTodo(listId, id));
         return ResponseEntity.ok(response);
     }
 
@@ -101,7 +102,7 @@ public class LaterListController {
             @PathVariable Long listId,
             @PathVariable Long id
     ) {
-        LaterListTodoResponse response = laterListService.uncompleteTodo(listId, id);
+        LaterListTodoResponse response = DeadlockRetry.execute(() -> laterListService.uncompleteTodo(listId, id));
         return ResponseEntity.ok(response);
     }
 
@@ -110,7 +111,7 @@ public class LaterListController {
             @PathVariable Long listId,
             @PathVariable Long id
     ) {
-        laterListService.deleteTodo(listId, id);
+        DeadlockRetry.executeVoid(() -> laterListService.deleteTodo(listId, id));
         return ResponseEntity.ok(Map.of("message", "Todo deleted successfully"));
     }
 }

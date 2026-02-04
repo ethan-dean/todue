@@ -152,8 +152,8 @@ public class LaterListService {
         LaterListTodo todo = getTodoAndVerifyOwnership(listId, todoId);
         Long userId = todo.getList().getUser().getId();
 
-        // Get all todos sorted by position
-        List<LaterListTodo> allTodos = laterListTodoRepository.findByListIdOrderByPosition(listId);
+        // Get all todos sorted by position (with pessimistic lock to serialize concurrent mutations)
+        List<LaterListTodo> allTodos = laterListTodoRepository.findByListIdOrderByPositionForUpdate(listId);
 
         // Find current index
         int oldIndex = -1;
@@ -195,8 +195,8 @@ public class LaterListService {
         LaterListTodo todo = getTodoAndVerifyOwnership(listId, todoId);
         Long userId = todo.getList().getUser().getId();
 
-        // Get all todos for this list, sorted by position
-        List<LaterListTodo> allTodos = laterListTodoRepository.findByListIdOrderByPosition(listId);
+        // Get all todos for this list, sorted by position (with pessimistic lock to serialize concurrent mutations)
+        List<LaterListTodo> allTodos = laterListTodoRepository.findByListIdOrderByPositionForUpdate(listId);
 
         // Find current index
         int oldIndex = -1;
@@ -252,8 +252,8 @@ public class LaterListService {
         LaterListTodo todo = getTodoAndVerifyOwnership(listId, todoId);
         Long userId = todo.getList().getUser().getId();
 
-        // Get all todos for this list, sorted by position
-        List<LaterListTodo> allTodos = laterListTodoRepository.findByListIdOrderByPosition(listId);
+        // Get all todos for this list, sorted by position (with pessimistic lock to serialize concurrent mutations)
+        List<LaterListTodo> allTodos = laterListTodoRepository.findByListIdOrderByPositionForUpdate(listId);
 
         // Find current index
         int oldIndex = -1;
@@ -310,6 +310,13 @@ public class LaterListService {
         Long userId = todo.getList().getUser().getId();
 
         laterListTodoRepository.delete(todo);
+
+        // Renumber remaining positions to stay sequential (with pessimistic lock to serialize concurrent mutations)
+        List<LaterListTodo> remaining = laterListTodoRepository.findByListIdOrderByPositionForUpdate(listId);
+        for (int i = 0; i < remaining.size(); i++) {
+            remaining.get(i).setPosition(i + 1);
+        }
+        laterListTodoRepository.saveAll(remaining);
 
         webSocketService.notifyLaterListChanged(userId, listId, "TODOS_UPDATED");
     }

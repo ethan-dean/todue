@@ -1,7 +1,9 @@
 package com.ethan.todue.repository;
 
 import com.ethan.todue.model.LaterListTodo;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,6 +16,10 @@ public interface LaterListTodoRepository extends JpaRepository<LaterListTodo, Lo
 
     @Query("SELECT t FROM LaterListTodo t WHERE t.list.id = :listId ORDER BY t.position ASC")
     List<LaterListTodo> findByListIdOrderByPosition(@Param("listId") Long listId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT t FROM LaterListTodo t WHERE t.list.id = :listId ORDER BY t.position ASC")
+    List<LaterListTodo> findByListIdOrderByPositionForUpdate(@Param("listId") Long listId);
 
     @Modifying
     @Query("UPDATE LaterListTodo t SET t.position = t.position + 1 WHERE t.list.id = :listId AND t.position >= :position")

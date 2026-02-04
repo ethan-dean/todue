@@ -18,7 +18,7 @@ class LaterListProvider extends ChangeNotifier {
   String? _error;
 
   // Mutation tracking to prevent stale API responses from overwriting optimistic updates
-  DateTime _lastMutationTime = DateTime.fromMillisecondsSinceEpoch(0);
+  int _pendingMutationCount = 0;
   bool _isOnline = true;
 
   VoidCallback? _wsUnsubscribe;
@@ -46,6 +46,12 @@ class LaterListProvider extends ChangeNotifier {
     _isOnline = !result.contains(ConnectivityResult.none);
   }
 
+  void _decrementPendingMutations() {
+    Future.delayed(const Duration(milliseconds: 500), () {
+      _pendingMutationCount--;
+    });
+  }
+
   List<LaterListTodo> getTodosForList(int listId) {
     final todos = _todos[listId] ?? [];
     return List.from(todos)..sort((a, b) => a.position.compareTo(b.position));
@@ -69,27 +75,23 @@ class LaterListProvider extends ChangeNotifier {
     final listId = data['listId'] as int?;
     final action = data['action'] as String?;
 
-    Future.delayed(const Duration(milliseconds: 300), () {
-      switch (action) {
-        case 'LIST_CREATED':
-        case 'LIST_UPDATED':
-        case 'LIST_DELETED':
-          loadLists(silent: true);
-          break;
-        case 'TODOS_UPDATED':
-          if (listId != null && _currentListId == listId) {
-            loadTodosForList(listId, silent: true);
-          }
-          break;
-      }
-    });
+    switch (action) {
+      case 'LIST_CREATED':
+      case 'LIST_UPDATED':
+      case 'LIST_DELETED':
+        loadLists(silent: true);
+        break;
+      case 'TODOS_UPDATED':
+        if (listId != null && _currentListId == listId) {
+          loadTodosForList(listId, silent: true);
+        }
+        break;
+    }
   }
 
   // ==================== List Operations ====================
 
   Future<void> loadLists({bool silent = false}) async {
-    final fetchStartTime = DateTime.now();
-
     if (!silent) {
       _isLoading = true;
       notifyListeners();
@@ -97,8 +99,8 @@ class LaterListProvider extends ChangeNotifier {
     _error = null;
 
     try {
-      // 1. Load from cache immediately (skip if recent mutation to preserve optimistic updates)
-      if (DateTime.now().difference(_lastMutationTime) > const Duration(seconds: 2)) {
+      // 1. Load from cache immediately (skip if mutations pending to preserve optimistic updates)
+      if (_pendingMutationCount == 0) {
         final cachedLists = await _databaseService.getLaterLists();
         if (cachedLists.isNotEmpty) {
           _lists = cachedLists;
@@ -109,8 +111,8 @@ class LaterListProvider extends ChangeNotifier {
       // 2. Fetch from API
       final fetchedLists = await _laterListApi.getAllLists();
 
-      // 3. Guard: discard if mutation occurred during fetch
-      if (_lastMutationTime.isAfter(fetchStartTime)) {
+      // 3. Guard: discard if mutation started during fetch
+      if (_pendingMutationCount > 0) {
         debugPrint('Discarding stale fetch for lists');
         return;
       }
@@ -133,7 +135,7 @@ class LaterListProvider extends ChangeNotifier {
   }
 
   Future<LaterList?> createList(String listName) async {
-    _lastMutationTime = DateTime.now();
+    _pendingMutationCount++;
     await _checkOnlineStatus();
     if (!_isOnline) {
       _error = 'Cannot create list while offline';
@@ -155,11 +157,13 @@ class LaterListProvider extends ChangeNotifier {
       debugPrint('Failed to create list: $e');
       notifyListeners();
       return null;
+    } finally {
+      _decrementPendingMutations();
     }
   }
 
   Future<bool> updateListName(int listId, String newName) async {
-    _lastMutationTime = DateTime.now();
+    _pendingMutationCount++;
     await _checkOnlineStatus();
     if (!_isOnline) {
       _error = 'Cannot update list while offline';
@@ -186,11 +190,13 @@ class LaterListProvider extends ChangeNotifier {
       debugPrint('Failed to update list name: $e');
       notifyListeners();
       return false;
+    } finally {
+      _decrementPendingMutations();
     }
   }
 
   Future<bool> deleteList(int listId) async {
-    _lastMutationTime = DateTime.now();
+    _pendingMutationCount++;
     await _checkOnlineStatus();
     if (!_isOnline) {
       _error = 'Cannot delete list while offline';
@@ -221,6 +227,8 @@ class LaterListProvider extends ChangeNotifier {
       debugPrint('Failed to delete list: $e');
       notifyListeners();
       return false;
+    } finally {
+      _decrementPendingMutations();
     }
   }
 
@@ -235,8 +243,6 @@ class LaterListProvider extends ChangeNotifier {
   }
 
   Future<void> loadTodosForList(int listId, {bool silent = false}) async {
-    final fetchStartTime = DateTime.now();
-
     if (!silent) {
       _isLoading = true;
       notifyListeners();
@@ -244,8 +250,8 @@ class LaterListProvider extends ChangeNotifier {
     _error = null;
 
     try {
-      // 1. Load from cache (skip if recent mutation to preserve optimistic updates)
-      if (DateTime.now().difference(_lastMutationTime) > const Duration(seconds: 2)) {
+      // 1. Load from cache (skip if mutations pending to preserve optimistic updates)
+      if (_pendingMutationCount == 0) {
         final cachedTodos = await _databaseService.getLaterListTodos(listId);
         if (cachedTodos.isNotEmpty) {
           _todos[listId] = cachedTodos;
@@ -256,8 +262,8 @@ class LaterListProvider extends ChangeNotifier {
       // 2. Fetch from API
       final todos = await _laterListApi.getTodosForList(listId: listId);
 
-      // 3. Guard: discard if mutation occurred during fetch
-      if (_lastMutationTime.isAfter(fetchStartTime)) {
+      // 3. Guard: discard if mutation started during fetch
+      if (_pendingMutationCount > 0) {
         debugPrint('Discarding stale fetch for list $listId');
         return;
       }
@@ -280,7 +286,7 @@ class LaterListProvider extends ChangeNotifier {
   }
 
   Future<bool> createTodo(int listId, String text, {int? position}) async {
-    _lastMutationTime = DateTime.now();
+    _pendingMutationCount++;
     await _checkOnlineStatus();
     if (!_isOnline) {
       _error = 'Cannot create todo while offline';
@@ -312,11 +318,13 @@ class LaterListProvider extends ChangeNotifier {
       debugPrint('Failed to create todo: $e');
       notifyListeners();
       return false;
+    } finally {
+      _decrementPendingMutations();
     }
   }
 
   Future<bool> updateTodoText(int listId, int todoId, String text) async {
-    _lastMutationTime = DateTime.now();
+    _pendingMutationCount++;
     await _checkOnlineStatus();
     if (!_isOnline) {
       _error = 'Cannot update todo while offline';
@@ -342,12 +350,14 @@ class LaterListProvider extends ChangeNotifier {
       debugPrint('Failed to update todo text: $e');
       notifyListeners();
       return false;
+    } finally {
+      _decrementPendingMutations();
     }
   }
 
   /// Reorder a todo - synchronous optimistic update, async sync
   void updateTodoPosition(int listId, int todoId, int newPosition) {
-    _lastMutationTime = DateTime.now();
+    _pendingMutationCount++;
 
     // Check cached online status immediately (no await)
     if (!_isOnline) {
@@ -402,11 +412,13 @@ class LaterListProvider extends ChangeNotifier {
       _error = e.toString();
       debugPrint('Failed to update todo position: $e');
       notifyListeners();
+    } finally {
+      _decrementPendingMutations();
     }
   }
 
   Future<bool> completeTodo(int listId, int todoId) async {
-    _lastMutationTime = DateTime.now();
+    _pendingMutationCount++;
     await _checkOnlineStatus();
     if (!_isOnline) {
       _error = 'Cannot complete todo while offline';
@@ -459,11 +471,13 @@ class LaterListProvider extends ChangeNotifier {
       debugPrint('Failed to complete todo: $e');
       notifyListeners();
       return false;
+    } finally {
+      _decrementPendingMutations();
     }
   }
 
   Future<bool> uncompleteTodo(int listId, int todoId) async {
-    _lastMutationTime = DateTime.now();
+    _pendingMutationCount++;
     await _checkOnlineStatus();
     if (!_isOnline) {
       _error = 'Cannot uncomplete todo while offline';
@@ -515,11 +529,13 @@ class LaterListProvider extends ChangeNotifier {
       debugPrint('Failed to uncomplete todo: $e');
       notifyListeners();
       return false;
+    } finally {
+      _decrementPendingMutations();
     }
   }
 
   Future<bool> deleteTodo(int listId, int todoId) async {
-    _lastMutationTime = DateTime.now();
+    _pendingMutationCount++;
     await _checkOnlineStatus();
     if (!_isOnline) {
       _error = 'Cannot delete todo while offline';
@@ -529,7 +545,13 @@ class LaterListProvider extends ChangeNotifier {
 
     // Optimistic update
     final currentTodos = List<LaterListTodo>.from(_todos[listId] ?? []);
-    _todos[listId] = currentTodos.where((t) => t.id != todoId).toList();
+    final filtered = currentTodos.where((t) => t.id != todoId).toList()
+      ..sort((a, b) => a.position.compareTo(b.position));
+    // Renumber positions after removal
+    for (int i = 0; i < filtered.length; i++) {
+      filtered[i] = filtered[i].copyWith(position: i + 1);
+    }
+    _todos[listId] = filtered;
     notifyListeners();
 
     try {
@@ -545,6 +567,8 @@ class LaterListProvider extends ChangeNotifier {
       debugPrint('Failed to delete todo: $e');
       notifyListeners();
       return false;
+    } finally {
+      _decrementPendingMutations();
     }
   }
 

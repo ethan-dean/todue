@@ -41,8 +41,14 @@ export const LaterListProvider: React.FC<LaterListProviderProps> = ({ children }
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Track when mutations start to ignore stale fetches
-  const lastMutationTimeRef = useRef<number>(0);
+  // Track pending mutations to ignore stale fetches from WebSocket refetches
+  const pendingMutationCountRef = useRef<number>(0);
+
+  const decrementPendingMutations = useCallback(() => {
+    setTimeout(() => {
+      pendingMutationCountRef.current--;
+    }, 500);
+  }, []);
 
   // Refs for WebSocket handler
   const currentListIdRef = useRef(currentListId);
@@ -51,8 +57,6 @@ export const LaterListProvider: React.FC<LaterListProviderProps> = ({ children }
   }, [currentListId]);
 
   const loadLists = useCallback(async (silent: boolean = false): Promise<void> => {
-    const fetchStartTime = Date.now();
-
     if (!silent) {
       setIsLoading(true);
     }
@@ -60,8 +64,7 @@ export const LaterListProvider: React.FC<LaterListProviderProps> = ({ children }
     try {
       const fetchedLists = await laterListApi.getAllLists();
 
-      // Check if a mutation happened after this fetch started
-      if (fetchStartTime < lastMutationTimeRef.current) {
+      if (pendingMutationCountRef.current > 0) {
         console.log('Ignoring stale fetch for lists');
         return;
       }
@@ -79,8 +82,6 @@ export const LaterListProvider: React.FC<LaterListProviderProps> = ({ children }
   }, []);
 
   const loadTodosForList = useCallback(async (listId: number, silent: boolean = false): Promise<void> => {
-    const fetchStartTime = Date.now();
-
     if (!silent) {
       setIsLoading(true);
     }
@@ -88,8 +89,7 @@ export const LaterListProvider: React.FC<LaterListProviderProps> = ({ children }
     try {
       const fetchedTodos = await laterListApi.getTodosForList(listId);
 
-      // Check if a mutation happened after this fetch started
-      if (fetchStartTime < lastMutationTimeRef.current) {
+      if (pendingMutationCountRef.current > 0) {
         console.log('Ignoring stale fetch for list:', listId);
         return;
       }
@@ -111,7 +111,7 @@ export const LaterListProvider: React.FC<LaterListProviderProps> = ({ children }
   }, []);
 
   const createList = async (listName: string): Promise<LaterList> => {
-    lastMutationTimeRef.current = Date.now();
+    pendingMutationCountRef.current++;
     setError(null);
     try {
       const newList = await laterListApi.createList(listName);
@@ -121,11 +121,13 @@ export const LaterListProvider: React.FC<LaterListProviderProps> = ({ children }
       const errorMessage = handleApiError(err);
       setError(errorMessage);
       throw new Error(errorMessage);
+    } finally {
+      decrementPendingMutations();
     }
   };
 
   const updateListName = async (listId: number, newName: string): Promise<void> => {
-    lastMutationTimeRef.current = Date.now();
+    pendingMutationCountRef.current++;
 
     // Optimistic update
     setLists((prevLists) =>
@@ -143,11 +145,13 @@ export const LaterListProvider: React.FC<LaterListProviderProps> = ({ children }
       const errorMessage = handleApiError(err);
       setError(errorMessage);
       throw new Error(errorMessage);
+    } finally {
+      decrementPendingMutations();
     }
   };
 
   const deleteList = async (listId: number): Promise<void> => {
-    lastMutationTimeRef.current = Date.now();
+    pendingMutationCountRef.current++;
 
     // Optimistic update
     setLists((prevLists) => prevLists.filter((l) => l.id !== listId));
@@ -169,11 +173,13 @@ export const LaterListProvider: React.FC<LaterListProviderProps> = ({ children }
       const errorMessage = handleApiError(err);
       setError(errorMessage);
       throw new Error(errorMessage);
+    } finally {
+      decrementPendingMutations();
     }
   };
 
   const createTodo = async (listId: number, text: string): Promise<void> => {
-    lastMutationTimeRef.current = Date.now();
+    pendingMutationCountRef.current++;
     setError(null);
     try {
       const newTodo = await laterListApi.createTodo(listId, text);
@@ -187,11 +193,13 @@ export const LaterListProvider: React.FC<LaterListProviderProps> = ({ children }
       const errorMessage = handleApiError(err);
       setError(errorMessage);
       throw new Error(errorMessage);
+    } finally {
+      decrementPendingMutations();
     }
   };
 
   const updateTodoText = async (listId: number, todoId: number, text: string): Promise<void> => {
-    lastMutationTimeRef.current = Date.now();
+    pendingMutationCountRef.current++;
 
     // Optimistic update
     setTodos((prevTodos) => {
@@ -212,11 +220,13 @@ export const LaterListProvider: React.FC<LaterListProviderProps> = ({ children }
       const errorMessage = handleApiError(err);
       setError(errorMessage);
       throw new Error(errorMessage);
+    } finally {
+      decrementPendingMutations();
     }
   };
 
   const updateTodoPosition = async (listId: number, todoId: number, newPosition: number): Promise<void> => {
-    lastMutationTimeRef.current = Date.now();
+    pendingMutationCountRef.current++;
 
     // Optimistic update
     setTodos((prevTodos) => {
@@ -250,11 +260,13 @@ export const LaterListProvider: React.FC<LaterListProviderProps> = ({ children }
       const errorMessage = handleApiError(err);
       setError(errorMessage);
       throw new Error(errorMessage);
+    } finally {
+      decrementPendingMutations();
     }
   };
 
   const completeTodo = async (listId: number, todoId: number): Promise<void> => {
-    lastMutationTimeRef.current = Date.now();
+    pendingMutationCountRef.current++;
 
     // Optimistic update
     setTodos((prevTodos) => {
@@ -301,11 +313,13 @@ export const LaterListProvider: React.FC<LaterListProviderProps> = ({ children }
       const errorMessage = handleApiError(err);
       setError(errorMessage);
       throw new Error(errorMessage);
+    } finally {
+      decrementPendingMutations();
     }
   };
 
   const uncompleteTodo = async (listId: number, todoId: number): Promise<void> => {
-    lastMutationTimeRef.current = Date.now();
+    pendingMutationCountRef.current++;
 
     // Optimistic update
     setTodos((prevTodos) => {
@@ -352,20 +366,24 @@ export const LaterListProvider: React.FC<LaterListProviderProps> = ({ children }
       const errorMessage = handleApiError(err);
       setError(errorMessage);
       throw new Error(errorMessage);
+    } finally {
+      decrementPendingMutations();
     }
   };
 
   const deleteTodo = async (listId: number, todoId: number): Promise<void> => {
-    lastMutationTimeRef.current = Date.now();
+    pendingMutationCountRef.current++;
 
     // Optimistic update
     setTodos((prevTodos) => {
       const newTodos = new Map(prevTodos);
       const listTodos = newTodos.get(listId) || [];
-      newTodos.set(
-        listId,
-        listTodos.filter((t) => t.id !== todoId)
-      );
+      const filtered = listTodos.filter((t) => t.id !== todoId);
+      // Renumber positions after removal
+      const renumbered = filtered
+        .sort((a, b) => a.position - b.position)
+        .map((t, idx) => ({ ...t, position: idx + 1 }));
+      newTodos.set(listId, renumbered);
       return newTodos;
     });
 
@@ -377,6 +395,8 @@ export const LaterListProvider: React.FC<LaterListProviderProps> = ({ children }
       const errorMessage = handleApiError(err);
       setError(errorMessage);
       throw new Error(errorMessage);
+    } finally {
+      decrementPendingMutations();
     }
   };
 
@@ -391,22 +411,20 @@ export const LaterListProvider: React.FC<LaterListProviderProps> = ({ children }
 
       const { listId, action } = message.data as { listId?: number; action: string };
 
-      setTimeout(() => {
-        switch (action) {
-          case 'LIST_CREATED':
-          case 'LIST_UPDATED':
-          case 'LIST_DELETED':
-            // Refetch all lists
-            loadLists(true);
-            break;
-          case 'TODOS_UPDATED':
-            // Refetch todos for the specific list if it's currently viewed
-            if (listId && currentListIdRef.current === listId) {
-              loadTodosForList(listId, true);
-            }
-            break;
-        }
-      }, 300);
+      switch (action) {
+        case 'LIST_CREATED':
+        case 'LIST_UPDATED':
+        case 'LIST_DELETED':
+          // Refetch all lists
+          loadLists(true);
+          break;
+        case 'TODOS_UPDATED':
+          // Refetch todos for the specific list if it's currently viewed
+          if (listId && currentListIdRef.current === listId) {
+            loadTodosForList(listId, true);
+          }
+          break;
+      }
     },
     [loadLists, loadTodosForList]
   );

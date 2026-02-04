@@ -74,7 +74,7 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
   // where the afterCommit WS message arrives and triggers a refetch
   const decrementPendingMutations = useCallback(() => {
     setTimeout(() => {
-      decrementPendingMutations();
+      pendingMutationCountRef.current--;
     }, 500);
   }, []);
 

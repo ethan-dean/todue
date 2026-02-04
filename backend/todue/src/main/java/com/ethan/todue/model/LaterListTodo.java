@@ -44,6 +44,10 @@ public class LaterListTodo {
     @Column(nullable = false)
     private Integer position = 0;
 
+    @Version
+    @Column(nullable = false)
+    private Long version = 0L;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false, columnDefinition = "DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6)")
     private Instant createdAt;
