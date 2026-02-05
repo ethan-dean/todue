@@ -4,6 +4,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/accent_color_picker.dart';
+import '../widgets/app_dialogs.dart';
 import '../widgets/timezone_selector.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -36,26 +37,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _handleLogout() async {
-    final confirmed = await showDialog<bool>(
+    final result = await AppChoiceDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Logout'),
-          ),
-        ],
-      ),
+      description: 'Are you sure you want to logout?',
+      options: [
+        const AppChoiceOption(label: 'Logout', value: 'logout', isDestructive: true),
+      ],
     );
 
-    if (confirmed == true && mounted) {
+    if (result == 'logout' && mounted) {
       final authProvider = context.read<AuthProvider>();
       await authProvider.logout();
       if (mounted) {
@@ -84,11 +74,116 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+      child: Text(
+        title.toUpperCase(),
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.2,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDivider() {
+    return Divider(
+      height: 1,
+      thickness: 1,
+      indent: 16,
+      endIndent: 16,
+      color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
+    );
+  }
+
+  Widget _buildThemeOption(String label, ThemeMode mode, ThemeProvider themeProvider) {
+    final isSelected = themeProvider.themeMode == mode;
+    final primary = Theme.of(context).colorScheme.primary;
+
+    return GestureDetector(
+      onTap: () => themeProvider.setThemeMode(mode),
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                  color: isSelected ? primary : Theme.of(context).textTheme.bodyLarge?.color,
+                ),
+              ),
+            ),
+            if (isSelected)
+              Icon(Icons.check, size: 20, color: primary),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRow({
+    required String label,
+    String? subtitle,
+    VoidCallback? onTap,
+    Color? labelColor,
+    Widget? trailing,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: labelColor ?? Theme.of(context).textTheme.bodyLarge?.color,
+                    ),
+                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (trailing != null) trailing,
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: const Text(
+          'SETTINGS',
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.2,
+          ),
+        ),
       ),
       body: Consumer2<ThemeProvider, AuthProvider>(
         builder: (context, themeProvider, authProvider, _) {
@@ -96,137 +191,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           return ListView(
             children: [
-              const SizedBox(height: 16),
-
-              // Appearance Section
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Text(
-                  'Appearance',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-              ),
-
-              RadioListTile<ThemeMode>(
-                title: const Text('System'),
-                subtitle: const Text('Follow device settings'),
-                value: ThemeMode.system,
-                groupValue: themeProvider.themeMode,
-                onChanged: (value) {
-                  if (value != null) {
-                    themeProvider.setThemeMode(value);
-                  }
-                },
-              ),
-              RadioListTile<ThemeMode>(
-                title: const Text('Light'),
-                value: ThemeMode.light,
-                groupValue: themeProvider.themeMode,
-                onChanged: (value) {
-                  if (value != null) {
-                    themeProvider.setThemeMode(value);
-                  }
-                },
-              ),
-              RadioListTile<ThemeMode>(
-                title: const Text('Dark'),
-                value: ThemeMode.dark,
-                groupValue: themeProvider.themeMode,
-                onChanged: (value) {
-                  if (value != null) {
-                    themeProvider.setThemeMode(value);
-                  }
-                },
-              ),
-
-              const Divider(height: 32),
+              // Theme Section
+              _buildSectionHeader('Theme'),
+              _buildThemeOption('System', ThemeMode.system, themeProvider),
+              _buildDivider(),
+              _buildThemeOption('Light', ThemeMode.light, themeProvider),
+              _buildDivider(),
+              _buildThemeOption('Dark', ThemeMode.dark, themeProvider),
 
               // Accent Color Section
+              _buildSectionHeader('Accent Color'),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Text(
-                  'Accent Color',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-              ),
-
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 child: const AccentColorPicker(),
               ),
 
-              const Divider(height: 32),
-
               // Timezone Section
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Text(
-                  'Timezone',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
+              _buildSectionHeader('Timezone'),
+              _buildRow(
+                label: userTimezone.replaceAll('_', ' '),
+                onTap: _openTimezoneSelector,
+                trailing: Icon(
+                  Icons.chevron_right,
+                  size: 20,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
-
-              ListTile(
-                leading: const Icon(Icons.schedule),
-                title: const Text('Timezone'),
-                subtitle: Text(userTimezone.replaceAll('_', ' ')),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: _openTimezoneSelector,
-              ),
-
-              const Divider(height: 32),
 
               // Account Section
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Text(
-                  'Account',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-              ),
-
-              ListTile(
-                leading: const Icon(Icons.logout, color: Colors.red),
-                title: const Text('Logout', style: TextStyle(color: Colors.red)),
+              _buildSectionHeader('Account'),
+              _buildRow(
+                label: 'Logout',
+                labelColor: Colors.red,
                 onTap: _handleLogout,
               ),
 
-              const Divider(height: 32),
-
-              // About Section
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Text(
-                  'About',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
+              // Version
+              _buildSectionHeader('About'),
+              _buildRow(
+                label: 'Version',
+                subtitle: _version.isNotEmpty ? _version : 'Loading...',
               ),
 
-              ListTile(
-                leading: const Icon(Icons.info_outline),
-                title: const Text('Version'),
-                subtitle: Text(_version.isNotEmpty ? _version : 'Loading...'),
-              ),
+              const SizedBox(height: 40),
             ],
           );
         },

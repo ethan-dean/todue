@@ -40,7 +40,7 @@ class RoutinePromptDialog extends StatelessWidget {
           onPressed: onClose,
         ),
         title: Text(
-          'TIME FOR YOUR ROUTINE${prompts.length > 1 ? 'S' : ''}',
+          'SCHEDULED ROUTINE${prompts.length > 1 ? 'S' : ''}',
           style: const TextStyle(
             fontWeight: FontWeight.w800,
             letterSpacing: 1.2,
