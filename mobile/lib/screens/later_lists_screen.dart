@@ -278,14 +278,17 @@ class _LaterListsScreenState extends State<LaterListsScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          ListTile(
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
             onTap: () => context.read<LaterListProvider>().setCurrentListId(list.id),
-            title: Text(
-              list.listName,
-              style: TextStyle(
-                fontWeight: FontWeight.w500,
-                fontSize: 16,
-                color: Theme.of(context).textTheme.bodyLarge?.color,
+            child: ListTile(
+              title: Text(
+                list.listName,
+                style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 16,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                ),
               ),
             ),
           ),

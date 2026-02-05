@@ -198,57 +198,60 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          ListTile(
-                            title: Text(
-                              routine.name,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w500,
-                                fontSize: 16,
-                                color: Theme.of(context).textTheme.bodyLarge?.color,
+                          GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => provider.setCurrentRoutineId(routine.id),
+                            child: ListTile(
+                              title: Text(
+                                routine.name,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 16,
+                                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                                ),
                               ),
-                            ),
-                            subtitle: Text(
-                              '${routine.stepCount} ${routine.stepCount == 1 ? 'step' : 'steps'}',
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (hasActiveExecution)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Theme.of(context).colorScheme.primary,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: const Text(
-                                      'In Progress',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
+                              subtitle: Text(
+                                '${routine.stepCount} ${routine.stepCount == 1 ? 'step' : 'steps'}',
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (hasActiveExecution)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(context).colorScheme.primary,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: const Text(
+                                        'In Progress',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                        ),
                                       ),
                                     ),
+                                  IconButton(
+                                    icon: Icon(
+                                      hasActiveExecution
+                                          ? Icons.play_arrow
+                                          : Icons.play_circle_outline,
+                                      color: Theme.of(context).colorScheme.primary,
+                                    ),
+                                    onPressed: () {
+                                      if (hasActiveExecution) {
+                                        _navigateToExecution(routine.id);
+                                      } else {
+                                        _startRoutine(routine.id);
+                                      }
+                                    },
                                   ),
-                                IconButton(
-                                  icon: Icon(
-                                    hasActiveExecution
-                                        ? Icons.play_arrow
-                                        : Icons.play_circle_outline,
-                                    color: Theme.of(context).colorScheme.primary,
-                                  ),
-                                  onPressed: () {
-                                    if (hasActiveExecution) {
-                                      _navigateToExecution(routine.id);
-                                    } else {
-                                      _startRoutine(routine.id);
-                                    }
-                                  },
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                            onTap: () => provider.setCurrentRoutineId(routine.id),
                           ),
                           Divider(
                             height: 1,
