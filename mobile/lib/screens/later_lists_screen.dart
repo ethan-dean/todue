@@ -3,7 +3,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../widgets/app_dialogs.dart';
 import '../providers/later_list_provider.dart';
-import '../providers/theme_provider.dart';
 import '../models/later_list.dart';
 import 'later_list_detail_screen.dart';
 
@@ -156,47 +155,6 @@ class _LaterListsScreenState extends State<LaterListsScreen> {
                         );
                       }
 
-                      if (provider.lists.isEmpty) {
-                        return Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.list_alt,
-                                size: 80,
-                                color: Colors.grey.shade400,
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'No lists yet',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Tap + to create a new list',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey.shade500,
-                                ),
-                              ),
-                              const SizedBox(height: 24),
-                              ElevatedButton.icon(
-                                onPressed: _showCreateListDialog,
-                                icon: const Icon(Icons.add),
-                                label: const Text('Create Your First List'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Theme.of(context).colorScheme.primary,
-                                  foregroundColor: ThemeProvider.contrastOn(Theme.of(context).colorScheme.primary),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-
                       return CustomScrollView(
                         slivers: [
                           // Pull-down-to-add gesture
@@ -242,7 +200,19 @@ class _LaterListsScreenState extends State<LaterListsScreen> {
                             child: GestureDetector(
                               behavior: HitTestBehavior.opaque,
                               onTap: _showCreateListDialog,
-                              child: const SizedBox(height: 140),
+                              child: Column(
+                                children: [
+                                  const SizedBox(height: 46),
+                                  Divider(
+                                    height: 1,
+                                    thickness: 1,
+                                    indent: 16,
+                                    endIndent: 16,
+                                    color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
+                                  ),
+                                  const SizedBox(height: 46),
+                                ],
+                              ),
                             ),
                           ),
                           // Fill remaining space

@@ -3,7 +3,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../widgets/app_dialogs.dart';
 import '../providers/routine_provider.dart';
-import '../providers/theme_provider.dart';
 import '../models/routine.dart';
 import 'routine_detail_screen.dart';
 import 'routine_execution_screen.dart';
@@ -144,46 +143,6 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
           return const Center(child: CircularProgressIndicator());
         }
 
-        if (provider.routines.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.repeat,
-                  size: 64,
-                  color: Colors.grey[400],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'No routines yet',
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Create a routine to track repeatable checklists',
-                  style: TextStyle(
-                    color: Colors.grey[500],
-                  ),
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton.icon(
-                  onPressed: _showCreateDialog,
-                  icon: const Icon(Icons.add),
-                  label: const Text('Create Routine'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    foregroundColor: ThemeProvider.contrastOn(Theme.of(context).colorScheme.primary),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }
-
         final sortedRoutines = List<Routine>.from(provider.routines)
           ..sort((a, b) => a.name.compareTo(b.name));
 
@@ -310,7 +269,19 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: _showCreateDialog,
-                child: const SizedBox(height: 140),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 60),
+                    Divider(
+                      height: 1,
+                      thickness: 1,
+                      indent: 16,
+                      endIndent: 16,
+                      color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
+                    ),
+                    const SizedBox(height: 60),
+                  ],
+                ),
               ),
             ),
             SliverFillRemaining(
