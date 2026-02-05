@@ -5,6 +5,7 @@ import '../widgets/app_dialogs.dart';
 import '../providers/later_list_provider.dart';
 import '../models/later_list.dart';
 import '../models/later_list_todo.dart';
+import '../services/haptic_service.dart';
 
 class LaterListDetailScreen extends StatefulWidget {
   final LaterList list;
@@ -15,7 +16,46 @@ class LaterListDetailScreen extends StatefulWidget {
   State<LaterListDetailScreen> createState() => _LaterListDetailScreenState();
 }
 
-class _LaterListDetailScreenState extends State<LaterListDetailScreen> {
+class _LaterListDetailScreenState extends State<LaterListDetailScreen> with TickerProviderStateMixin {
+  // Completion animation state
+  final Set<int> _animatingOutTodoIds = {};
+  final Map<int, AnimationController> _animationControllers = {};
+
+  @override
+  void dispose() {
+    for (final controller in _animationControllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  void _animateCompletion(LaterListTodo todo, bool newValue, LaterListProvider provider) {
+    if (_animatingOutTodoIds.contains(todo.id)) return;
+
+    final controller = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _animationControllers[todo.id] = controller;
+
+    setState(() {
+      _animatingOutTodoIds.add(todo.id);
+    });
+
+    controller.forward().then((_) {
+      if (!mounted) return;
+      _animationControllers.remove(todo.id)?.dispose();
+      setState(() {
+        _animatingOutTodoIds.remove(todo.id);
+      });
+      if (newValue) {
+        provider.completeTodo(widget.list.id, todo.id);
+      } else {
+        provider.uncompleteTodo(widget.list.id, todo.id);
+      }
+    });
+  }
+
   Future<void> _showAddTodoDialog({int? position}) async {
     final textController = TextEditingController();
     final provider = context.read<LaterListProvider>();
@@ -36,6 +76,7 @@ class _LaterListDetailScreenState extends State<LaterListDetailScreen> {
             onSubmitted: (value) {
               Navigator.of(context).pop();
               if (value.trim().isNotEmpty) {
+                HapticService.action();
                 provider.createTodo(widget.list.id, value.trim(), position: position);
               }
             },
@@ -56,6 +97,7 @@ class _LaterListDetailScreenState extends State<LaterListDetailScreen> {
                     Navigator.of(context).pop();
                     final text = textController.text.trim();
                     if (text.isNotEmpty) {
+                      HapticService.action();
                       provider.createTodo(widget.list.id, text, position: position);
                     }
                   },
@@ -88,6 +130,7 @@ class _LaterListDetailScreenState extends State<LaterListDetailScreen> {
             onSubmitted: (value) {
               Navigator.of(context).pop();
               if (value.trim().isNotEmpty && value.trim() != todo.text) {
+                HapticService.action();
                 provider.updateTodoText(widget.list.id, todo.id, value.trim());
               }
             },
@@ -108,6 +151,7 @@ class _LaterListDetailScreenState extends State<LaterListDetailScreen> {
                     Navigator.of(context).pop();
                     final text = textController.text.trim();
                     if (text.isNotEmpty && text != todo.text) {
+                      HapticService.action();
                       provider.updateTodoText(widget.list.id, todo.id, text);
                     }
                   },
@@ -203,6 +247,7 @@ class _LaterListDetailScreenState extends State<LaterListDetailScreen> {
                               if (oldIndex < newIndex) {
                                 newIndex -= 1;
                               }
+                              HapticService.action();
                               final todo = todos[oldIndex];
                               provider.updateTodoPosition(widget.list.id, todo.id, newIndex);
                             },
@@ -258,7 +303,10 @@ class _LaterListDetailScreenState extends State<LaterListDetailScreen> {
   }
 
   Widget _buildTodoItem(LaterListTodo todo, LaterListProvider provider) {
-    return Material(
+    final isAnimatingOut = _animatingOutTodoIds.contains(todo.id);
+    final controller = _animationControllers[todo.id];
+
+    Widget todoWidget = Material(
       type: MaterialType.transparency,
       child: Dismissible(
         key: Key('dismissible_${todo.id}'),
@@ -282,11 +330,8 @@ class _LaterListDetailScreenState extends State<LaterListDetailScreen> {
                 value: todo.isCompleted,
                 onChanged: (value) {
                   if (value != null) {
-                    if (value) {
-                      provider.completeTodo(widget.list.id, todo.id);
-                    } else {
-                      provider.uncompleteTodo(widget.list.id, todo.id);
-                    }
+                    HapticService.toggle();
+                    _animateCompletion(todo, value, provider);
                   }
                 },
                 activeColor: Theme.of(context).colorScheme.primary,
@@ -313,9 +358,27 @@ class _LaterListDetailScreenState extends State<LaterListDetailScreen> {
         ),
       ),
     );
+
+    if (isAnimatingOut && controller != null) {
+      return SizeTransition(
+        sizeFactor: Tween<double>(begin: 1.0, end: 0.0).animate(
+          CurvedAnimation(parent: controller, curve: Curves.easeInOut),
+        ),
+        axisAlignment: -1.0,
+        child: FadeTransition(
+          opacity: Tween<double>(begin: 1.0, end: 0.0).animate(
+            CurvedAnimation(parent: controller, curve: Curves.easeIn),
+          ),
+          child: todoWidget,
+        ),
+      );
+    }
+
+    return todoWidget;
   }
 
   Future<bool> _confirmDeleteDismiss(LaterListTodo todo) async {
+    HapticService.destructive();
     final provider = context.read<LaterListProvider>();
     provider.deleteTodo(widget.list.id, todo.id);
     return false;

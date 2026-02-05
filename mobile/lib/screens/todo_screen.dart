@@ -7,6 +7,7 @@ import '../providers/todo_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import '../models/todo.dart';
+import '../services/haptic_service.dart';
 
 class TodoScreen extends StatefulWidget {
   const TodoScreen({Key? key}) : super(key: key);
@@ -15,7 +16,7 @@ class TodoScreen extends StatefulWidget {
   State<TodoScreen> createState() => _TodoScreenState();
 }
 
-class _TodoScreenState extends State<TodoScreen> {
+class _TodoScreenState extends State<TodoScreen> with TickerProviderStateMixin {
   final PageController _pageController = PageController(initialPage: 1000);
   int _currentPageIndex = 1000;
   final GlobalKey<DateTimelineState> _timelineKey = GlobalKey();
@@ -23,6 +24,10 @@ class _TodoScreenState extends State<TodoScreen> {
   bool _isHoveringTimeline = false;
   double _dragX = 0;
   double _dragY = 0;
+
+  // Completion animation state
+  final Set<String> _animatingOutTodoKeys = {};
+  final Map<String, AnimationController> _animationControllers = {};
 
   @override
   void initState() {
@@ -40,7 +45,45 @@ class _TodoScreenState extends State<TodoScreen> {
   @override
   void dispose() {
     _pageController.dispose();
+    for (final controller in _animationControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
+  }
+
+  String _todoKey(Todo todo) {
+    return '${todo.id ?? 'v'}_${todo.recurringTodoId ?? 'n'}_${todo.instanceDate}';
+  }
+
+  void _animateCompletion(Todo todo, bool newValue, TodoProvider todoProvider) {
+    final key = _todoKey(todo);
+    if (_animatingOutTodoKeys.contains(key)) return;
+
+    final controller = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _animationControllers[key] = controller;
+
+    setState(() {
+      _animatingOutTodoKeys.add(key);
+    });
+
+    controller.forward().then((_) {
+      if (!mounted) return;
+      _animationControllers.remove(key)?.dispose();
+      setState(() {
+        _animatingOutTodoKeys.remove(key);
+      });
+      todoProvider.completeTodo(
+        todo.id,
+        todo.assignedDate,
+        newValue,
+        isVirtual: todo.isVirtual,
+        recurringTodoId: todo.recurringTodoId,
+        instanceDate: todo.instanceDate,
+      );
+    });
   }
 
   void _navigateToDate(DateTime date) {
@@ -108,6 +151,7 @@ class _TodoScreenState extends State<TodoScreen> {
                 onSubmitted: (value) {
                   Navigator.of(context).pop();
                   if (value.trim().isNotEmpty) {
+                    HapticService.action();
                     todoProvider.createTodo(text: value.trim(), position: position);
                   }
                 },
@@ -161,6 +205,7 @@ class _TodoScreenState extends State<TodoScreen> {
                         Navigator.of(context).pop();
                         final text = textController.text.trim();
                         if (text.isNotEmpty) {
+                          HapticService.action();
                           todoProvider.createTodo(text: text, position: position);
                         }
                       },
@@ -213,6 +258,7 @@ class _TodoScreenState extends State<TodoScreen> {
                 
                 if (date != null && date != todoProvider.selectedDate) {
                   // Drop on timeline!
+                  HapticService.action();
                   final todo = _draggedTodo!;
                   // Reset drag state
                   setState(() {
@@ -448,6 +494,7 @@ class _TodoScreenState extends State<TodoScreen> {
                 },
                 onReorder: (oldIndex, newIndex) {
                   if (_isHoveringTimeline) return;
+                  HapticService.action();
 
                   todoProvider.reorderTodos(
                     todoProvider.selectedDate.toString().split(' ')[0],
@@ -504,6 +551,7 @@ class _TodoScreenState extends State<TodoScreen> {
                 },
                 onReorder: (oldIndex, newIndex) {
                   if (_isHoveringTimeline) return;
+                  HapticService.action();
 
                   final offset = incompleteTodos.length;
                   todoProvider.reorderTodos(
@@ -567,7 +615,11 @@ class _TodoScreenState extends State<TodoScreen> {
   }
 
   Widget _buildTodoItem(Todo todo, TodoProvider todoProvider, {bool isReorderable = false}) {
-    final widget = Dismissible(
+    final key = _todoKey(todo);
+    final isAnimatingOut = _animatingOutTodoKeys.contains(key);
+    final controller = _animationControllers[key];
+
+    Widget todoWidget = Dismissible(
       key: Key('todo_${todo.id ?? 'v'}_${todo.recurringTodoId ?? 'n'}_${todo.instanceDate}'),
       dismissThresholds: const {
         DismissDirection.endToStart: 0.5,
@@ -588,6 +640,7 @@ class _TodoScreenState extends State<TodoScreen> {
       confirmDismiss: (direction) async {
         if (direction == DismissDirection.startToEnd) {
           // Swipe right - move to next day
+          HapticService.action();
           final currentDate = DateTime.parse(todo.assignedDate);
           final nextDay = currentDate.add(const Duration(days: 1));
 
@@ -607,14 +660,8 @@ class _TodoScreenState extends State<TodoScreen> {
             value: todo.isCompleted,
             onChanged: (value) {
               if (value != null) {
-                todoProvider.completeTodo(
-                  todo.id,
-                  todo.assignedDate,
-                  value,
-                  isVirtual: todo.isVirtual,
-                  recurringTodoId: todo.recurringTodoId,
-                  instanceDate: todo.instanceDate,
-                );
+                HapticService.toggle();
+                _animateCompletion(todo, value, todoProvider);
               }
             },
             activeColor: Theme.of(context).colorScheme.primary,
@@ -678,7 +725,22 @@ class _TodoScreenState extends State<TodoScreen> {
       ),
     );
 
-    return widget;
+    if (isAnimatingOut && controller != null) {
+      return SizeTransition(
+        sizeFactor: Tween<double>(begin: 1.0, end: 0.0).animate(
+          CurvedAnimation(parent: controller, curve: Curves.easeInOut),
+        ),
+        axisAlignment: -1.0,
+        child: FadeTransition(
+          opacity: Tween<double>(begin: 1.0, end: 0.0).animate(
+            CurvedAnimation(parent: controller, curve: Curves.easeIn),
+          ),
+          child: todoWidget,
+        ),
+      );
+    }
+
+    return todoWidget;
   }
 
   Future<bool> _confirmDelete(Todo todo) async {
@@ -694,6 +756,7 @@ class _TodoScreenState extends State<TodoScreen> {
       );
 
       if (result == 'this') {
+        HapticService.destructive();
         await context.read<TodoProvider>().deleteTodo(
               todo.id,
               todo.assignedDate,
@@ -702,6 +765,7 @@ class _TodoScreenState extends State<TodoScreen> {
               instanceDate: todo.instanceDate,
             );
       } else if (result == 'all') {
+        HapticService.destructive();
         await context.read<TodoProvider>().deleteTodo(
               todo.id,
               todo.assignedDate,
@@ -714,6 +778,7 @@ class _TodoScreenState extends State<TodoScreen> {
       return false;
     } else {
       // Non-recurring: delete immediately, no dialog
+      HapticService.destructive();
       await context.read<TodoProvider>().deleteTodo(todo.id, todo.assignedDate);
       return false;
     }
@@ -779,6 +844,7 @@ class _TodoScreenState extends State<TodoScreen> {
                 onSubmitted: (value) {
                   Navigator.of(context).pop();
                   if (value.trim().isNotEmpty && value.trim() != todo.text) {
+                    HapticService.action();
                     todoProvider.updateTodo(
                       todoId: todo.id!,
                       text: value.trim(),
@@ -827,6 +893,7 @@ class _TodoScreenState extends State<TodoScreen> {
                         Navigator.of(context).pop();
                         final text = textController.text.trim();
                         if (text.isNotEmpty && text != todo.text) {
+                          HapticService.action();
                           todoProvider.updateTodo(
                             todoId: todo.id,
                             text: text,

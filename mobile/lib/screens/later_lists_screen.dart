@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../widgets/app_dialogs.dart';
 import '../providers/later_list_provider.dart';
 import '../models/later_list.dart';
+import '../services/haptic_service.dart';
 import 'later_list_detail_screen.dart';
 
 class LaterListsScreen extends StatefulWidget {
@@ -41,6 +42,7 @@ class _LaterListsScreenState extends State<LaterListsScreen> {
             onSubmitted: (value) async {
               Navigator.of(context).pop();
               if (value.trim().isNotEmpty) {
+                HapticService.action();
                 final newList = await provider.createList(value.trim());
                 if (newList != null && mounted) {
                   provider.setCurrentListId(newList.id);
@@ -64,6 +66,7 @@ class _LaterListsScreenState extends State<LaterListsScreen> {
                     Navigator.of(context).pop();
                     final text = textController.text.trim();
                     if (text.isNotEmpty) {
+                      HapticService.action();
                       final newList = await provider.createList(text);
                       if (newList != null && mounted) {
                         provider.setCurrentListId(newList.id);
@@ -80,6 +83,7 @@ class _LaterListsScreenState extends State<LaterListsScreen> {
   }
 
   Future<bool> _confirmDeleteDismiss(LaterList list) async {
+    HapticService.destructive();
     final provider = context.read<LaterListProvider>();
     provider.deleteList(list.id);
     return false;

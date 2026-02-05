@@ -4,6 +4,7 @@ import '../widgets/app_dialogs.dart';
 import '../providers/routine_provider.dart';
 import '../providers/theme_provider.dart';
 import '../models/routine.dart';
+import '../services/haptic_service.dart';
 import 'routine_execution_screen.dart';
 
 class RoutineDetailScreen extends StatefulWidget {
@@ -97,6 +98,7 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
                       text = 'Step text';
                     }
                     if (text.isNotEmpty) {
+                      HapticService.action();
                       this.context.read<RoutineProvider>().createStep(
                             widget.routineId,
                             text,
@@ -152,6 +154,7 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
                     if (newText.isEmpty) {
                       newText = 'Step text';
                     }
+                    HapticService.action();
                     final provider = this.context.read<RoutineProvider>();
                     final newNotes = notesController.text.trim();
 
@@ -178,6 +181,7 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
   }
 
   Future<void> _deleteStep(RoutineStep step) async {
+    HapticService.destructive();
     await context
         .read<RoutineProvider>()
         .deleteStep(widget.routineId, step.id);
@@ -340,6 +344,7 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
                           sliver: SliverReorderableList(
                           onReorder: (oldIndex, newIndex) {
                             if (newIndex > oldIndex) newIndex--;
+                            HapticService.action();
                             final step = sortedSteps[oldIndex];
                             provider.updateStepPosition(
                               widget.routineId,

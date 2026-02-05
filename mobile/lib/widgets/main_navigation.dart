@@ -10,6 +10,7 @@ import '../providers/later_list_provider.dart';
 import '../providers/todo_provider.dart';
 import '../providers/routine_provider.dart';
 import '../models/routine.dart';
+import '../services/haptic_service.dart';
 import 'routine_prompt_dialog.dart';
 
 class MainNavigation extends StatefulWidget {
@@ -149,6 +150,7 @@ class _MainNavigationState extends State<MainNavigation> {
             onSubmitted: (value) {
               Navigator.of(sheetContext).pop();
               if (value.trim().isNotEmpty && value.trim() != currentName) {
+                HapticService.action();
                 context.read<RoutineProvider>().updateRoutineName(routineId, value.trim());
               }
             },
@@ -169,6 +171,7 @@ class _MainNavigationState extends State<MainNavigation> {
                     Navigator.of(sheetContext).pop();
                     final text = controller.text.trim();
                     if (text.isNotEmpty && text != currentName) {
+                      HapticService.action();
                       context.read<RoutineProvider>().updateRoutineName(routineId, text);
                     }
                   },
@@ -198,6 +201,7 @@ class _MainNavigationState extends State<MainNavigation> {
             onSubmitted: (value) {
               Navigator.of(sheetContext).pop();
               if (value.trim().isNotEmpty && value.trim() != currentName) {
+                HapticService.action();
                 context.read<LaterListProvider>().updateListName(listId, value.trim());
               }
             },
@@ -218,6 +222,7 @@ class _MainNavigationState extends State<MainNavigation> {
                     Navigator.of(sheetContext).pop();
                     final text = controller.text.trim();
                     if (text.isNotEmpty && text != currentName) {
+                      HapticService.action();
                       context.read<LaterListProvider>().updateListName(listId, text);
                     }
                   },
@@ -337,6 +342,7 @@ class _MainNavigationState extends State<MainNavigation> {
 
         return Scaffold(
           appBar: AppBar(
+            centerTitle: !(isLaterListDetail || isRoutineDetail),
             title: titleWidget,
             actions: [
               if (isRoutineDetail)
