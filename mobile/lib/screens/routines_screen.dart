@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../widgets/app_dialogs.dart';
 import '../providers/routine_provider.dart';
+import '../providers/theme_provider.dart';
 import '../models/routine.dart';
 import 'routine_detail_screen.dart';
 import 'routine_execution_screen.dart';
@@ -175,7 +176,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
                   label: const Text('Create Routine'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Theme.of(context).colorScheme.primary,
-                    foregroundColor: Colors.white,
+                    foregroundColor: ThemeProvider.contrastOn(Theme.of(context).colorScheme.primary),
                   ),
                 ),
               ],

@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../widgets/app_dialogs.dart';
 import '../providers/later_list_provider.dart';
+import '../providers/theme_provider.dart';
 import '../models/later_list.dart';
 import 'later_list_detail_screen.dart';
 
@@ -188,7 +189,7 @@ class _LaterListsScreenState extends State<LaterListsScreen> {
                                 label: const Text('Create Your First List'),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Theme.of(context).colorScheme.primary,
-                                  foregroundColor: Colors.white,
+                                  foregroundColor: ThemeProvider.contrastOn(Theme.of(context).colorScheme.primary),
                                 ),
                               ),
                             ],

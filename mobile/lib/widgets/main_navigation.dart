@@ -230,6 +230,29 @@ class _MainNavigationState extends State<MainNavigation> {
     );
   }
 
+  Widget _buildNavItem(String label, int index) {
+    final isSelected = _selectedIndex == index;
+    final primary = Theme.of(context).colorScheme.primary;
+    return GestureDetector(
+      onTap: () => _onItemTapped(index),
+      behavior: HitTestBehavior.opaque,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+              letterSpacing: 1.2,
+              color: isSelected ? primary : Colors.grey,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer2<LaterListProvider, RoutineProvider>(
@@ -275,7 +298,13 @@ class _MainNavigationState extends State<MainNavigation> {
         final bool isLaterListDetail = _selectedIndex == 1 && laterListProvider.currentListId != null;
         final bool isRoutineDetail = _selectedIndex == 2 && routineProvider.currentRoutineId != null;
 
+        const titleStyle = TextStyle(
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.2,
+        );
+
         Widget titleWidget;
+        final displayTitle = title.toUpperCase();
         if (isLaterListDetail) {
           final listId = laterListProvider.currentListId!;
           titleWidget = GestureDetector(
@@ -283,7 +312,7 @@ class _MainNavigationState extends State<MainNavigation> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Flexible(child: Text(title, overflow: TextOverflow.ellipsis)),
+                Flexible(child: Text(displayTitle, overflow: TextOverflow.ellipsis, style: titleStyle)),
                 const SizedBox(width: 4),
                 const Icon(Icons.edit, size: 16),
               ],
@@ -296,14 +325,14 @@ class _MainNavigationState extends State<MainNavigation> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Flexible(child: Text(title, overflow: TextOverflow.ellipsis)),
+                Flexible(child: Text(displayTitle, overflow: TextOverflow.ellipsis, style: titleStyle)),
                 const SizedBox(width: 4),
                 const Icon(Icons.edit, size: 16),
               ],
             ),
           );
         } else {
-          titleWidget = Text(title);
+          titleWidget = Text(displayTitle, style: titleStyle);
         }
 
         return Scaffold(
@@ -340,24 +369,24 @@ class _MainNavigationState extends State<MainNavigation> {
               RoutinesScreen(),
             ],
           ),
-          bottomNavigationBar: BottomNavigationBar(
-            currentIndex: _selectedIndex,
-            onTap: _onItemTapped,
-            selectedItemColor: Theme.of(context).colorScheme.primary,
-            items: const [
-              BottomNavigationBarItem(
-                icon: Icon(Icons.today),
-                label: 'Now',
+          bottomNavigationBar: Container(
+            decoration: BoxDecoration(
+              border: Border(top: BorderSide(color: Theme.of(context).dividerColor.withValues(alpha: 0.3))),
+            ),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: IntrinsicHeight(
+                  child: Row(
+                    children: [
+                      Expanded(child: _buildNavItem('NOW', 0)),
+                      Expanded(child: _buildNavItem('LATER', 1)),
+                      Expanded(child: _buildNavItem('ROUTINES', 2)),
+                    ],
+                  ),
+                ),
               ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.list_alt),
-                label: 'Later',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.repeat),
-                label: 'Routines',
-              ),
-            ],
+            ),
           ),
         );
       },

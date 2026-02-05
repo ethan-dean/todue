@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../providers/theme_provider.dart';
 
 class AppBottomSheet {
   static Future<T?> show<T>({
@@ -115,7 +116,7 @@ class AppActionButton extends StatelessWidget {
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: Theme.of(context).colorScheme.primary,
-          foregroundColor: Colors.white,
+          foregroundColor: ThemeProvider.contrastOn(Theme.of(context).colorScheme.primary),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
@@ -209,7 +210,9 @@ class AppChoiceDialog extends StatelessWidget {
                       backgroundColor: option.isDestructive
                           ? Colors.red
                           : Theme.of(context).colorScheme.primary,
-                      foregroundColor: Colors.white,
+                      foregroundColor: option.isDestructive
+                          ? Colors.white
+                          : ThemeProvider.contrastOn(Theme.of(context).colorScheme.primary),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),

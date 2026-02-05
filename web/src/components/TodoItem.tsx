@@ -1,7 +1,17 @@
 import React, { useState, useRef, useEffect, type KeyboardEvent } from 'react';
-import { Pencil, Calendar, Trash2, Repeat } from 'lucide-react';
+import { Pencil, Calendar, Trash2, Repeat, ChevronLeft, ChevronRight } from 'lucide-react';
+import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, addMonths, eachDayOfInterval, isSameMonth, isSameDay } from 'date-fns';
 import type { Todo } from '../types';
 import { useTodos } from '../context/TodoContext';
+import { formatDate } from '../utils/dateUtils';
+
+const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+function getCalendarDays(month: Date): Date[] {
+  const start = startOfWeek(startOfMonth(month));
+  const end = endOfWeek(endOfMonth(month));
+  return eachDayOfInterval({ start, end });
+}
 
 interface TodoItemProps {
   todo: Todo;
@@ -13,8 +23,10 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onDelete }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(todo.text);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [viewingMonth, setViewingMonth] = useState(new Date());
   const inputRef = useRef<HTMLInputElement>(null);
-  const dateInputRef = useRef<HTMLInputElement>(null);
+  const datePickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -118,29 +130,65 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onDelete }) => {
 
   const handleMoveClick = () => {
     if (isLoading) return;
-    dateInputRef.current?.showPicker();
+    setIsDatePickerOpen((prev) => {
+      if (!prev) {
+        // Initialize to the todo's current date
+        const [year, month, day] = todo.assignedDate.split('-').map(Number);
+        setViewingMonth(new Date(year, month - 1, day));
+      }
+      return !prev;
+    });
   };
 
-  const handleDateChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const dateStr = e.target.value;
-    if (!dateStr) return;
-
+  const handleDateSelect = async (date: Date) => {
+    setIsDatePickerOpen(false);
     setIsLoading(true);
     try {
-      // Parse YYYY-MM-DD to Date object
-      const [year, month, day] = dateStr.split('-').map(Number);
-      const newDate = new Date(year, month - 1, day);
-      await moveTodo(todo, newDate);
+      await moveTodo(todo, date);
     } catch (err) {
       console.error('Failed to move todo:', err);
     } finally {
       setIsLoading(false);
-      // Reset date input for next use
-      if (dateInputRef.current) {
-        dateInputRef.current.value = '';
-      }
     }
   };
+
+  const handlePrevMonth = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setViewingMonth((prev) => addMonths(prev, -1));
+  };
+
+  const handleNextMonth = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setViewingMonth((prev) => addMonths(prev, 1));
+  };
+
+  // Close date picker on click outside
+  useEffect(() => {
+    if (!isDatePickerOpen) return;
+
+    const handleMouseDown = (e: MouseEvent) => {
+      if (datePickerRef.current && !datePickerRef.current.contains(e.target as Node)) {
+        setIsDatePickerOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleMouseDown);
+    return () => document.removeEventListener('mousedown', handleMouseDown);
+  }, [isDatePickerOpen]);
+
+  // Close date picker on Escape
+  useEffect(() => {
+    if (!isDatePickerOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsDatePickerOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown as unknown as EventListener);
+    return () => document.removeEventListener('keydown', handleKeyDown as unknown as EventListener);
+  }, [isDatePickerOpen]);
 
   const getClassName = () => {
     const classes = ['todo-item'];
@@ -209,13 +257,52 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onDelete }) => {
         </button>
       </div>
 
-      {/* Hidden date picker */}
-      <input
-        ref={dateInputRef}
-        type="date"
-        onChange={handleDateChange}
-        style={{ position: 'absolute', opacity: 0, pointerEvents: 'none' }}
-      />
+      {/* Custom date picker popover */}
+      {isDatePickerOpen && (
+        <div ref={datePickerRef} className="todo-date-picker">
+          <div className="calendar-header">
+            <button className="calendar-nav-btn" onClick={handlePrevMonth} title="Previous month">
+              <ChevronLeft size={16} />
+            </button>
+            <span className="calendar-month-label">
+              {formatDate(viewingMonth, 'MMMM yyyy')}
+            </span>
+            <button className="calendar-nav-btn" onClick={handleNextMonth} title="Next month">
+              <ChevronRight size={16} />
+            </button>
+          </div>
+          <div className="calendar-weekdays">
+            {WEEKDAY_LABELS.map((label, i) => (
+              <span key={i} className="calendar-weekday">{label}</span>
+            ))}
+          </div>
+          <div className="calendar-grid">
+            {getCalendarDays(viewingMonth).map((day, i) => {
+              const outside = !isSameMonth(day, viewingMonth);
+              const today = new Date();
+              const [year, month, dayNum] = todo.assignedDate.split('-').map(Number);
+              const currentTodoDate = new Date(year, month - 1, dayNum);
+              const isSelected = isSameDay(day, currentTodoDate);
+              const isTodayDate = isSameDay(day, today);
+
+              let className = 'calendar-day';
+              if (outside) className += ' calendar-day-outside';
+              if (isTodayDate) className += ' calendar-day-today';
+              if (isSelected) className += ' calendar-day-selected';
+
+              return (
+                <button
+                  key={i}
+                  className={className}
+                  onClick={() => handleDateSelect(day)}
+                >
+                  {day.getDate()}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

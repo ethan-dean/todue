@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../widgets/app_dialogs.dart';
 import '../providers/routine_provider.dart';
+import '../providers/theme_provider.dart';
 import '../models/routine.dart';
 import 'routine_execution_screen.dart';
 
@@ -302,7 +303,9 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
                         ),
                         label: Text(hasActiveExecution ? 'Continue' : 'Start'),
                         style: FilledButton.styleFrom(
-                          foregroundColor: Colors.white,
+                          foregroundColor: sortedSteps.isEmpty
+                              ? Colors.white
+                              : ThemeProvider.contrastOn(Theme.of(context).colorScheme.primary),
                           backgroundColor: sortedSteps.isEmpty
                               ? Colors.grey
                               : Theme.of(context).colorScheme.primary,
@@ -368,10 +371,13 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
                                   children: [
                                     ListTile(
                                       leading: CircleAvatar(
-                                        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                                        backgroundColor: Theme.of(context).colorScheme.primary,
                                         child: Text(
                                           '${index + 1}',
-                                          style: TextStyle(color: Theme.of(context).colorScheme.primary),
+                                          style: TextStyle(
+                                            color: ThemeProvider.contrastOn(Theme.of(context).colorScheme.primary),
+                                            fontWeight: FontWeight.w600,
+                                          ),
                                         ),
                                       ),
                                       title: Text(step.text),
@@ -1027,7 +1033,7 @@ class _ScheduleDialogState extends State<_ScheduleDialog> {
                     onPressed: () => Navigator.of(context).pop(_schedules),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Theme.of(context).colorScheme.primary,
-                      foregroundColor: Colors.white,
+                      foregroundColor: ThemeProvider.contrastOn(Theme.of(context).colorScheme.primary),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),

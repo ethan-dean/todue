@@ -561,7 +561,19 @@ class _TodoScreenState extends State<TodoScreen> {
                 final position = incompleteTodos.isEmpty ? 1 : incompleteTodos.length + 1;
                 _showAddTodoDialog(position: position);
               },
-              child: const SizedBox(height: 140), // ~2 todo item heights
+              child: Column(
+                children: [
+                  const SizedBox(height: 54),
+                  Divider(
+                    height: 1,
+                    thickness: 1,
+                    indent: 16,
+                    endIndent: 16,
+                    color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
+                  ),
+                  const SizedBox(height: 54),
+                ],
+              ),
             ),
           ),
           // Fill any remaining space

@@ -216,7 +216,7 @@ const TodosPage: React.FC = () => {
         onDragEnd={handleCrossDayDragEnd}
         onDragCancel={() => { setActiveId(null); setOverId(null); }}
       >
-        <div className="multi-day-view">
+        <div className="multi-day-view" data-columns={viewMode}>
           {dates.map((date) => {
             const dateStr = formatDateForAPI(date);
             const todosForDate = todos.get(dateStr) || [];

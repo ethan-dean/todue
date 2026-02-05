@@ -545,9 +545,17 @@ body {
   flex: 1;
   padding: 2rem;
   background: var(--bg-page);
-  max-width: 1400px;
   margin: 0 auto;
   width: 100%;
+}
+
+.app-main:has(.single-day-view) {
+  max-width: 1400px;
+}
+
+.app-main:has(.multi-day-view) {
+  max-width: 100%;
+  padding: 2rem 3rem;
 }
 
 /* Header Date Navigator */
@@ -785,8 +793,20 @@ body {
 
 .multi-day-view {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 1.5rem;
+}
+
+.multi-day-view[data-columns="3"] {
+  grid-template-columns: repeat(3, minmax(0, 400px));
+  justify-content: center;
+}
+
+.multi-day-view[data-columns="5"] {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+.multi-day-view[data-columns="7"] {
+  grid-template-columns: repeat(7, 1fr);
 }
 
 .day-column {
@@ -910,6 +930,7 @@ body {
   border: 1px solid var(--border-light);
   border-radius: 4px;
   transition: box-shadow 0.2s, opacity 0.3s ease;
+  position: relative;
 }
 
 .todo-item:hover {
@@ -1311,6 +1332,108 @@ body {
 
 .todo-item:hover .btn-move {
   opacity: 0.8;
+}
+
+/* Todo Date Picker */
+.todo-date-picker {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 1000;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  padding: 0.75rem;
+  min-width: 240px;
+}
+
+.todo-date-picker .calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0 0.5rem 0;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.todo-date-picker .calendar-nav-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-primary);
+}
+
+.todo-date-picker .calendar-nav-btn:hover {
+  background: var(--bg-hover);
+}
+
+.todo-date-picker .calendar-month-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.todo-date-picker .calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  margin-bottom: 4px;
+}
+
+.todo-date-picker .calendar-weekday {
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 4px;
+}
+
+.todo-date-picker .calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.todo-date-picker .calendar-day {
+  aspect-ratio: 1;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 0.8rem;
+  border-radius: 4px;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 28px;
+}
+
+.todo-date-picker .calendar-day:hover {
+  background: var(--bg-hover);
+}
+
+.todo-date-picker .calendar-day-outside {
+  color: var(--text-secondary);
+  opacity: 0.45;
+}
+
+.todo-date-picker .calendar-day-today {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.todo-date-picker .calendar-day-selected {
+  background: var(--color-primary) !important;
+  color: white !important;
+  font-weight: 600;
+  opacity: 1;
 }
 
 /* ===== Header Tabs (Now/Later) ===== */

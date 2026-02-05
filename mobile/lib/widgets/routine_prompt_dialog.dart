@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/routine.dart';
+import '../providers/theme_provider.dart';
 
 class RoutinePromptDialog extends StatelessWidget {
   final List<PendingRoutinePrompt> prompts;
@@ -38,7 +39,13 @@ class RoutinePromptDialog extends StatelessWidget {
           icon: const Icon(Icons.arrow_back),
           onPressed: onClose,
         ),
-        title: Text('Time for Your Routine${prompts.length > 1 ? 's' : ''}'),
+        title: Text(
+          'TIME FOR YOUR ROUTINE${prompts.length > 1 ? 'S' : ''}',
+          style: const TextStyle(
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.2,
+          ),
+        ),
       ),
       body: ListView.separated(
         padding: const EdgeInsets.all(16),
@@ -131,7 +138,7 @@ class _PromptItemCardState extends State<PromptItemCard> {
                     icon: const Icon(Icons.play_arrow, size: 18),
                     label: const Text('Start'),
                     style: FilledButton.styleFrom(
-                      foregroundColor: Colors.white,
+                      foregroundColor: ThemeProvider.contrastOn(primary),
                       backgroundColor: primary,
                     ),
                   ),
@@ -198,7 +205,7 @@ class _DoneDropdownButtonState extends State<DoneDropdownButton> {
               label: const Text('Done'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: primary,
-                foregroundColor: Colors.white,
+                foregroundColor: ThemeProvider.contrastOn(primary),
                 shape: const RoundedRectangleBorder(
                   borderRadius: BorderRadius.only(
                     topLeft: Radius.circular(20),
@@ -220,7 +227,7 @@ class _DoneDropdownButtonState extends State<DoneDropdownButton> {
                     },
               style: ElevatedButton.styleFrom(
                 backgroundColor: primary,
-                foregroundColor: Colors.white,
+                foregroundColor: ThemeProvider.contrastOn(primary),
                 shape: const RoundedRectangleBorder(
                   borderRadius: BorderRadius.only(
                     topRight: Radius.circular(20),

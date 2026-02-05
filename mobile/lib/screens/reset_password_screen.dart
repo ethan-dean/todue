@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/theme_provider.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   final String token;
@@ -207,7 +208,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Colors.white,
+                  foregroundColor: ThemeProvider.contrastOn(Theme.of(context).colorScheme.primary),
                 ),
                 child: authProvider.isLoading
                     ? const SizedBox(

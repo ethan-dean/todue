@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/routine_provider.dart';
+import '../providers/theme_provider.dart';
 import '../models/routine.dart';
 
 class RoutineExecutionScreen extends StatefulWidget {
@@ -268,8 +269,8 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
                                             ? Colors.orange
                                             : Colors.grey[300],
                                     child: isCompleted
-                                        ? const Icon(Icons.check,
-                                            color: Colors.white, size: 18)
+                                        ? Icon(Icons.check,
+                                            color: ThemeProvider.contrastOn(Theme.of(context).colorScheme.primary), size: 18)
                                         : isSkipped
                                             ? const Icon(Icons.skip_next,
                                                 color: Colors.white, size: 18)
@@ -334,7 +335,7 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
                                       onPressed: () => _saveNotes(step.id),
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Theme.of(context).colorScheme.primary,
-                                        foregroundColor: Colors.white,
+                                        foregroundColor: ThemeProvider.contrastOn(Theme.of(context).colorScheme.primary),
                                       ),
                                       child: const Text('Save'),
                                     ),
@@ -394,7 +395,7 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
                                       label: const Text('Complete'),
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Theme.of(context).colorScheme.primary,
-                                        foregroundColor: Colors.white,
+                                        foregroundColor: ThemeProvider.contrastOn(Theme.of(context).colorScheme.primary),
                                         padding: const EdgeInsets.symmetric(
                                             vertical: 12),
                                       ),
@@ -454,7 +455,7 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
                         label: const Text('Finish Routine'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Theme.of(context).colorScheme.primary,
-                          foregroundColor: Colors.white,
+                          foregroundColor: ThemeProvider.contrastOn(Theme.of(context).colorScheme.primary),
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           textStyle: const TextStyle(fontSize: 18),
                         ),

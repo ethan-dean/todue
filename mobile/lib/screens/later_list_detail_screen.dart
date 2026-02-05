@@ -252,7 +252,19 @@ class _LaterListDetailScreenState extends State<LaterListDetailScreen> {
                           child: GestureDetector(
                             behavior: HitTestBehavior.opaque,
                             onTap: _showAddTodoDialog,
-                            child: const SizedBox(height: 140),
+                            child: Column(
+                              children: [
+                                const SizedBox(height: 54),
+                                Divider(
+                                  height: 1,
+                                  thickness: 1,
+                                  indent: 16,
+                                  endIndent: 16,
+                                  color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
+                                ),
+                                const SizedBox(height: 54),
+                              ],
+                            ),
                           ),
                         ),
                         // Fill remaining space

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/theme_provider.dart';
 
 class VerifyEmailScreen extends StatefulWidget {
   final String token;
@@ -190,7 +191,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
           style: ElevatedButton.styleFrom(
             padding: const EdgeInsets.symmetric(vertical: 16),
             backgroundColor: Theme.of(context).colorScheme.primary,
-            foregroundColor: Colors.white,
+            foregroundColor: ThemeProvider.contrastOn(Theme.of(context).colorScheme.primary),
           ),
           child: const Text(
             'Go to Sign In',

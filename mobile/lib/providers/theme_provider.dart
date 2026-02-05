@@ -137,6 +137,12 @@ class ThemeProvider extends ChangeNotifier {
     return '#${(color.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
   }
 
+  /// Returns a contrasting text color (dark or light) for the given background color.
+  static Color contrastOn(Color background) {
+    final luminance = background.computeLuminance();
+    return luminance > 0.4 ? const Color(0xFF1C1C1E) : const Color(0xFFF5F5F5);
+  }
+
   String get accentColorHex => _colorToHex(_accentColor);
 
   // Light theme
@@ -145,6 +151,7 @@ class ThemeProvider extends ChangeNotifier {
   ThemeData get darkTheme => _buildDarkTheme(_accentColor);
 
   static ThemeData _buildLightTheme(Color accent) {
+    final onAccent = contrastOn(accent);
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
@@ -161,18 +168,20 @@ class ThemeProvider extends ChangeNotifier {
         surfaceTintColor: Colors.white,
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: accent,
-        foregroundColor: Colors.white,
-        elevation: 2,
+        backgroundColor: Colors.grey[50],
+        foregroundColor: Colors.black87,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        shape: Border(bottom: BorderSide(color: accent, width: 2)),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: accent,
-        foregroundColor: Colors.white,
+        foregroundColor: onAccent,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: accent,
-          foregroundColor: Colors.white,
+          foregroundColor: onAccent,
         ),
       ),
       checkboxTheme: CheckboxThemeData(
@@ -191,6 +200,7 @@ class ThemeProvider extends ChangeNotifier {
   }
 
   static ThemeData _buildDarkTheme(Color accent) {
+    final onAccent = contrastOn(accent);
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
@@ -207,18 +217,20 @@ class ThemeProvider extends ChangeNotifier {
         surfaceTintColor: Color(0xFF2C2C2E),
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: accent,
+        backgroundColor: const Color(0xFF1C1C1E),
         foregroundColor: Colors.white,
         elevation: 0,
+        scrolledUnderElevation: 0,
+        shape: Border(bottom: BorderSide(color: accent, width: 2)),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: accent,
-        foregroundColor: Colors.white,
+        foregroundColor: onAccent,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: accent,
-          foregroundColor: Colors.white,
+          foregroundColor: onAccent,
         ),
       ),
       checkboxTheme: CheckboxThemeData(
