@@ -5,7 +5,6 @@ import '../widgets/date_timeline.dart';
 import '../widgets/app_dialogs.dart';
 import '../providers/todo_provider.dart';
 import '../providers/auth_provider.dart';
-import '../providers/theme_provider.dart';
 import '../models/todo.dart';
 import '../services/haptic_service.dart';
 
@@ -753,90 +752,13 @@ class _TodoScreenState extends State<TodoScreen> with TickerProviderStateMixin {
   Future<bool> _confirmDelete(Todo todo) async {
     if (todo.recurringTodoId != null) {
       // Show choice bottom sheet for recurring todo
-      final result = await showModalBottomSheet<String>(
+      final result = await AppChoiceDialog.show(
         context: context,
-        isScrollControlled: true,
-        useSafeArea: true,
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        builder: (sheetContext) {
-          final isDark = Theme.of(sheetContext).brightness == Brightness.dark;
-          final primary = Theme.of(sheetContext).colorScheme.primary;
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 12),
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'This is a recurring todo. What would you like to do?',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16),
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.of(sheetContext).pop('this'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primary,
-                      foregroundColor: ThemeProvider.contrastOn(primary),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    child: const Text('Delete This Instance'),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.of(sheetContext).pop('all'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    child: const Text('Delete All Future'),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.of(sheetContext).pop(null),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isDark ? const Color(0xFF3A3A3C) : Colors.grey[200],
-                      foregroundColor: isDark ? Colors.white : Colors.black87,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    child: const Text('Cancel'),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
+        description: 'This is a recurring todo. What would you like to do?',
+        options: [
+          const AppChoiceOption(label: 'Delete This Instance', value: 'this'),
+          const AppChoiceOption(label: 'Delete All Future', value: 'all', isDestructive: true),
+        ],
       );
 
       if (result == 'this') {

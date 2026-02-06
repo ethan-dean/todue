@@ -155,94 +155,92 @@ class AppCancelButton extends StatelessWidget {
   }
 }
 
-class AppChoiceDialog extends StatelessWidget {
-  final String description;
-  final List<AppChoiceOption> options;
-  final VoidCallback? onCancel;
-
-  const AppChoiceDialog({
-    Key? key,
-    required this.description,
-    required this.options,
-    this.onCancel,
-  }) : super(key: key);
+class AppChoiceDialog {
 
   static Future<String?> show({
     required BuildContext context,
     required String description,
     required List<AppChoiceOption> options,
   }) {
-    return showDialog<String>(
+    return showModalBottomSheet<String>(
       context: context,
-      builder: (context) => AppChoiceDialog(
-        description: description,
-        options: options,
-        onCancel: () => Navigator.of(context).pop(),
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
+      builder: (sheetContext) {
+        final isDark = Theme.of(sheetContext).brightness == Brightness.dark;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                description,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 24),
+              ...options.map((option) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(sheetContext).pop(option.value),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: option.isDestructive
+                            ? Colors.red
+                            : Theme.of(sheetContext).colorScheme.primary,
+                        foregroundColor: option.isDestructive
+                            ? Colors.white
+                            : ThemeProvider.contrastOn(Theme.of(sheetContext).colorScheme.primary),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        textStyle: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      child: Text(option.label),
+                    ),
+                  ),
+                );
+              }),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(sheetContext).pop(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isDark ? const Color(0xFF3A3A3C) : Colors.grey[200],
+                    foregroundColor: isDark ? Colors.white : Colors.black87,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: const Text('Cancel'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      backgroundColor: Theme.of(context).cardColor,
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              description,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 20),
-            ...options.map((option) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.of(context).pop(option.value),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: option.isDestructive
-                          ? Colors.red
-                          : Theme.of(context).colorScheme.primary,
-                      foregroundColor: option.isDestructive
-                          ? Colors.white
-                          : ThemeProvider.contrastOn(Theme.of(context).colorScheme.primary),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      textStyle: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    child: Text(option.label),
-                  ),
-                ),
-              );
-            }),
-            const SizedBox(height: 4),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: TextButton(
-                onPressed: onCancel,
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.grey,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                child: const Text('Cancel'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class AppChoiceOption {

@@ -4,6 +4,7 @@ import '../providers/routine_provider.dart';
 import '../providers/theme_provider.dart';
 import '../models/routine.dart';
 import '../services/haptic_service.dart';
+import '../widgets/app_dialogs.dart';
 
 class RoutineExecutionScreen extends StatefulWidget {
   final int routineId;
@@ -107,82 +108,15 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen>
   }
 
   Future<void> _abandonExecution(int completionId) async {
-    final confirm = await showModalBottomSheet<bool>(
+    final result = await AppChoiceDialog.show(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (sheetContext) {
-        final isDark = Theme.of(sheetContext).brightness == Brightness.dark;
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 12),
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Are you sure you want to abandon this routine? Your progress will be lost.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: SizedBox(
-                      height: 50,
-                      child: ElevatedButton(
-                        onPressed: () => Navigator.of(sheetContext).pop(false),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: isDark ? const Color(0xFF3A3A3C) : Colors.grey[200],
-                          foregroundColor: isDark ? Colors.white : Colors.black87,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        child: const Text('Cancel'),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: SizedBox(
-                      height: 50,
-                      child: ElevatedButton(
-                        onPressed: () => Navigator.of(sheetContext).pop(true),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        child: const Text('Abandon'),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
+      description: 'Are you sure you want to abandon this routine? Your progress will be lost.',
+      options: [
+        const AppChoiceOption(label: 'Abandon', value: 'abandon', isDestructive: true),
+      ],
     );
 
-    if (confirm == true && mounted) {
+    if (result == 'abandon' && mounted) {
       HapticService.destructive();
       final success =
           await context.read<RoutineProvider>().abandonExecution(completionId);
