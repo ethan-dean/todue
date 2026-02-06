@@ -183,7 +183,7 @@ class TodoProvider extends ChangeNotifier with WidgetsBindingObserver {
   // Check if device is online
   Future<void> _checkOnlineStatus() async {
     final result = await Connectivity().checkConnectivity();
-    _isOnline = result != ConnectivityResult.none;
+    _isOnline = !result.contains(ConnectivityResult.none);
     notifyListeners();
   }
 
@@ -283,13 +283,11 @@ class TodoProvider extends ChangeNotifier with WidgetsBindingObserver {
 
       _todos[dateStr] = fetchedTodos;
       _loadedDates.add(dateStr);  // Mark this date as loaded from API
-      _isOnline = true;
-
       // Update Cache
       await _databaseService.saveTodosForDate(dateStr, fetchedTodos);
     } catch (e) {
       print('API load failed: $e');
-      _isOnline = false;
+      await _checkOnlineStatus();
       // If we failed to load from API and cache was empty, show error
       if (!_todos.containsKey(dateStr) || _todos[dateStr]!.isEmpty) {
         _setError('Failed to load todos');
