@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/routine_provider.dart';
 import '../providers/theme_provider.dart';
 import '../models/routine.dart';
+import '../services/haptic_service.dart';
 
 class RoutineExecutionScreen extends StatefulWidget {
   final int routineId;
@@ -14,7 +15,8 @@ class RoutineExecutionScreen extends StatefulWidget {
   State<RoutineExecutionScreen> createState() => _RoutineExecutionScreenState();
 }
 
-class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
+class _RoutineExecutionScreenState extends State<RoutineExecutionScreen>
+    with TickerProviderStateMixin {
   int? _editingStepId;
   int? _selectedStepIndex;
   final TextEditingController _notesController = TextEditingController();
@@ -43,6 +45,7 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
   }
 
   Future<void> _saveNotes(int stepId) async {
+    HapticService.action();
     final notes = _notesController.text.trim();
     await context.read<RoutineProvider>().updateStepNotes(
           widget.routineId,
@@ -61,6 +64,7 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
   }
 
   Future<void> _completeStep(int completionId, int stepId) async {
+    HapticService.action();
     await context.read<RoutineProvider>().completeStep(
           completionId,
           stepId,
@@ -73,6 +77,7 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
   }
 
   Future<void> _skipStep(int completionId, int stepId) async {
+    HapticService.action();
     await context.read<RoutineProvider>().completeStep(
           completionId,
           stepId,
@@ -86,12 +91,14 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
 
   void _selectStep(int index) {
     if (_editingStepId != null) return;
+    HapticService.toggle();
     setState(() {
       _selectedStepIndex = index;
     });
   }
 
   Future<void> _finishExecution(int completionId) async {
+    HapticService.action();
     final success =
         await context.read<RoutineProvider>().finishExecution(completionId);
     if (success && mounted) {
@@ -121,6 +128,7 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
     );
 
     if (confirm == true && mounted) {
+      HapticService.destructive();
       final success =
           await context.read<RoutineProvider>().abandonExecution(completionId);
       if (success && mounted) {
@@ -303,123 +311,133 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
                                 ],
                               ),
 
-                            // Notes section - show for current step
-                            if (isCurrent) ...[
-                              const SizedBox(height: 12),
-                              if (isEditing) ...[
-                                // Editing mode
-                                TextField(
-                                  controller: _notesController,
-                                  autofocus: true,
-                                  decoration: const InputDecoration(
-                                    hintText: 'Add notes for this step...',
-                                    border: OutlineInputBorder(),
-                                    contentPadding: EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 8,
-                                    ),
-                                  ),
-                                  maxLines: 3,
-                                  minLines: 1,
-                                ),
-                                const SizedBox(height: 8),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: [
-                                    TextButton(
-                                      onPressed: _cancelEditingNotes,
-                                      child: const Text('Cancel'),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    ElevatedButton(
-                                      onPressed: () => _saveNotes(step.id),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Theme.of(context).colorScheme.primary,
-                                        foregroundColor: ThemeProvider.contrastOn(Theme.of(context).colorScheme.primary),
-                                      ),
-                                      child: const Text('Save'),
-                                    ),
-                                  ],
-                                ),
-                              ] else ...[
-                                // Display mode
-                                InkWell(
-                                  onTap: () => _startEditingNotes(step),
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Row(
+                            // Notes section and action buttons - animated expand/collapse
+                            AnimatedSize(
+                              duration: const Duration(milliseconds: 200),
+                              curve: Curves.easeInOut,
+                              alignment: Alignment.topCenter,
+                              child: isCurrent
+                                  ? Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Expanded(
-                                          child: step.notes != null &&
-                                                  step.notes!.isNotEmpty
-                                              ? Text(
-                                                  step.notes!,
-                                                  style: TextStyle(
-                                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                                  ),
-                                                )
-                                              : Text(
-                                                  'Add notes...',
-                                                  style: TextStyle(
-                                                    color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-                                                    fontStyle: FontStyle.italic,
-                                                  ),
+                                        const SizedBox(height: 12),
+                                        if (isEditing) ...[
+                                          // Editing mode
+                                          TextField(
+                                            controller: _notesController,
+                                            autofocus: true,
+                                            decoration: const InputDecoration(
+                                              hintText: 'Add notes for this step...',
+                                              border: OutlineInputBorder(),
+                                              contentPadding: EdgeInsets.symmetric(
+                                                horizontal: 12,
+                                                vertical: 8,
+                                              ),
+                                            ),
+                                            maxLines: 3,
+                                            minLines: 1,
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.end,
+                                            children: [
+                                              TextButton(
+                                                onPressed: _cancelEditingNotes,
+                                                child: const Text('Cancel'),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              ElevatedButton(
+                                                onPressed: () => _saveNotes(step.id),
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: Theme.of(context).colorScheme.primary,
+                                                  foregroundColor: ThemeProvider.contrastOn(Theme.of(context).colorScheme.primary),
                                                 ),
-                                        ),
-                                        Icon(
-                                          Icons.edit,
-                                          size: 18,
-                                          color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                                                child: const Text('Save'),
+                                              ),
+                                            ],
+                                          ),
+                                        ] else ...[
+                                          // Display mode
+                                          InkWell(
+                                            onTap: () => _startEditingNotes(step),
+                                            borderRadius: BorderRadius.circular(8),
+                                            child: Container(
+                                              width: double.infinity,
+                                              padding: const EdgeInsets.all(12),
+                                              decoration: BoxDecoration(
+                                                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              child: Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: step.notes != null &&
+                                                            step.notes!.isNotEmpty
+                                                        ? Text(
+                                                            step.notes!,
+                                                            style: TextStyle(
+                                                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                            ),
+                                                          )
+                                                        : Text(
+                                                            'Add notes...',
+                                                            style: TextStyle(
+                                                              color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                                                              fontStyle: FontStyle.italic,
+                                                            ),
+                                                          ),
+                                                  ),
+                                                  Icon(
+                                                    Icons.edit,
+                                                    size: 18,
+                                                    color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                        const SizedBox(height: 16),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: ElevatedButton.icon(
+                                                onPressed: isEditing
+                                                    ? null
+                                                    : () => _completeStep(
+                                                        execution.id, step.id),
+                                                icon: const Icon(Icons.check),
+                                                label: const Text('Complete'),
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: Theme.of(context).colorScheme.primary,
+                                                  foregroundColor: ThemeProvider.contrastOn(Theme.of(context).colorScheme.primary),
+                                                  padding: const EdgeInsets.symmetric(
+                                                      vertical: 12),
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: OutlinedButton.icon(
+                                                onPressed: isEditing
+                                                    ? null
+                                                    : () =>
+                                                        _skipStep(execution.id, step.id),
+                                                icon: const Icon(Icons.skip_next),
+                                                label: const Text('Skip'),
+                                                style: OutlinedButton.styleFrom(
+                                                  foregroundColor: Colors.orange,
+                                                  padding: const EdgeInsets.symmetric(
+                                                      vertical: 12),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                              const SizedBox(height: 16),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: ElevatedButton.icon(
-                                      onPressed: isEditing
-                                          ? null
-                                          : () => _completeStep(
-                                              execution.id, step.id),
-                                      icon: const Icon(Icons.check),
-                                      label: const Text('Complete'),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Theme.of(context).colorScheme.primary,
-                                        foregroundColor: ThemeProvider.contrastOn(Theme.of(context).colorScheme.primary),
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 12),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: OutlinedButton.icon(
-                                      onPressed: isEditing
-                                          ? null
-                                          : () =>
-                                              _skipStep(execution.id, step.id),
-                                      icon: const Icon(Icons.skip_next),
-                                      label: const Text('Skip'),
-                                      style: OutlinedButton.styleFrom(
-                                        foregroundColor: Colors.orange,
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 12),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                                    )
+                                  : const SizedBox.shrink(),
+                            ),
 
                             // Show notes for completed/skipped steps
                             if ((isCompleted || isSkipped) &&

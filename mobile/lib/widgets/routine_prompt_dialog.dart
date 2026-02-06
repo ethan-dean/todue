@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/routine.dart';
 import '../providers/theme_provider.dart';
+import '../services/haptic_service.dart';
 
 class RoutinePromptDialog extends StatelessWidget {
   final List<PendingRoutinePrompt> prompts;
@@ -134,7 +135,10 @@ class _PromptItemCardState extends State<PromptItemCard> {
                 SizedBox(
                   height: 40,
                   child: FilledButton.icon(
-                    onPressed: _isProcessing ? null : () => widget.onStart(widget.prompt.routineId),
+                    onPressed: _isProcessing ? null : () {
+                      HapticService.action();
+                      widget.onStart(widget.prompt.routineId);
+                    },
                     icon: const Icon(Icons.play_arrow, size: 18),
                     label: const Text('Start'),
                     style: FilledButton.styleFrom(
@@ -146,16 +150,23 @@ class _PromptItemCardState extends State<PromptItemCard> {
                 DoneDropdownButton(
                   isProcessing: _isProcessing,
                   onAlreadyDone: () async {
+                    HapticService.action();
                     setState(() => _isProcessing = true);
                     await widget.onAlreadyDone(widget.prompt.routineId);
                     if (mounted) setState(() => _isProcessing = false);
                   },
-                  onPartiallyDone: () => widget.onPartiallyDone(widget.prompt.routineId),
+                  onPartiallyDone: () {
+                    HapticService.action();
+                    widget.onPartiallyDone(widget.prompt.routineId);
+                  },
                 ),
                 SizedBox(
                   height: 40,
                   child: OutlinedButton(
-                    onPressed: _isProcessing ? null : () => widget.onDismiss(widget.prompt.routineId),
+                    onPressed: _isProcessing ? null : () {
+                      HapticService.action();
+                      widget.onDismiss(widget.prompt.routineId);
+                    },
                     child: const Text('Later'),
                   ),
                 ),

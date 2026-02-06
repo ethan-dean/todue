@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
+import '../services/haptic_service.dart';
 import '../services/user_api.dart';
 
 class AccentColorPicker extends StatelessWidget {
@@ -19,6 +20,7 @@ class AccentColorPicker extends StatelessWidget {
   const AccentColorPicker({super.key});
 
   void _selectColor(BuildContext context, Color color) {
+    HapticService.action();
     final themeProvider = context.read<ThemeProvider>();
     themeProvider.setAccentColor(color);
 
@@ -28,6 +30,7 @@ class AccentColorPicker extends StatelessWidget {
   }
 
   void _openCustomPicker(BuildContext context) {
+    HapticService.action();
     final themeProvider = context.read<ThemeProvider>();
     Color pickerColor = themeProvider.accentColor;
 

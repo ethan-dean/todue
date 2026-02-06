@@ -30,6 +30,16 @@ class _MainNavigationState extends State<MainNavigation> {
       barrierDismissible: true,
       barrierLabel: 'Dismiss',
       barrierColor: Colors.transparent,
+      transitionDuration: const Duration(milliseconds: 300),
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(1, 0),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut)),
+          child: child,
+        );
+      },
       pageBuilder: (dialogContext, animation, secondaryAnimation) => RoutinePromptDialog(
         prompts: prompts,
         onStart: (routineId) async {

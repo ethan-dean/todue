@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
+import '../services/haptic_service.dart';
 import '../widgets/accent_color_picker.dart';
 import '../widgets/app_dialogs.dart';
 import '../widgets/timezone_selector.dart';
@@ -46,6 +47,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
 
     if (result == 'logout' && mounted) {
+      HapticService.destructive();
       final authProvider = context.read<AuthProvider>();
       await authProvider.logout();
       if (mounted) {
@@ -55,6 +57,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _openTimezoneSelector() {
+    HapticService.action();
     final authProvider = context.read<AuthProvider>();
     final currentTz = authProvider.user?.timezone ?? 'UTC';
 
@@ -104,7 +107,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final primary = Theme.of(context).colorScheme.primary;
 
     return GestureDetector(
-      onTap: () => themeProvider.setThemeMode(mode),
+      onTap: () {
+        HapticService.action();
+        themeProvider.setThemeMode(mode);
+      },
       behavior: HitTestBehavior.opaque,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
