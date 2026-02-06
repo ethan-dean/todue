@@ -15,10 +15,10 @@ ExecStart=/usr/bin/java \
   -Xms70m \
   -Xmx200m \
   -XX:MetaspaceSize=45m \
-  -XX:MaxMetaspaceSize=90m \
+  -XX:MaxMetaspaceSize=120m \
   -XX:+UseSerialGC \
   -Xss256k \
-  -XX:MaxRAM=350m \
+  -XX:MaxRAM=370m \
   -Dspring.profiles.active=prod \
   -jar /root/deployments/td/todue-0.1.0.jar
 
@@ -28,8 +28,8 @@ Restart=on-failure
 RestartSec=10
 
 # Resource limits
-MemoryMax=400M
-MemoryHigh=350M
+MemoryMax=420M
+MemoryHigh=370M
 
 # Logging
 StandardOutput=append:/var/log/todue/application.log
