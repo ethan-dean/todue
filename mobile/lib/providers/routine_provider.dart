@@ -1,9 +1,9 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import '../models/routine.dart';
 import '../services/routine_api.dart';
 import '../services/websocket_service.dart';
 
-class RoutineProvider extends ChangeNotifier {
+class RoutineProvider extends ChangeNotifier with WidgetsBindingObserver {
   final RoutineApi _routineApi;
   final WebSocketService _websocketService;
 
@@ -25,7 +25,35 @@ class RoutineProvider extends ChangeNotifier {
     required WebSocketService websocketService,
   })  : _routineApi = routineApi,
         _websocketService = websocketService {
+    WidgetsBinding.instance.addObserver(this);
     _initWebSocketListener();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _onAppResumed();
+    }
+  }
+
+  /// Called when app returns to foreground. Re-fetches data to catch
+  /// any updates that may have been missed while backgrounded.
+  Future<void> _onAppResumed() async {
+    loadRoutines(silent: true);
+    loadPendingPrompts();
+
+    // Refetch any active executions (user may be mid-routine)
+    for (final routineId in _activeExecutions.keys.toList()) {
+      loadActiveExecution(routineId);
+    }
+
+    if (_currentRoutineId != null) {
+      loadRoutineDetail(_currentRoutineId!, silent: true);
+      // Also load active execution for current routine even if not in map yet
+      if (!_activeExecutions.containsKey(_currentRoutineId)) {
+        loadActiveExecution(_currentRoutineId!);
+      }
+    }
   }
 
   // Getters
@@ -618,6 +646,7 @@ class RoutineProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _wsUnsubscribe?.call();
     super.dispose();
   }

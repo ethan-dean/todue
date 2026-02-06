@@ -7,7 +7,7 @@ import '../services/todo_api.dart';
 import '../services/database_service.dart';
 import '../services/websocket_service.dart';
 
-class TodoProvider extends ChangeNotifier {
+class TodoProvider extends ChangeNotifier with WidgetsBindingObserver {
   final TodoApi _todoApi;
   final DatabaseService _databaseService;
   final WebSocketService _websocketService;
@@ -63,6 +63,9 @@ class TodoProvider extends ChangeNotifier {
   }
 
   Future<void> _init() async {
+    // Register for app lifecycle events
+    WidgetsBinding.instance.addObserver(this);
+
     // Subscribe to todo-related WebSocket message types
     _wsUnsubscribe = _websocketService.subscribe(
       [WebSocketMessageType.TODOS_CHANGED, WebSocketMessageType.RECURRING_CHANGED],
@@ -75,6 +78,24 @@ class TodoProvider extends ChangeNotifier {
 
     // Background pre-fetch for offline availability (-7 to +14 days)
     _prefetchWindow();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // App came back to foreground - refresh data since we may have missed WS messages
+      _onAppResumed();
+    }
+  }
+
+  /// Called when app returns to foreground. Re-fetches the prefetch window
+  /// to catch any updates that may have been missed while backgrounded.
+  Future<void> _onAppResumed() async {
+    await _checkOnlineStatus();
+    if (_isOnline) {
+      // Re-fetch the prefetch window to sync any missed updates
+      _prefetchWindow();
+    }
   }
 
   /// Pre-fetch data for the surrounding days to ensure offline availability
@@ -137,6 +158,7 @@ class TodoProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _wsUnsubscribe?.call();
     super.dispose();
   }

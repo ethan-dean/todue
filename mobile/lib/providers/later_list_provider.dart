@@ -1,12 +1,12 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import '../models/later_list.dart';
 import '../models/later_list_todo.dart';
 import '../services/later_list_api.dart';
 import '../services/database_service.dart';
 import '../services/websocket_service.dart';
 
-class LaterListProvider extends ChangeNotifier {
+class LaterListProvider extends ChangeNotifier with WidgetsBindingObserver {
   final LaterListApi _laterListApi;
   final WebSocketService _websocketService;
   final DatabaseService _databaseService;
@@ -30,7 +30,27 @@ class LaterListProvider extends ChangeNotifier {
   })  : _laterListApi = laterListApi,
         _websocketService = websocketService,
         _databaseService = databaseService {
+    WidgetsBinding.instance.addObserver(this);
     _initWebSocketListener();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _onAppResumed();
+    }
+  }
+
+  /// Called when app returns to foreground. Re-fetches data to catch
+  /// any updates that may have been missed while backgrounded.
+  Future<void> _onAppResumed() async {
+    await _checkOnlineStatus();
+    if (_isOnline) {
+      loadLists(silent: true);
+      if (_currentListId != null) {
+        loadTodosForList(_currentListId!, silent: true);
+      }
+    }
   }
 
   // Getters
@@ -579,6 +599,7 @@ class LaterListProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _wsUnsubscribe?.call();
     super.dispose();
   }
