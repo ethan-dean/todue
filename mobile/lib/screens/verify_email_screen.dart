@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
+import '../services/haptic_service.dart';
 
 class VerifyEmailScreen extends StatefulWidget {
   final String token;
@@ -59,7 +60,10 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Verify Email'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        shape: const Border(),
       ),
       body: SafeArea(
         child: Center(
@@ -186,6 +190,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
         // Manual navigation button
         ElevatedButton(
           onPressed: () {
+            HapticService.action();
             Navigator.of(context).pushReplacementNamed('/login');
           },
           style: ElevatedButton.styleFrom(
@@ -265,6 +270,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
         // Back to registration button
         ElevatedButton(
           onPressed: () {
+            HapticService.action();
             Navigator.of(context).pushReplacementNamed('/register');
           },
           style: ElevatedButton.styleFrom(

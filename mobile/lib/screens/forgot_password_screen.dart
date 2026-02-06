@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
+import '../services/haptic_service.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({Key? key}) : super(key: key);
@@ -68,7 +69,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Reset Password'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        shape: const Border(),
       ),
       body: SafeArea(
         child: Center(
@@ -136,7 +140,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           Consumer<AuthProvider>(
             builder: (context, authProvider, child) {
               return ElevatedButton(
-                onPressed: authProvider.isLoading ? null : _handleSubmit,
+                onPressed: authProvider.isLoading ? null : () {
+                  HapticService.action();
+                  _handleSubmit();
+                },
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   backgroundColor: Theme.of(context).colorScheme.primary,

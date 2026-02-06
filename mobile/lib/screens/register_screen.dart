@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
+import '../services/haptic_service.dart';
+import '../widgets/timezone_selector.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({Key? key}) : super(key: key);
@@ -18,28 +20,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
-  String? _selectedTimezone;
-
-  // Common timezones
-  final List<String> _timezones = [
-    'UTC',
-    'America/New_York',
-    'America/Chicago',
-    'America/Denver',
-    'America/Los_Angeles',
-    'Europe/London',
-    'Europe/Paris',
-    'Asia/Tokyo',
-    'Asia/Shanghai',
-    'Australia/Sydney',
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    // Default to UTC
-    _selectedTimezone = 'UTC';
-  }
+  String _selectedTimezone = 'UTC';
 
   @override
   void dispose() {
@@ -129,7 +110,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Create Account'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        shape: const Border(),
       ),
       body: SafeArea(
         child: Center(
@@ -149,9 +133,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Join Todue',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    'Todue',
+                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                           fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Sign up to continue',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: Colors.grey[600],
                         ),
                     textAlign: TextAlign.center,
                   ),
@@ -226,25 +219,41 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Timezone dropdown
-                  DropdownButtonFormField<String>(
-                    value: _selectedTimezone,
-                    decoration: const InputDecoration(
-                      labelText: 'Timezone',
-                      prefixIcon: Icon(Icons.access_time),
-                      border: OutlineInputBorder(),
-                    ),
-                    items: _timezones.map((String timezone) {
-                      return DropdownMenuItem<String>(
-                        value: timezone,
-                        child: Text(timezone),
+                  // Timezone selector
+                  GestureDetector(
+                    onTap: () {
+                      HapticService.action();
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => TimezoneSelector(
+                            currentTimezone: _selectedTimezone,
+                            onSelected: (tz) {
+                              setState(() {
+                                _selectedTimezone = tz;
+                              });
+                            },
+                          ),
+                        ),
                       );
-                    }).toList(),
-                    onChanged: (String? newValue) {
-                      setState(() {
-                        _selectedTimezone = newValue;
-                      });
                     },
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Timezone',
+                        prefixIcon: Icon(Icons.access_time),
+                        border: OutlineInputBorder(),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(_selectedTimezone.replaceAll('_', ' ')),
+                          Icon(
+                            Icons.chevron_right,
+                            size: 20,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 24),
 
@@ -252,7 +261,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   Consumer<AuthProvider>(
                     builder: (context, authProvider, child) {
                       return ElevatedButton(
-                        onPressed: authProvider.isLoading ? null : _handleRegister,
+                        onPressed: authProvider.isLoading ? null : () {
+                          HapticService.action();
+                          _handleRegister();
+                        },
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           backgroundColor: Theme.of(context).colorScheme.primary,
