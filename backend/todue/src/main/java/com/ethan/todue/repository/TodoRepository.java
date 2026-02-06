@@ -14,12 +14,12 @@ import java.util.Optional;
 public interface TodoRepository extends JpaRepository<Todo, Long> {
 
     @Query("SELECT t FROM Todo t WHERE t.user.id = :userId AND t.assignedDate = :assignedDate " +
-           "ORDER BY t.position ASC")
+           "ORDER BY t.isCompleted ASC, t.position ASC, t.id ASC")
     List<Todo> findByUserIdAndAssignedDate(@Param("userId") Long userId, @Param("assignedDate") LocalDate assignedDate);
 
     @Query("SELECT t FROM Todo t WHERE t.user.id = :userId " +
            "AND t.assignedDate BETWEEN :startDate AND :endDate " +
-           "ORDER BY t.assignedDate, t.position ASC")
+           "ORDER BY t.assignedDate ASC, t.isCompleted ASC, t.position ASC, t.id ASC")
     List<Todo> findByUserIdAndAssignedDateBetween(
         @Param("userId") Long userId,
         @Param("startDate") LocalDate startDate,

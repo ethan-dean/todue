@@ -199,7 +199,7 @@ public class TodoService {
             rolloverService.performRollover(user.getId(), currentDate);
         }
 
-        // Get real todos (already sorted by repository: isCompleted ASC, position ASC, id ASC)
+        // Get real todos (sorted by repository: isCompleted ASC, position ASC, id ASC)
         List<Todo> realTodos = todoRepository.findByUserIdAndAssignedDate(user.getId(), date);
         List<TodoResponse> responses = realTodos.stream()
                 .map(this::toTodoResponse)
@@ -485,9 +485,13 @@ public class TodoService {
         Long userId = todo.getUser().getId();
         LocalDate assignedDate = todo.getAssignedDate();
 
-        // Get all todos for this date, sorted by position
+        // Get all todos for this date (query sorts by isCompleted, position, id)
         List<Todo> allTodos = todoRepository.findByUserIdAndAssignedDate(userId, assignedDate);
-        allTodos.sort(Comparator.comparing(Todo::getPosition).thenComparing(Todo::getId));
+        // Additional sort to ensure isCompleted takes precedence
+        allTodos.sort(Comparator
+                .comparing(Todo::getIsCompleted)
+                .thenComparing(Todo::getPosition)
+                .thenComparing(Todo::getId));
 
         // Find current index
         int oldIndex = -1;
@@ -521,12 +525,12 @@ public class TodoService {
         int newIndex = firstCompletedIndex > oldIndex ? firstCompletedIndex - 1 : firstCompletedIndex;
         allTodos.add(newIndex, movedTodo);
 
-        // Renumber affected range
+        // Renumber all todos from the earlier affected position to the end
+        // This ensures no position collisions
         int startIdx = Math.min(oldIndex, newIndex);
-        int endIdx = Math.max(oldIndex, newIndex);
 
         List<Todo> affectedTodos = new ArrayList<>();
-        for (int i = startIdx; i <= endIdx; i++) {
+        for (int i = startIdx; i < allTodos.size(); i++) {
             allTodos.get(i).setPosition(i + 1);
             affectedTodos.add(allTodos.get(i));
         }
@@ -546,9 +550,13 @@ public class TodoService {
         Long userId = todo.getUser().getId();
         LocalDate assignedDate = todo.getAssignedDate();
 
-        // Get all todos for this date, sorted by position
+        // Get all todos for this date (query sorts by isCompleted, position, id)
         List<Todo> allTodos = todoRepository.findByUserIdAndAssignedDate(userId, assignedDate);
-        allTodos.sort(Comparator.comparing(Todo::getPosition).thenComparing(Todo::getId));
+        // Additional sort to ensure isCompleted takes precedence
+        allTodos.sort(Comparator
+                .comparing(Todo::getIsCompleted)
+                .thenComparing(Todo::getPosition)
+                .thenComparing(Todo::getId));
 
         // Find current index
         int oldIndex = -1;
@@ -582,12 +590,12 @@ public class TodoService {
         int newIndex = firstCompletedIndex > oldIndex ? firstCompletedIndex - 1 : firstCompletedIndex;
         allTodos.add(newIndex, movedTodo);
 
-        // Renumber affected range
+        // Renumber all todos from the earlier affected position to the end
+        // This ensures no position collisions
         int startIdx = Math.min(oldIndex, newIndex);
-        int endIdx = Math.max(oldIndex, newIndex);
 
         List<Todo> affectedTodos = new ArrayList<>();
-        for (int i = startIdx; i <= endIdx; i++) {
+        for (int i = startIdx; i < allTodos.size(); i++) {
             allTodos.get(i).setPosition(i + 1);
             affectedTodos.add(allTodos.get(i));
         }

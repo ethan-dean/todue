@@ -119,14 +119,36 @@ public class RolloverService {
         }
 
         // Step 4: Renumber existing normal todos for current date
+        // Separate incomplete and completed to maintain invariant
         List<Todo> normalTodos = todoRepository.findByUserIdAndAssignedDate(userId, currentDate);
+        List<Todo> incompleteNormalTodos = new ArrayList<>();
+        List<Todo> completedNormalTodos = new ArrayList<>();
+        
         for (Todo todo : normalTodos) {
-            // Only renumber if not already handled above
+            // Only process if not already handled above
             if (!todo.getIsRolledOver() && todo.getRecurringTodo() == null) {
-                todo.setPosition(position++);
+                if (todo.getIsCompleted()) {
+                    completedNormalTodos.add(todo);
+                } else {
+                    incompleteNormalTodos.add(todo);
+                }
             }
         }
-        todoRepository.saveAll(normalTodos);
+        
+        // Assign positions to incomplete normal todos first
+        for (Todo todo : incompleteNormalTodos) {
+            todo.setPosition(position++);
+        }
+        
+        // Assign positions to completed normal todos last
+        for (Todo todo : completedNormalTodos) {
+            todo.setPosition(position++);
+        }
+        
+        List<Todo> todosToSave = new ArrayList<>();
+        todosToSave.addAll(incompleteNormalTodos);
+        todosToSave.addAll(completedNormalTodos);
+        todoRepository.saveAll(todosToSave);
 
         // Update last rollover date
         user.setLastRolloverDate(Instant.now());
@@ -139,7 +161,8 @@ public class RolloverService {
 
     private void renumberPositions(LocalDate date, Long userId) {
         List<Todo> todos = todoRepository.findByUserIdAndAssignedDate(userId, date);
-        todos.sort(Comparator.comparing(Todo::getPosition).thenComparing(Todo::getId));
+        // Query now returns sorted by isCompleted ASC, position ASC, id ASC
+        // So we can renumber sequentially while maintaining incomplete before completed
         int pos = 1;
         for (Todo t : todos) {
             t.setPosition(pos++);
