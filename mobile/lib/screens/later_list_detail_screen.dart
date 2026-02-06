@@ -29,11 +29,11 @@ class _LaterListDetailScreenState extends State<LaterListDetailScreen> with Tick
     super.dispose();
   }
 
-  void _animateCompletion(LaterListTodo todo, bool newValue, LaterListProvider provider) {
+  void _animateCompletion(LaterListTodo todo, bool newValue, LaterListProvider provider) async {
     if (_animatingOutTodoIds.contains(todo.id)) return;
 
     final controller = AnimationController(
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 150),
       vsync: this,
     );
     _animationControllers[todo.id] = controller;
@@ -42,18 +42,25 @@ class _LaterListDetailScreenState extends State<LaterListDetailScreen> with Tick
       _animatingOutTodoIds.add(todo.id);
     });
 
-    controller.forward().then((_) {
-      if (!mounted) return;
-      _animationControllers.remove(todo.id)?.dispose();
+    await controller.forward();
+    if (!mounted) return;
+
+    // Call provider while id is still in animating set
+    if (newValue) {
+      provider.completeTodo(widget.list.id, todo.id);
+    } else {
+      provider.uncompleteTodo(widget.list.id, todo.id);
+    }
+
+    // Wait for rebuild to complete before cleaning up
+    await Future.delayed(const Duration(milliseconds: 50));
+
+    _animationControllers.remove(todo.id)?.dispose();
+    if (mounted) {
       setState(() {
         _animatingOutTodoIds.remove(todo.id);
       });
-      if (newValue) {
-        provider.completeTodo(widget.list.id, todo.id);
-      } else {
-        provider.uncompleteTodo(widget.list.id, todo.id);
-      }
-    });
+    }
   }
 
   Future<void> _showAddTodoDialog({int? position}) async {
@@ -362,12 +369,12 @@ class _LaterListDetailScreenState extends State<LaterListDetailScreen> with Tick
     if (isAnimatingOut && controller != null) {
       return SizeTransition(
         sizeFactor: Tween<double>(begin: 1.0, end: 0.0).animate(
-          CurvedAnimation(parent: controller, curve: Curves.easeInOut),
+          CurvedAnimation(parent: controller, curve: Curves.easeOut),
         ),
         axisAlignment: -1.0,
         child: FadeTransition(
           opacity: Tween<double>(begin: 1.0, end: 0.0).animate(
-            CurvedAnimation(parent: controller, curve: Curves.easeIn),
+            CurvedAnimation(parent: controller, curve: Curves.easeOut),
           ),
           child: todoWidget,
         ),

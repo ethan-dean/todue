@@ -55,12 +55,12 @@ class _TodoScreenState extends State<TodoScreen> with TickerProviderStateMixin {
     return '${todo.id ?? 'v'}_${todo.recurringTodoId ?? 'n'}_${todo.instanceDate}';
   }
 
-  void _animateCompletion(Todo todo, bool newValue, TodoProvider todoProvider) {
+  void _animateCompletion(Todo todo, bool newValue, TodoProvider todoProvider) async {
     final key = _todoKey(todo);
     if (_animatingOutTodoKeys.contains(key)) return;
 
     final controller = AnimationController(
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 150),
       vsync: this,
     );
     _animationControllers[key] = controller;
@@ -69,21 +69,28 @@ class _TodoScreenState extends State<TodoScreen> with TickerProviderStateMixin {
       _animatingOutTodoKeys.add(key);
     });
 
-    controller.forward().then((_) {
-      if (!mounted) return;
-      _animationControllers.remove(key)?.dispose();
+    await controller.forward();
+    if (!mounted) return;
+
+    // Call provider while key is still in animating set
+    todoProvider.completeTodo(
+      todo.id,
+      todo.assignedDate,
+      newValue,
+      isVirtual: todo.isVirtual,
+      recurringTodoId: todo.recurringTodoId,
+      instanceDate: todo.instanceDate,
+    );
+
+    // Wait for rebuild to complete before cleaning up
+    await Future.delayed(const Duration(milliseconds: 50));
+
+    _animationControllers.remove(key)?.dispose();
+    if (mounted) {
       setState(() {
         _animatingOutTodoKeys.remove(key);
       });
-      todoProvider.completeTodo(
-        todo.id,
-        todo.assignedDate,
-        newValue,
-        isVirtual: todo.isVirtual,
-        recurringTodoId: todo.recurringTodoId,
-        instanceDate: todo.instanceDate,
-      );
-    });
+    }
   }
 
   void _navigateToDate(DateTime date) {
@@ -728,12 +735,12 @@ class _TodoScreenState extends State<TodoScreen> with TickerProviderStateMixin {
     if (isAnimatingOut && controller != null) {
       return SizeTransition(
         sizeFactor: Tween<double>(begin: 1.0, end: 0.0).animate(
-          CurvedAnimation(parent: controller, curve: Curves.easeInOut),
+          CurvedAnimation(parent: controller, curve: Curves.easeOut),
         ),
         axisAlignment: -1.0,
         child: FadeTransition(
           opacity: Tween<double>(begin: 1.0, end: 0.0).animate(
-            CurvedAnimation(parent: controller, curve: Curves.easeIn),
+            CurvedAnimation(parent: controller, curve: Curves.easeOut),
           ),
           child: todoWidget,
         ),
