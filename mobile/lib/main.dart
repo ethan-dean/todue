@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/todo_provider.dart';
@@ -18,6 +19,10 @@ import 'services/websocket_service.dart';
 import 'config/environment.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+  ]);
   Environment.printEnvironment();
   runApp(const TodoApp());
 }
