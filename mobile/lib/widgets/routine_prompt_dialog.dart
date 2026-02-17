@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/routine.dart';
+import '../providers/routine_provider.dart';
 import '../providers/theme_provider.dart';
 import '../services/haptic_service.dart';
 
@@ -97,6 +99,9 @@ class _PromptItemCardState extends State<PromptItemCard> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final primary = theme.colorScheme.primary;
+    final routineProvider = context.watch<RoutineProvider>();
+    final hasActiveExecution =
+        routineProvider.getActiveExecution(widget.prompt.routineId) != null;
 
     return Card(
       margin: EdgeInsets.zero,
@@ -139,8 +144,11 @@ class _PromptItemCardState extends State<PromptItemCard> {
                       HapticService.action();
                       widget.onStart(widget.prompt.routineId);
                     },
-                    icon: const Icon(Icons.play_arrow, size: 18),
-                    label: const Text('Start'),
+                    icon: Icon(
+                      hasActiveExecution ? Icons.play_arrow : Icons.play_circle_outline,
+                      size: 18,
+                    ),
+                    label: Text(hasActiveExecution ? 'Continue' : 'Start'),
                     style: FilledButton.styleFrom(
                       foregroundColor: ThemeProvider.contrastOn(primary),
                       backgroundColor: primary,

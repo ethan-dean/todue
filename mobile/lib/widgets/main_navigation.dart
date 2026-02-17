@@ -22,7 +22,8 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   int _selectedIndex = 0;
-  bool _promptDialogShown = false;
+  bool _isPromptDialogOpen = false;
+  Set<int> _lastShownPromptRoutineIds = {};
 
   Future<void> _showPromptDialog(List<PendingRoutinePrompt> prompts) async {
     await showGeneralDialog(
@@ -45,6 +46,18 @@ class _MainNavigationState extends State<MainNavigation> {
         onStart: (routineId) async {
           Navigator.of(dialogContext).pop();
           final provider = context.read<RoutineProvider>();
+          // If there's already an active execution, navigate directly
+          final existing = provider.getActiveExecution(routineId);
+          if (existing != null) {
+            if (mounted) {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => RoutineExecutionScreen(routineId: routineId),
+                ),
+              );
+            }
+            return;
+          }
           final completion = await provider.startRoutine(routineId);
           if (completion != null && mounted) {
             Navigator.of(context).push(
@@ -111,13 +124,8 @@ class _MainNavigationState extends State<MainNavigation> {
         },
       ),
     );
-    // Only allow re-showing if prompts are now empty (fully handled)
-    if (mounted) {
-      final provider = context.read<RoutineProvider>();
-      if (provider.pendingPrompts.isEmpty) {
-        _promptDialogShown = false;
-      }
-    }
+    // Dialog has closed — always clear the open flag
+    _isPromptDialogOpen = false;
   }
 
   void _onItemTapped(int index) {
@@ -267,17 +275,27 @@ class _MainNavigationState extends State<MainNavigation> {
     return Consumer2<LaterListProvider, RoutineProvider>(
       builder: (context, laterListProvider, routineProvider, _) {
         // Check for pending prompts whenever the provider updates
-        if (routineProvider.pendingPrompts.isNotEmpty && !_promptDialogShown) {
-          _promptDialogShown = true;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted && routineProvider.pendingPrompts.isNotEmpty) {
-              _showPromptDialog(routineProvider.pendingPrompts);
-            } else {
-              _promptDialogShown = false;
-            }
-          });
-        } else if (routineProvider.pendingPrompts.isEmpty) {
-          _promptDialogShown = false;
+        final currentPromptIds = routineProvider.pendingPrompts
+            .map((p) => p.routineId)
+            .toSet();
+        if (currentPromptIds.isEmpty) {
+          // All prompts handled — allow future prompts to show
+          _lastShownPromptRoutineIds = {};
+        } else {
+          final hasNewPrompts = currentPromptIds
+              .difference(_lastShownPromptRoutineIds)
+              .isNotEmpty;
+          if (hasNewPrompts && !_isPromptDialogOpen) {
+            _isPromptDialogOpen = true;
+            _lastShownPromptRoutineIds = Set<int>.from(currentPromptIds);
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted && routineProvider.pendingPrompts.isNotEmpty) {
+                _showPromptDialog(routineProvider.pendingPrompts);
+              } else {
+                _isPromptDialogOpen = false;
+              }
+            });
+          }
         }
         String title;
         if (_selectedIndex == 0) {

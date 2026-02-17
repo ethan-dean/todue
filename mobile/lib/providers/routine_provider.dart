@@ -426,6 +426,13 @@ class RoutineProvider extends ChangeNotifier with WidgetsBindingObserver {
       if (fetchStartTime.isBefore(_lastMutationTime)) return;
       _pendingPrompts = prompts;
       notifyListeners();
+      // Eagerly load active executions for prompted routines so the UI
+      // can show "Continue" instead of "Start" without a delay.
+      for (final prompt in prompts) {
+        if (!_activeExecutions.containsKey(prompt.routineId)) {
+          loadActiveExecution(prompt.routineId);
+        }
+      }
     } catch (e) {
       debugPrint('Failed to load pending prompts: $e');
     }
