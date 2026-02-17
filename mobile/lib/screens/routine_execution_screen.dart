@@ -177,7 +177,13 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen>
 
         return Scaffold(
           appBar: AppBar(
-            title: Text(detail.name),
+            title: Text(
+              detail.name.toUpperCase(),
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.2,
+              ),
+            ),
             actions: [
               IconButton(
                 icon: const Icon(Icons.flag, color: Colors.red),
