@@ -83,24 +83,36 @@ public class TodoService {
                     todoRepository.incrementPositions(user.getId(), assignedDate, position);
                 }
 
-                // Auto-materialize for current day
-                Todo firstInstance = new Todo();
-                firstInstance.setUser(user);
-                firstInstance.setText(recurrenceInfo.getStrippedText());
-                firstInstance.setAssignedDate(assignedDate);
-                firstInstance.setInstanceDate(assignedDate);
-                
-                if (position != null) {
-                    firstInstance.setPosition(position);
-                } else {
-                    firstInstance.setPosition(getNextPosition(user.getId(), assignedDate));
-                }
-                
-                firstInstance.setRecurringTodo(recurringTodo);
-                firstInstance.setIsCompleted(false);
-                firstInstance.setIsRolledOver(false);
+                // Auto-materialize for current day (skip if materializeAllVirtuals already created it)
+                Optional<Todo> alreadyMaterialized = todoRepository.findFirstByRecurringTodoIdAndInstanceDate(
+                        recurringTodo.getId(), assignedDate);
 
-                firstInstance = todoRepository.save(firstInstance);
+                Todo firstInstance;
+                if (alreadyMaterialized.isPresent()) {
+                    firstInstance = alreadyMaterialized.get();
+                    if (position != null) {
+                        firstInstance.setPosition(position);
+                        firstInstance = todoRepository.save(firstInstance);
+                    }
+                } else {
+                    firstInstance = new Todo();
+                    firstInstance.setUser(user);
+                    firstInstance.setText(recurrenceInfo.getStrippedText());
+                    firstInstance.setAssignedDate(assignedDate);
+                    firstInstance.setInstanceDate(assignedDate);
+
+                    if (position != null) {
+                        firstInstance.setPosition(position);
+                    } else {
+                        firstInstance.setPosition(getNextPosition(user.getId(), assignedDate));
+                    }
+
+                    firstInstance.setRecurringTodo(recurringTodo);
+                    firstInstance.setIsCompleted(false);
+                    firstInstance.setIsRolledOver(false);
+
+                    firstInstance = todoRepository.save(firstInstance);
+                }
                 TodoResponse response = toTodoResponse(firstInstance);
 
                 // Send both notifications
@@ -379,6 +391,31 @@ public class TodoService {
 
             // Remove the link
             todo.setRecurringTodo(null);
+        }
+
+        // Check if the new text contains a recurrence pattern
+        RecurrenceParser.RecurrenceInfo recurrenceInfo = RecurrenceParser.parseText(newText);
+
+        if (recurrenceInfo != null) {
+            // Convert to recurring: create a new RecurringTodo pattern
+            RecurringTodo recurringTodo = new RecurringTodo();
+            recurringTodo.setUser(todo.getUser());
+            recurringTodo.setText(recurrenceInfo.getStrippedText());
+            recurringTodo.setRecurrenceType(recurrenceInfo.getType());
+            recurringTodo.setStartDate(todo.getAssignedDate());
+            recurringTodo = recurringTodoRepository.save(recurringTodo);
+
+            // Update this todo to be the first materialized instance
+            todo.setText(recurrenceInfo.getStrippedText());
+            todo.setRecurringTodo(recurringTodo);
+            todo = todoRepository.save(todo);
+            TodoResponse response = toTodoResponse(todo);
+
+            // Recurring pattern affects all future dates
+            webSocketService.notifyRecurringChanged(userId);
+            webSocketService.notifyTodosChanged(userId, todo.getAssignedDate());
+
+            return response;
         }
 
         todo.setText(newText);
