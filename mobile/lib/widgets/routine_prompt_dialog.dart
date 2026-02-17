@@ -345,67 +345,138 @@ class _PartialCompleteDialogState extends State<PartialCompleteDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text('${widget.routineName} - Mark Steps'),
-      content: SizedBox(
-        width: double.maxFinite,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Uncheck any steps you didn\'t complete:',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 12),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey,
+              borderRadius: BorderRadius.circular(2),
             ),
-            const SizedBox(height: 12),
-            Flexible(
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: widget.steps.length,
-                itemBuilder: (context, index) {
-                  final step = widget.steps[index];
-                  return CheckboxListTile(
-                    value: _checkedIds.contains(step.id),
-                    onChanged: _isProcessing
-                        ? null
-                        : (value) {
-                            setState(() {
-                              if (value == true) {
-                                _checkedIds.add(step.id);
-                              } else {
-                                _checkedIds.remove(step.id);
-                              }
-                            });
-                          },
-                    title: Text(step.text),
-                    controlAffinity: ListTileControlAffinity.leading,
-                    dense: true,
-                  );
-                },
+          ),
+          const SizedBox(height: 24),
+          Text(
+            '${widget.routineName} - Mark Steps',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Uncheck any steps you didn\'t complete:',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+          ),
+          const SizedBox(height: 12),
+          Flexible(
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: widget.steps.length,
+              itemBuilder: (context, index) {
+                final step = widget.steps[index];
+                final isChecked = _checkedIds.contains(step.id);
+                final primary = Theme.of(context).colorScheme.primary;
+                return GestureDetector(
+                  onTap: _isProcessing
+                      ? null
+                      : () {
+                          HapticService.toggle();
+                          setState(() {
+                            if (isChecked) {
+                              _checkedIds.remove(step.id);
+                            } else {
+                              _checkedIds.add(step.id);
+                            }
+                          });
+                        },
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            color: isChecked ? primary : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: isChecked ? primary : Theme.of(context).colorScheme.outline,
+                              width: 2,
+                            ),
+                          ),
+                          child: isChecked
+                              ? Icon(Icons.check, size: 18, color: ThemeProvider.contrastOn(primary))
+                              : null,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            step.text,
+                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                  color: isChecked
+                                      ? Theme.of(context).textTheme.bodyLarge?.color
+                                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                                ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton.icon(
+              onPressed: _isProcessing
+                  ? null
+                  : () async {
+                      setState(() => _isProcessing = true);
+                      await widget.onSubmit(_checkedIds);
+                      if (mounted) setState(() => _isProcessing = false);
+                    },
+              icon: const Icon(Icons.check, size: 18),
+              label: const Text('Mark Done'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: ThemeProvider.contrastOn(Theme.of(context).colorScheme.primary),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                textStyle: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: _isProcessing ? null : widget.onCancel,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isDark ? const Color(0xFF3A3A3C) : Colors.grey[200],
+                foregroundColor: isDark ? Colors.white : Colors.black87,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: const Text('Cancel'),
+            ),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: _isProcessing ? null : widget.onCancel,
-          child: const Text('Cancel'),
-        ),
-        FilledButton.icon(
-          onPressed: _isProcessing
-              ? null
-              : () async {
-                  setState(() => _isProcessing = true);
-                  await widget.onSubmit(_checkedIds);
-                  if (mounted) setState(() => _isProcessing = false);
-                },
-          icon: const Icon(Icons.check, size: 18),
-          label: const Text('Mark Done'),
-        ),
-      ],
     );
   }
 }

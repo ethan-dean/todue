@@ -62,13 +62,41 @@ class _MainNavigationState extends State<MainNavigation> {
           }
         },
         onPartiallyDone: (routineId) async {
-          Navigator.of(dialogContext).pop();
-          final submitted = await _showPartialCompleteDialog(routineId);
-          if (!submitted && mounted) {
-            final p = context.read<RoutineProvider>();
-            if (p.pendingPrompts.isNotEmpty) {
-              _showPromptDialog(p.pendingPrompts);
-            }
+          final provider = context.read<RoutineProvider>();
+          if (provider.getRoutineDetail(routineId) == null) {
+            await provider.loadRoutineDetail(routineId);
+          }
+          final detail = provider.getRoutineDetail(routineId);
+          if (detail == null) return;
+          final steps = List<RoutineStep>.from(detail.steps)
+            ..sort((a, b) => a.position.compareTo(b.position));
+          final checkedStepIds = Set<int>.from(steps.map((s) => s.id));
+          if (!dialogContext.mounted) return;
+          bool submitted = false;
+          await showModalBottomSheet<void>(
+            context: dialogContext,
+            isScrollControlled: true,
+            useSafeArea: true,
+            backgroundColor: Theme.of(dialogContext).scaffoldBackgroundColor,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            builder: (sheetContext) => PartialCompleteDialog(
+              routineName: detail.name,
+              steps: steps,
+              initialCheckedIds: checkedStepIds,
+              onSubmit: (completedIds) async {
+                Navigator.of(sheetContext).pop();
+                submitted = true;
+                await provider.quickCompleteRoutine(routineId, completedStepIds: completedIds.toList());
+              },
+              onCancel: () {
+                Navigator.of(sheetContext).pop();
+              },
+            ),
+          );
+          if (submitted && dialogContext.mounted) {
+            Navigator.of(dialogContext).pop();
           }
         },
         onDismiss: (routineId) async {
@@ -90,40 +118,6 @@ class _MainNavigationState extends State<MainNavigation> {
         _promptDialogShown = false;
       }
     }
-  }
-
-  Future<bool> _showPartialCompleteDialog(int routineId) async {
-    final provider = context.read<RoutineProvider>();
-
-    // Load detail if not cached
-    if (provider.getRoutineDetail(routineId) == null) {
-      await provider.loadRoutineDetail(routineId);
-    }
-
-    final detail = provider.getRoutineDetail(routineId);
-    if (detail == null || !mounted) return false;
-
-    final steps = List<RoutineStep>.from(detail.steps)
-      ..sort((a, b) => a.position.compareTo(b.position));
-    final checkedStepIds = Set<int>.from(steps.map((s) => s.id));
-
-    final result = await showDialog<bool>(
-      context: context,
-      barrierDismissible: true,
-      builder: (dialogContext) => PartialCompleteDialog(
-        routineName: detail.name,
-        steps: steps,
-        initialCheckedIds: checkedStepIds,
-        onSubmit: (completedIds) async {
-          Navigator.of(dialogContext).pop(true);
-          await provider.quickCompleteRoutine(routineId, completedStepIds: completedIds.toList());
-        },
-        onCancel: () {
-          Navigator.of(dialogContext).pop(false);
-        },
-      ),
-    );
-    return result == true;
   }
 
   void _onItemTapped(int index) {
