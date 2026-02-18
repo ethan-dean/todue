@@ -31,7 +31,7 @@ const SettingsPage: React.FC = () => {
   };
 
   const handleBack = () => {
-    navigate('/');
+    navigate('/app');
   };
 
   const handleExport = async () => {

@@ -354,7 +354,7 @@ const RoutinesPage: React.FC = () => {
           </div>
           <div className="header-right">
             <div className="header-tabs">
-              <button className="header-tab" onClick={() => navigate('/')}>
+              <button className="header-tab" onClick={() => navigate('/app')}>
                 Now
               </button>
               <button className="header-tab" onClick={() => navigate('/later')}>

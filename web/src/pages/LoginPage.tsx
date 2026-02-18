@@ -41,7 +41,7 @@ const LoginPage: React.FC = () => {
 
     try {
       await login(email, password);
-      navigate('/');
+      navigate('/app');
     } catch (err) {
       // Error is handled by AuthContext
       console.error('Login failed:', err);

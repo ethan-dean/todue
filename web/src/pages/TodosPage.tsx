@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User } from 'lucide-react';
+import { User, Repeat } from 'lucide-react';
 import {
   DndContext,
   closestCorners,
@@ -242,7 +242,7 @@ const TodosPage: React.FC = () => {
               </div>
               <div className="todo-text">
                 {activeTodo.text}
-                {activeTodo.recurringTodoId && <span className="recurring-indicator">🔄</span>}
+                {activeTodo.recurringTodoId && <span className="recurring-indicator"><Repeat size={14} /></span>}
               </div>
               <div className="todo-actions"></div>
             </div>

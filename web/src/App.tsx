@@ -12,6 +12,7 @@ import RegisterPage from './pages/RegisterPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import EmailVerificationPage from './pages/EmailVerificationPage';
+import LandingPage from './pages/LandingPage';
 import TodosPage from './pages/TodosPage';
 import SettingsPage from './pages/SettingsPage';
 import LaterListsPage from './pages/LaterListsPage';
@@ -67,6 +68,7 @@ function App() {
               <GlobalRoutinePrompt />
               <Routes>
                 {/* Public routes */}
+                <Route path="/" element={<LandingPage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
                 <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -75,7 +77,7 @@ function App() {
 
                 {/* Protected routes */}
                 <Route
-                  path="/"
+                  path="/app"
                   element={
                     <ProtectedRoute>
                       <TodosPage />

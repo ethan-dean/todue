@@ -111,7 +111,7 @@ const LaterListsPage: React.FC = () => {
             <div className="header-tabs">
               <button
                 className="header-tab"
-                onClick={() => navigate('/')}
+                onClick={() => navigate('/app')}
               >
                 Now
               </button>
