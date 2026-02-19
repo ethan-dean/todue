@@ -1,6 +1,6 @@
 # Todue
 
-A simple, low-friction todo list application with recurring tasks, multi-device sync, and offline support.
+A simple, low-friction todo list application with recurring tasks, multi-device sync, and cross-platform support.
 
 ## Overview
 
@@ -9,7 +9,6 @@ Todue is a multi-platform todo application designed for quick, low-friction task
 - **Text-based recurring patterns** - No dropdowns, just type "every day", "every week", "every month", etc.
 - **Smart rollover** - Incomplete tasks automatically roll to today
 - **Real-time sync** - Changes sync instantly across all your devices via WebSocket
-- **Offline support** - Mobile apps work offline and sync when reconnected
 - **Multi-day view** - See your tasks across multiple days at once
 - **Drag-and-drop ordering** - Customize your task order
 
