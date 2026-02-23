@@ -19,12 +19,14 @@ ExecStart=/usr/bin/java \
   -XX:+UseSerialGC \
   -Xss256k \
   -XX:MaxRAM=370m \
+  -XX:MinHeapFreeRatio=10 \
+  -XX:MaxHeapFreeRatio=20 \
   -Dspring.profiles.active=prod \
   -jar /root/deployments/td/todue-0.1.0.jar
 
 # Restart configuration
 SuccessExitStatus=143
-Restart=on-failure
+Restart=always
 RestartSec=10
 
 # Resource limits
