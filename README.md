@@ -1,16 +1,19 @@
 # Todue
 
-A simple, low-friction todo list application with recurring tasks, multi-device sync, and cross-platform support.
+A simple, low-friction todo list application with recurring tasks, later lists, routines, multi-device sync, and cross-platform support.
 
 ## Overview
 
-Todue is a multi-platform todo application designed for quick, low-friction task management. It features:
+Todue is an open-source, self-hostable multi-platform todo application designed for quick, low-friction task management. Own your data, host it yourself.
 
-- **Text-based recurring patterns** - No dropdowns, just type "every day", "every week", "every month", etc.
-- **Smart rollover** - Incomplete tasks automatically roll to today
-- **Real-time sync** - Changes sync instantly across all your devices via WebSocket
-- **Multi-day view** - See your tasks across multiple days at once
-- **Drag-and-drop ordering** - Customize your task order
+- **Day-to-Day Todos** - Organize your tasks by date and stay on top of what matters today
+- **Later Lists** - Save ideas and tasks for later in organized, custom lists
+- **Step-by-Step Routines** - Build repeatable routines and follow them with guided execution
+- **Recurring Tasks** - Set tasks to repeat daily, weekly, monthly, or on your own schedule
+- **Auto Rollover** - Unfinished todos automatically move to today so nothing slips through
+- **Routine Insights** - Track streaks, completion times, and build better habits over time
+- **Real-time Sync** - Changes sync instantly across all your devices via WebSocket
+- **Web, iOS & Android** - Use Todue anywhere — your tasks are always with you
 
 ## Tech Stack
 
@@ -26,7 +29,7 @@ Todue is a multi-platform todo application designed for quick, low-friction task
 - Real-time WebSocket integration
 
 ### Mobile Apps
-- Flutter (iOS & Android)
+- Flutter (iOS & Android), SDK 3.9.2+
 - Offline-first architecture with local SQLite database
 
 ## Project Structure
@@ -37,9 +40,41 @@ todue/
 ├── web/               # React web application
 ├── mobile/            # Flutter mobile apps
 ├── requirements.md    # Complete technical specification
-├── todo.md            # Implementation plan with tasks
-└── CLAUDE.md          # Developer guidance for Claude Code
+├── todo-human.md      # Remaining manual tasks (testing, deployment)
+├── CLAUDE.md          # Developer guidance for Claude Code
+└── README.md
 ```
+
+## Key Features
+
+### Recurring Todos
+Create recurring tasks by adding patterns to your task text:
+- "Pay rent every month"
+- "Exercise every day"
+- "Team meeting every week"
+- "Dentist appointment every year"
+- "Grocery shopping every other week"
+
+The system automatically generates task instances based on the pattern.
+
+### Later Lists
+Capture ideas and tasks that aren't tied to a specific date. Organize them into named lists and check them off when ready.
+
+### Routines
+Build step-by-step routines for repeated workflows. Execute them with guided tracking, and view analytics on streaks and completion times.
+
+### Rollover Logic
+Incomplete tasks from previous days automatically appear at the top of today's list. The system:
+- Materializes up to 1 past recurring instance (oldest first)
+- Rolls forward existing incomplete tasks
+- Preserves the original date while displaying them on today
+
+### Virtual vs Materialized Todos
+- **Virtual todos**: Generated on-the-fly for future recurring instances
+- **Materialized todos**: Become real database entries when interacted with
+
+### Real-time Synchronization
+All changes sync instantly across devices using WebSocket connections. No polling, no delays.
 
 ## Prerequisites
 
@@ -47,7 +82,6 @@ todue/
 - Java JDK 21 or higher
 - Maven 3.6+
 - MySQL 8.0+
-- Access to `td-db` MySQL database
 
 ### Web Development
 - Node.js 18+ and npm
@@ -163,74 +197,6 @@ flutter build ios          # iOS
 # Analyze code
 flutter analyze
 ```
-
-## Key Features
-
-### Recurring Todos
-Create recurring tasks by adding patterns to your task text:
-- "Pay rent every month"
-- "Exercise every day"
-- "Team meeting every week"
-- "Dentist appointment every year"
-- "Grocery shopping every other week"
-
-The system automatically generates task instances based on the pattern.
-
-### Rollover Logic
-Incomplete tasks from previous days automatically appear at the top of today's list. The system:
-- Materializes up to 1 past recurring instance (oldest first)
-- Rolls forward existing incomplete tasks
-- Preserves the original date while displaying them on today
-
-### Virtual vs Materialized Todos
-- **Virtual todos**: Generated on-the-fly for future recurring instances
-- **Materialized todos**: Become real database entries when interacted with
-
-### Real-time Synchronization
-All changes sync instantly across devices using WebSocket connections. No polling, no delays.
-
-## Database Schema
-
-The application uses 5 main tables:
-- `users` - User accounts with timezone support
-- `todos` - Task instances (both regular and from recurring patterns)
-- `recurring_todos` - Recurring pattern definitions
-- `skip_recurring` - Skipped instances of recurring tasks
-- `password_reset_tokens` - Password reset functionality
-
-For detailed schema information, see `requirements.md` (lines 193-267).
-
-## API Documentation
-
-### Authentication Endpoints
-- `POST /api/auth/register` - Create new user account
-- `POST /api/auth/login` - Authenticate user
-- `POST /api/auth/reset-password-request` - Request password reset
-- `POST /api/auth/reset-password` - Complete password reset
-
-### Todo Endpoints
-- `GET /api/todos?date=YYYY-MM-DD` - Get todos for a specific date
-- `GET /api/todos?start_date=...&end_date=...` - Get todos for date range
-- `POST /api/todos` - Create new todo
-- `PUT /api/todos/{id}/text` - Update todo text
-- `PUT /api/todos/{id}/position` - Update todo order
-- `POST /api/todos/{id}/complete` - Mark todo complete
-- `DELETE /api/todos/{id}` - Delete todo
-
-### WebSocket
-- `/ws` - Real-time update channel (requires JWT authentication)
-
-## Development Status
-
-**Current Phase**: Phase 1 - Foundation & Setup (~40% complete)
-
-This project is in early development. Core scaffolding is in place, but most features are not yet implemented. See `todo.md` for the complete 23-phase implementation plan.
-
-## Documentation
-
-- `requirements.md` - Complete technical specification (504 lines)
-- `todo.md` - Detailed implementation plan (1,719 lines with 600+ tasks)
-- `CLAUDE.md` - Architecture guide for Claude Code development
 
 ## Contributing
 
