@@ -15,6 +15,20 @@ Todue is an open-source, self-hostable multi-platform todo application designed 
 - **Real-time Sync** - Changes sync instantly across all your devices via WebSocket
 - **Web, iOS & Android** - Use Todue anywhere — your tasks are always with you
 
+### Web
+
+![Todue web app — todo list view](web/public/screenshots/web-now-dark.png)
+
+### Mobile
+
+<p align="center">
+  <img src="web/public/screenshots/mobile-now-light.png" width="30%" alt="Mobile — Now view" />
+  &nbsp;&nbsp;
+  <img src="web/public/screenshots/mobile-later-light.png" width="30%" alt="Mobile — Later lists" />
+  &nbsp;&nbsp;
+  <img src="web/public/screenshots/mobile-routine-light.png" width="30%" alt="Mobile — Routines" />
+</p>
+
 ## Tech Stack
 
 ### Backend
