@@ -39,8 +39,10 @@ todue/
 ├── backend/todue/     # Spring Boot backend API
 ├── web/               # React web application
 ├── mobile/            # Flutter mobile apps
+├── .gitignore         # Hide secrets
+├── deploy.sh          # Deploys backend+frontend to VPS
+├── todue.service      # Systemd config for VPS Process
 ├── requirements.md    # Complete technical specification
-├── todo-human.md      # Remaining manual tasks (testing, deployment)
 ├── CLAUDE.md          # Developer guidance for Claude Code
 └── README.md
 ```
