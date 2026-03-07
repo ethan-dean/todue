@@ -4,8 +4,8 @@
 set -e
 
 # --- CONFIGURATION ---
-VPS_USER="root"
-VPS_HOST="todue.ethandean.dev"
+VPS_USER="ubuntu"
+VPS_HOST="129.213.58.208"
 VPS_DEST_DIR="~/deployments/td"        # Directory on VPS where the jar lives
 JAR_NAME="todue-0.1.0.jar"             # Name of the jar on the server (referenced by pm2)
 SERVICE_NAME="todue"                   # Systemd service name
@@ -22,7 +22,7 @@ npm run build
 cd ..
 
 # 2. Copy Frontend to Backend
-echo "dV Checking Backend Static Resources..."
+echo "📂 Checking Backend Static Resources..."
 STATIC_DIR="backend/todue/src/main/resources/static"
 
 # Ensure directory exists
@@ -33,7 +33,7 @@ echo "🧹 Cleaning old static files..."
 rm -rf "$STATIC_DIR"/*
 
 # Copy new build artifacts (Vite builds to dist/)
-echo "mb Copying new frontend build to Spring Boot..."
+echo "📋 Copying new frontend build to Spring Boot..."
 cp -r web/dist/* "$STATIC_DIR/"
 
 # 3. Build Backend
@@ -50,13 +50,14 @@ echo "✅ Backend built: $BUILT_JAR"
 cd ../..
 
 # 4. Transfer to VPS
-echo "bw Uploading JAR and Service File to VPS ($VPS_HOST)..."
+echo "📤 Uploading JAR and Service File to VPS ($VPS_HOST)..."
 scp "backend/todue/$BUILT_JAR" "$VPS_USER@$VPS_HOST:$VPS_DEST_DIR/$JAR_NAME"
-scp "todue.service" "$VPS_USER@$VPS_HOST:/etc/systemd/system/todue.service"
+scp "todue.service" "$VPS_USER@$VPS_HOST:$VPS_DEST_DIR/todue.service"
+ssh "$VPS_USER@$VPS_HOST" "sudo mv $VPS_DEST_DIR/todue.service /etc/systemd/system/todue.service && sudo mkdir -p /var/log/todue && sudo chown $VPS_USER:$VPS_USER /var/log/todue"
 
 # 5. Restart Service
-echo "qc Reloading Daemon, Enabling and Restarting Service..."
-ssh "$VPS_USER@$VPS_HOST" "systemctl daemon-reload && systemctl enable $SERVICE_NAME && systemctl restart $SERVICE_NAME"
+echo "🔄 Reloading Daemon, Enabling and Restarting Service..."
+ssh "$VPS_USER@$VPS_HOST" "sudo systemctl daemon-reload && sudo systemctl enable $SERVICE_NAME && sudo systemctl restart $SERVICE_NAME"
 
 echo "=========================================="
 echo "✨ Deployment Complete!"
