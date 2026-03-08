@@ -24,44 +24,53 @@ void main() {
     DeviceOrientation.portraitUp,
   ]);
   Environment.printEnvironment();
-  runApp(const TodoApp());
+
+  // Instantiate providers before the widget tree so we can wire callbacks
+  // between them directly — no BuildContext needed.
+  final themeProvider = ThemeProvider();
+  final todoProvider = TodoProvider(
+    todoApi: TodoApi.instance,
+    databaseService: DatabaseService.instance,
+    websocketService: WebSocketService.instance,
+  );
+  final authProvider = AuthProvider();
+
+  authProvider.onLogin = (user) async {
+    await themeProvider.setAccentColorFromHex(user.accentColor);
+    await todoProvider.initializeForUser();
+  };
+
+  authProvider.onLogout = () async {
+    await themeProvider.resetToDefaults();
+    todoProvider.resetForLogout();
+  };
+
+  runApp(TodoApp(
+    themeProvider: themeProvider,
+    todoProvider: todoProvider,
+    authProvider: authProvider,
+  ));
 }
 
 class TodoApp extends StatelessWidget {
-  const TodoApp({Key? key}) : super(key: key);
+  final ThemeProvider themeProvider;
+  final TodoProvider todoProvider;
+  final AuthProvider authProvider;
+
+  const TodoApp({
+    Key? key,
+    required this.themeProvider,
+    required this.todoProvider,
+    required this.authProvider,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => ThemeProvider()),
-        ChangeNotifierProvider(create: (ctx) {
-          final authProvider = AuthProvider();
-          // Wire up callbacks after the widget tree is built so we can read
-          // sibling providers via context.
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            final themeProvider = ctx.read<ThemeProvider>();
-            final todoProvider = ctx.read<TodoProvider>();
-
-            authProvider.onLogin = (user) async {
-              await themeProvider.setAccentColorFromHex(user.accentColor);
-              await todoProvider.initializeForUser();
-            };
-
-            authProvider.onLogout = () async {
-              await themeProvider.resetToDefaults();
-              todoProvider.resetForLogout();
-            };
-          });
-          return authProvider;
-        }),
-        ChangeNotifierProvider(
-          create: (_) => TodoProvider(
-            todoApi: TodoApi.instance,
-            databaseService: DatabaseService.instance,
-            websocketService: WebSocketService.instance,
-          ),
-        ),
+        ChangeNotifierProvider.value(value: themeProvider),
+        ChangeNotifierProvider.value(value: authProvider),
+        ChangeNotifierProvider.value(value: todoProvider),
         ChangeNotifierProvider(
           create: (_) => LaterListProvider(
             laterListApi: LaterListApi.instance,
