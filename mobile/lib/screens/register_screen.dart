@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
@@ -21,6 +22,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   String _selectedTimezone = 'UTC';
+
+  @override
+  void initState() {
+    super.initState();
+    FlutterTimezone.getLocalTimezone().then((tz) {
+      if (mounted) setState(() => _selectedTimezone = tz);
+    }).catchError((_) {});
+  }
 
   @override
   void dispose() {

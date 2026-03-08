@@ -156,6 +156,26 @@ class TodoProvider extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
+  /// Clear all in-memory todo state on logout. The DB is cleared separately
+  /// by AuthProvider, but the in-memory map must also be wiped so stale data
+  /// from the previous account is never visible to the next user.
+  void resetForLogout() {
+    _todos = {};
+    _loadedDates = {};
+    _selectedDate = DateTime.now();
+    _error = null;
+    _pendingMutationCount = 0;
+    notifyListeners();
+  }
+
+  /// Called after a successful login. Kicks off the prefetch window so the
+  /// new user's todos populate the local DB and in-memory state.
+  Future<void> initializeForUser() async {
+    await _checkOnlineStatus();
+    await loadTodos(force: true);
+    _prefetchWindow();
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);

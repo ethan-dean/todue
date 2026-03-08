@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import '../services/user_api.dart';
 
 const List<String> _popularTimezones = [
@@ -38,11 +39,20 @@ class _TimezoneSelectorState extends State<TimezoneSelector> {
   bool _isLoading = true;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+  String? _deviceTimezone;
 
   @override
   void initState() {
     super.initState();
     _loadTimezones();
+    _loadDeviceTimezone();
+  }
+
+  Future<void> _loadDeviceTimezone() async {
+    try {
+      final tz = await FlutterTimezone.getLocalTimezone();
+      if (mounted) setState(() => _deviceTimezone = tz);
+    } catch (_) {}
   }
 
   @override
@@ -94,7 +104,10 @@ class _TimezoneSelectorState extends State<TimezoneSelector> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Select Timezone'),
+        title: const Text(
+          'TIMEZONE',
+          style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.5),
+        ),
       ),
       body: Column(
         children: [
@@ -130,36 +143,38 @@ class _TimezoneSelectorState extends State<TimezoneSelector> {
   }
 
   Widget _buildPopularList() {
+    final deviceTz = _deviceTimezone;
+    final showDevice = deviceTz != null &&
+        deviceTz != widget.currentTimezone &&
+        _allTimezones.contains(deviceTz);
     return ListView(
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Text(
-            'Popular',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.primary,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ),
+        if (showDevice) ...[
+          _buildSectionHeader('Your Device'),
+          _buildTimezoneItem(deviceTz),
+          const SizedBox(height: 8),
+        ],
+        _buildSectionHeader('Popular'),
         ..._popularTimezones.map((tz) => _buildTimezoneItem(tz)),
         const SizedBox(height: 8),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Text(
-            'All Timezones',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.primary,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ),
+        _buildSectionHeader('All Timezones'),
         ..._allTimezones.map((tz) => _buildTimezoneItem(tz)),
       ],
+    );
+  }
+
+  Widget _buildSectionHeader(String label) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: Theme.of(context).colorScheme.primary,
+          letterSpacing: 0.5,
+        ),
+      ),
     );
   }
 

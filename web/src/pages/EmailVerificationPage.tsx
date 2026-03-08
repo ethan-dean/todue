@@ -2,11 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { authApi } from '../services/authApi';
 
+const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
 const EmailVerificationPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [status, setStatus] = useState<'verifying' | 'success' | 'error'>('verifying');
   const [message, setMessage] = useState('');
+  const [onMobile, setOnMobile] = useState(false);
   const hasVerifiedRef = useRef(false);
 
   useEffect(() => {
@@ -30,13 +33,21 @@ const EmailVerificationPage: React.FC = () => {
         setStatus('success');
         setMessage(response.message);
 
-        // Redirect to login after 3 seconds
-        setTimeout(() => {
-          navigate('/login');
-        }, 3000);
+        if (isMobile) {
+          // Fire the deep link to bring the user into the app (lands on sign-in).
+          // Also show the fallback web login button immediately in case the app
+          // isn't installed — iOS shows an error alert for unresolved schemes so
+          // we let the user have the button ready regardless.
+          setOnMobile(true);
+          window.location.href = 'todue://';
+        } else {
+          // Redirect to login after 3 seconds on desktop
+          setTimeout(() => {
+            navigate('/login');
+          }, 3000);
+        }
       } catch (err: any) {
         setStatus('error');
-        // Extract error message from backend response
         const errorMessage = err?.response?.data?.message || err?.message || 'Email verification failed. The link may have expired or is invalid.';
         setMessage(errorMessage);
       }
@@ -59,13 +70,23 @@ const EmailVerificationPage: React.FC = () => {
         {status === 'success' && (
           <div className="success-container">
             <div className="success-message" role="alert">
-              {message}
+              Your email has been verified successfully!
             </div>
-            <p>Your email has been verified successfully!</p>
-            <p>Redirecting to login page...</p>
-            <Link to="/login" className="btn-primary">
-              Go to Login Now
-            </Link>
+            {onMobile ? (
+              <>
+                <p>Opening the Todue app...</p>
+                <Link to="/login" className="btn-secondary">
+                  Continue in browser instead
+                </Link>
+              </>
+            ) : (
+              <>
+                <p>Redirecting to login page...</p>
+                <Link to="/login" className="btn-primary">
+                  Go to Login Now
+                </Link>
+              </>
+            )}
           </div>
         )}
 

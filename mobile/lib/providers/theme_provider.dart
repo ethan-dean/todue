@@ -104,6 +104,15 @@ class ThemeProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> resetToDefaults() async {
+    _themeMode = ThemeMode.system;
+    _accentColor = Colors.green;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('themeMode');
+    await prefs.remove('accentColor');
+    notifyListeners();
+  }
+
   Future<void> setAccentColorFromHex(String? hex) async {
     if (hex == null) {
       _accentColor = Colors.green;

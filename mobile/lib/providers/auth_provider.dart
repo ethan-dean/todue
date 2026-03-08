@@ -26,6 +26,14 @@ class AuthProvider extends ChangeNotifier {
   final DatabaseService _databaseService;
   final WebSocketService _websocketService;
 
+  /// Called after a successful login with the logged-in user.
+  /// Wired up in main.dart to apply accent color and prefetch todos.
+  Future<void> Function(User user)? onLogin;
+
+  /// Called just before state is cleared on logout.
+  /// Wired up in main.dart to reset theme/accent and clear todo state.
+  Future<void> Function()? onLogout;
+
   AuthProvider({
     AuthApi? authApi,
     UserApi? userApi,
@@ -166,6 +174,13 @@ class AuthProvider extends ChangeNotifier {
       print('AuthProvider: Error connecting WebSocket: $e');
     }
 
+    // Apply accent color and prefetch todos for the new user
+    try {
+      await onLogin?.call(response.user);
+    } catch (e) {
+      print('AuthProvider: onLogin callback error: $e');
+    }
+
     notifyListeners();
     print('AuthProvider: listeners notified');
   }
@@ -188,6 +203,13 @@ class AuthProvider extends ChangeNotifier {
 
       // Clear local database
       await _databaseService.clearAllData();
+
+      // Reset theme/accent and in-memory todo state
+      try {
+        await onLogout?.call();
+      } catch (e) {
+        print('AuthProvider: onLogout callback error: $e');
+      }
 
       // Clear state
       _user = null;

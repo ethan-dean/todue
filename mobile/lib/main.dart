@@ -35,7 +35,26 @@ class TodoApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (ctx) {
+          final authProvider = AuthProvider();
+          // Wire up callbacks after the widget tree is built so we can read
+          // sibling providers via context.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            final themeProvider = ctx.read<ThemeProvider>();
+            final todoProvider = ctx.read<TodoProvider>();
+
+            authProvider.onLogin = (user) async {
+              await themeProvider.setAccentColorFromHex(user.accentColor);
+              await todoProvider.initializeForUser();
+            };
+
+            authProvider.onLogout = () async {
+              await themeProvider.resetToDefaults();
+              todoProvider.resetForLogout();
+            };
+          });
+          return authProvider;
+        }),
         ChangeNotifierProvider(
           create: (_) => TodoProvider(
             todoApi: TodoApi.instance,
