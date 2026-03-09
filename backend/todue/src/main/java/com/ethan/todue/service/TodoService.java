@@ -497,18 +497,37 @@ public class TodoService {
         allTodos.remove(oldIndex);
         allTodos.add(newPosition, movedTodo);
 
-        // Only renumber the affected range (between old and new positions)
+        // Renumber the affected range (between old and new positions)
         int startIdx = Math.min(oldIndex, newPosition);
         int endIdx = Math.max(oldIndex, newPosition);
 
-        List<Todo> affectedTodos = new ArrayList<>();
         for (int i = startIdx; i <= endIdx; i++) {
             allTodos.get(i).setPosition(i + 1);
-            affectedTodos.add(allTodos.get(i));
         }
 
-        // Save only the modified todos
-        todoRepository.saveAll(affectedTodos);
+        // Integrity check: verify positions are 1..n with no gaps or duplicates.
+        // Uses the already-in-memory list so no extra DB reads. If anything is off,
+        // extend the save to the full list to self-heal.
+        boolean positionsClean = true;
+        for (int i = 0; i < allTodos.size(); i++) {
+            if (allTodos.get(i).getPosition() != i + 1) {
+                positionsClean = false;
+                break;
+            }
+        }
+
+        List<Todo> todosToSave;
+        if (positionsClean) {
+            todosToSave = allTodos.subList(startIdx, endIdx + 1);
+        } else {
+            // Positions are inconsistent — renumber the full list and save all
+            for (int i = 0; i < allTodos.size(); i++) {
+                allTodos.get(i).setPosition(i + 1);
+            }
+            todosToSave = allTodos;
+        }
+
+        todoRepository.saveAll(todosToSave);
 
         // Send WebSocket notification - reorder affects only assigned date
         webSocketService.notifyTodosChanged(userId, assignedDate);
