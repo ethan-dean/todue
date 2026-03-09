@@ -67,6 +67,7 @@ class RoutineProvider extends ChangeNotifier with WidgetsBindingObserver {
   RoutineDetail? getRoutineDetail(int routineId) => _routineDetails[routineId];
   RoutineCompletion? getActiveExecution(int routineId) => _activeExecutions[routineId];
   RoutineAnalytics? getAnalytics(int routineId) => _analytics[routineId];
+  bool get hasActiveExecution => _activeExecutions.isNotEmpty;
 
   void setCurrentRoutineId(int? routineId) {
     _currentRoutineId = routineId;

@@ -285,7 +285,7 @@ class _MainNavigationState extends State<MainNavigation> {
           final hasNewPrompts = currentPromptIds
               .difference(_lastShownPromptRoutineIds)
               .isNotEmpty;
-          if (hasNewPrompts && !_isPromptDialogOpen) {
+          if (hasNewPrompts && !_isPromptDialogOpen && !routineProvider.hasActiveExecution) {
             _isPromptDialogOpen = true;
             _lastShownPromptRoutineIds = Set<int>.from(currentPromptIds);
             WidgetsBinding.instance.addPostFrameCallback((_) {
