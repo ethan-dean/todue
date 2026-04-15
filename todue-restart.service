@@ -1,0 +1,7 @@
+[Unit]
+Description=Restart Todue service
+RefuseManualStart=true
+
+[Service]
+Type=oneshot
+ExecStart=/bin/systemctl restart todue.service

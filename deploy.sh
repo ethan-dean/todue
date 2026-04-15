@@ -50,14 +50,16 @@ echo "✅ Backend built: $BUILT_JAR"
 cd ../..
 
 # 4. Transfer to VPS
-echo "📤 Uploading JAR and Service File to VPS ($VPS_HOST)..."
+echo "📤 Uploading JAR and Service Files to VPS ($VPS_HOST)..."
 scp "backend/todue/$BUILT_JAR" "$VPS_USER@$VPS_HOST:$VPS_DEST_DIR/$JAR_NAME"
 scp "todue.service" "$VPS_USER@$VPS_HOST:$VPS_DEST_DIR/todue.service"
-ssh "$VPS_USER@$VPS_HOST" "sudo mv $VPS_DEST_DIR/todue.service /etc/systemd/system/todue.service && sudo mkdir -p /var/log/todue && sudo chown $VPS_USER:$VPS_USER /var/log/todue"
+scp "todue-restart.service" "$VPS_USER@$VPS_HOST:$VPS_DEST_DIR/todue-restart.service"
+scp "todue-restart.timer" "$VPS_USER@$VPS_HOST:$VPS_DEST_DIR/todue-restart.timer"
+ssh "$VPS_USER@$VPS_HOST" "sudo mv $VPS_DEST_DIR/todue.service /etc/systemd/system/todue.service && sudo mv $VPS_DEST_DIR/todue-restart.service /etc/systemd/system/todue-restart.service && sudo mv $VPS_DEST_DIR/todue-restart.timer /etc/systemd/system/todue-restart.timer && sudo mkdir -p /var/log/todue && sudo chown $VPS_USER:$VPS_USER /var/log/todue"
 
-# 5. Restart Service
+# 5. Restart Service and enable timer
 echo "🔄 Reloading Daemon, Enabling and Restarting Service..."
-ssh "$VPS_USER@$VPS_HOST" "sudo systemctl daemon-reload && sudo systemctl enable $SERVICE_NAME && sudo systemctl restart $SERVICE_NAME"
+ssh "$VPS_USER@$VPS_HOST" "sudo systemctl daemon-reload && sudo systemctl enable $SERVICE_NAME && sudo systemctl restart $SERVICE_NAME && sudo systemctl enable --now todue-restart.timer"
 
 echo "=========================================="
 echo "✨ Deployment Complete!"
